@@ -194,11 +194,12 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
     </nav>
-    <div class="sidebar-footer">v1.0 · datos locales</div>
+    <div class="sidebar-footer">v1.1 · datos locales</div>
   </aside>
 
   <main class="main">
 
+    <!-- DASHBOARD -->
     <div id="dashboard" class="section active">
       <div class="page-header">
         <div class="page-title">Dashboard</div>
@@ -221,6 +222,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
+    <!-- VENTAS -->
     <div id="ventas" class="section">
       <div class="page-header">
         <div class="page-title">Ventas</div>
@@ -244,17 +246,21 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <label class="form-label">Notas</label>
           <input type="text" id="v-notas" placeholder="Sin cebolla, bien cocida...">
         </div>
-        <button class="btn btn-primary" onclick="agregarVenta()">✓ Registrar pedido</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" id="btn-ventas-submit" onclick="guardarVenta()">✓ Registrar pedido</button>
+          <button class="btn" id="btn-ventas-cancel" style="display:none" onclick="cancelarEdicion('ventas')">✕ Cancelar</button>
+        </div>
       </div>
       <div class="card">
         <div class="card-title"><span class="icon">≡</span> Historial</div>
         <div class="table-wrap">
-          <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Extras</th><th>Cant.</th><th>Pago</th><th>Total</th><th></th></tr></thead>
+          <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Extras</th><th>Cant.</th><th>Pago</th><th>Total</th><th>Acciones</th></tr></thead>
           <tbody id="ventas-tabla"></tbody></table>
         </div>
       </div>
     </div>
 
+    <!-- CLIENTES -->
     <div id="clientes" class="section">
       <div class="page-header">
         <div class="page-title">Clientes</div>
@@ -270,6 +276,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
+    <!-- STOCK -->
     <div id="stock" class="section">
       <div class="page-header">
         <div class="page-title">Stock</div>
@@ -285,17 +292,21 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Stock mínimo</label><input type="number" id="s-minimo" placeholder="0" step="0.01"></div>
           <div class="form-group"><label class="form-label">Categoría</label><select id="s-cat"><option>Carnes</option><option>Panificados</option><option>Lácteos</option><option>Verduras</option><option>Salsas</option><option>Aceites</option><option>Papas</option><option>Bebidas</option><option>Otros</option></select></div>
         </div>
-        <button class="btn btn-primary" onclick="agregarStock()">✓ Agregar al inventario</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" id="btn-stock-submit" onclick="guardarStock()">✓ Agregar al inventario</button>
+          <button class="btn" id="btn-stock-cancel" style="display:none" onclick="cancelarEdicion('stock')">✕ Cancelar</button>
+        </div>
       </div>
       <div class="card">
         <div class="card-title"><span class="icon">▣</span> Inventario actual</div>
         <div class="table-wrap">
-          <table><thead><tr><th>Ingrediente</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Último costo</th><th></th></tr></thead>
+          <table><thead><tr><th>Ingrediente</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Último costo</th><th>Acciones</th></tr></thead>
           <tbody id="stock-tabla"></tbody></table>
         </div>
       </div>
     </div>
 
+    <!-- RECETAS -->
     <div id="recetas" class="section">
       <div class="page-header">
         <div class="page-title">Recetas y menú</div>
@@ -311,9 +322,13 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
         </div>
         <div class="form-group" style="margin-bottom:10px"><label class="form-label">Descripción</label><input type="text" id="r-desc" placeholder="Carne 200g, lechuga, tomate, mayo..."></div>
         <div class="form-group" style="margin-bottom:12px"><label class="form-label">Ingredientes (nombre:cantidad:unidad — separados por coma)</label><input type="text" id="r-ing" placeholder="carne picada:200:g, pan:1:u, queso:1:u"></div>
-        <button class="btn btn-primary" onclick="agregarReceta()">✓ Guardar</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" id="btn-recetas-submit" onclick="guardarReceta()">✓ Guardar</button>
+          <button class="btn" id="btn-recetas-cancel" style="display:none" onclick="cancelarEdicion('recetas')">✕ Cancelar</button>
+        </div>
       </div>
       <div class="receta-grid" id="recetas-grid"></div>
+      
       <div class="card">
         <div class="card-title"><span class="icon">+</span> Extras disponibles</div>
         <div class="form-grid" style="margin-bottom:10px">
@@ -321,11 +336,15 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Precio ($)</label><input type="number" id="e-precio" placeholder="0"></div>
           <div class="form-group"><label class="form-label">Ingrediente asociado</label><input type="text" id="e-ing" placeholder="opcional"></div>
         </div>
-        <button class="btn" onclick="agregarExtra()">+ Agregar extra</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="btn-extras-submit" onclick="guardarExtra()">+ Agregar extra</button>
+          <button class="btn" id="btn-extras-cancel" style="display:none" onclick="cancelarEdicion('extras')">✕ Cancelar</button>
+        </div>
         <div class="extras-list" id="extras-lista"></div>
       </div>
     </div>
 
+    <!-- GASTOS -->
     <div id="gastos" class="section">
       <div class="page-header">
         <div class="page-title">Gastos</div>
@@ -340,13 +359,16 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Monto ($)</label><input type="number" id="g-monto" placeholder="0"></div>
         </div>
         <div class="form-group" style="margin-bottom:12px"><label class="form-label">Descripción</label><input type="text" id="g-desc" placeholder="Detalle del gasto"></div>
-        <button class="btn btn-primary" onclick="agregarGasto()">✓ Registrar</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" id="btn-gastos-submit" onclick="guardarGasto()">✓ Registrar</button>
+          <button class="btn" id="btn-gastos-cancel" style="display:none" onclick="cancelarEdicion('gastos')">✕ Cancelar</button>
+        </div>
       </div>
       <div class="metrics" id="gastos-metrics"></div>
       <div class="card" style="margin-top:16px">
         <div class="card-title"><span class="icon">≡</span> Historial de gastos</div>
         <div class="table-wrap">
-          <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Tipo</th><th>Monto</th><th></th></tr></thead>
+          <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Tipo</th><th>Monto</th><th>Acciones</th></tr></thead>
           <tbody id="gastos-tabla"></tbody></table>
         </div>
       </div>
@@ -359,7 +381,9 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 <script>
 const hoy = new Date().toISOString().split('T')[0];
 
-// ─── STATE ───────────────────────────────────────────────────────────
+// ─── ESTADO GLOBAL Y EDICIÓN ──────────────────────────────────────────
+let editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null };
+
 let db = JSON.parse(localStorage.getItem('burger_db') || 'null') || {
   nextId: 100,
   recetas: [
@@ -388,15 +412,9 @@ let db = JSON.parse(localStorage.getItem('burger_db') || 'null') || {
   ventas: [
     {id:1,fecha:'2026-06-01',cliente:'Juan P.',burger:'Clásica',extras:['Papas fritas'],qty:1,precio:3100,pago:'Efectivo',notas:''},
     {id:2,fecha:'2026-06-01',cliente:'María G.',burger:'Doble cheddar',extras:['Huevo frito'],qty:2,precio:7100,pago:'Transferencia',notas:'Sin cebolla'},
-    {id:3,fecha:'2026-06-01',cliente:'Carlos R.',burger:'Bacon deluxe',extras:[],qty:1,precio:3500,pago:'Efectivo',notas:''},
-    {id:4,fecha:'2026-06-07',cliente:'Ana M.',burger:'Clásica',extras:['Cheddar extra','Papas fritas'],qty:1,precio:3400,pago:'Débito',notas:''},
-    {id:5,fecha:'2026-06-07',cliente:'Pedro L.',burger:'Veggie',extras:[],qty:2,precio:5600,pago:'Efectivo',notas:''},
   ],
   gastos: [
     {id:1,fecha:'2026-06-01',cat:'Materia prima',desc:'Carne y verduras semanales',tipo:'Variable',monto:15000},
-    {id:2,fecha:'2026-06-01',cat:'Gas',desc:'Garrafa',tipo:'Variable',monto:3500},
-    {id:3,fecha:'2026-06-01',cat:'Aceite',desc:'Aceite girasol 5L',tipo:'Variable',monto:6000},
-    {id:4,fecha:'2026-06-01',cat:'Personal',desc:'Ayudante fin de semana',tipo:'Fijo',monto:8000},
   ]
 };
 
@@ -404,7 +422,7 @@ function save(){localStorage.setItem('burger_db',JSON.stringify(db))}
 function fmt(n){return '$'+Math.round(n).toLocaleString('es-AR')}
 function pct(a,b){return b?Math.round(a/b*100):0}
 
-// ─── NAV ─────────────────────────────────────────────────────────────
+// ─── NAVEGACIÓN ──────────────────────────────────────────────────────
 function showSection(id){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
@@ -416,13 +434,12 @@ function showSection(id){
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('show')}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show')}
 
-// ─── TOAST ───────────────────────────────────────────────────────────
 function toast(msg){
   const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2200);
 }
 
-// ─── RENDER ──────────────────────────────────────────────────────────
+// ─── RENDERIZADO ─────────────────────────────────────────────────────
 function render(){renderDash();renderVentas();renderStock();renderRecetas();renderClientes();renderGastos()}
 
 function renderDash(){
@@ -470,7 +487,7 @@ function renderDash(){
 
 function renderVentas(){
   const sel=document.getElementById('v-burger');
-  if(sel)sel.innerHTML=db.recetas.map(r=>`<option>${r.nombre}</option>`).join('');
+  if(sel)sel.innerHTML=db.recetas.map(r=>`<option value="${r.nombre}">${r.nombre}</option>`).join('');
   const extDiv=document.getElementById('v-extras');
   if(extDiv)extDiv.innerHTML=db.extras.map(e=>`<label class="extra-check-item"><input type="checkbox" value="${e.nombre}"> ${e.nombre} <span class="extra-precio">+${fmt(e.precio)}</span></label>`).join('');
   document.getElementById('ventas-tabla').innerHTML=db.ventas.slice().reverse().map(v=>`
@@ -482,7 +499,10 @@ function renderVentas(){
       <td>${v.qty}</td>
       <td><span class="badge badge-blue">${v.pago}</span></td>
       <td style="font-family:var(--font-mono);color:var(--accent)">${fmt(v.precio)}</td>
-      <td><button class="btn btn-sm btn-danger" onclick="eliminar('ventas',${v.id})">✕</button></td>
+      <td>
+        <button class="btn btn-sm" onclick="editarVenta(${v.id})" style="background:var(--surface2); margin-right:4px" title="Editar">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminar('ventas',${v.id})" title="Eliminar">✕</button>
+      </td>
     </tr>`).join('')||`<tr><td colspan="8" class="empty">Sin ventas registradas</td></tr>`;
 }
 
@@ -490,7 +510,6 @@ function renderStock(){
   document.getElementById('stock-tabla').innerHTML=db.stock.map(s=>{
     const estado=s.cantidad<s.minimo?'danger':s.cantidad===s.minimo?'warn':'ok';
     const label={'danger':'Comprar','warn':'Bajo','ok':'Ok'}[estado];
-    const p=Math.min(100,pct(s.cantidad,s.minimo*2||1));
     return`<tr>
       <td><strong>${s.nombre}</strong></td>
       <td><span class="tag">${s.categoria}</span></td>
@@ -498,26 +517,32 @@ function renderStock(){
       <td style="font-family:var(--font-mono);color:var(--muted)">${s.minimo} ${s.unidad}</td>
       <td><span class="badge badge-${estado}">${label}</span></td>
       <td style="font-family:var(--font-mono)">${fmt(s.costo)}</td>
-      <td><button class="btn btn-sm btn-danger" onclick="eliminar('stock',${s.id})">✕</button></td>
+      <td>
+        <button class="btn btn-sm" onclick="editarStock(${s.id})" style="background:var(--surface2); margin-right:4px">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminar('stock',${s.id})">✕</button>
+      </td>
     </tr>`;
   }).join('')||`<tr><td colspan="7" class="empty">Sin ingredientes</td></tr>`;
 }
 
 function renderRecetas(){
-  const colTipo={'Hamburguesa':'badge-accent','Combo':'badge-blue','Promo':'badge-warn','Vegetariana':'badge-ok'};
+  const colTipo={'Hamburguesa':'badge-accent','Combo':'badge-blue','Promo':'badge-warn','Vegetariana':'badge-ok','Bebida':'badge-ok','Guarnición':'badge-warn'};
   document.getElementById('recetas-grid').innerHTML=db.recetas.map(r=>{
     const margen=r.costo?Math.round((r.precio-r.costo)/r.precio*100):null;
     return`<div class="receta-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <span class="badge ${colTipo[r.tipo]||'badge-blue'}">${r.tipo}</span>
-        <button class="btn btn-sm btn-danger" onclick="eliminar('recetas',${r.id})">✕</button>
+        <div>
+            <button class="btn btn-sm" onclick="editarReceta(${r.id})" style="background:var(--surface2); margin-right:4px">✎</button>
+            <button class="btn btn-sm btn-danger" onclick="eliminar('recetas',${r.id})">✕</button>
+        </div>
       </div>
       <div class="receta-nombre">${r.nombre}</div>
       <div class="receta-precio">${fmt(r.precio)}</div>
       <div class="receta-desc">${r.desc}</div>
       ${r.costo?`<div style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">Costo: ${fmt(r.costo)} · Margen: ${margen}%</div>`:''}
       <hr>
-      <div style="margin-top:6px">${r.ing.split(',').map(i=>`<span class="tag">${i.trim()}</span>`).join('')}</div>
+      <div style="margin-top:6px">${r.ing?r.ing.split(',').map(i=>`<span class="tag">${i.trim()}</span>`).join(''):'—'}</div>
     </div>`;
   }).join('')||'<div class="empty">Sin variedades registradas</div>';
 
@@ -525,6 +550,7 @@ function renderRecetas(){
     <div class="extra-item">
       <span>${e.nombre}</span>
       <span class="extra-precio">${fmt(e.precio)}</span>
+      <button class="btn btn-sm" onclick="editarExtra(${e.id})" style="padding:2px 6px; margin-left:6px; background:var(--surface)">✎</button>
       <button class="btn btn-sm btn-danger" onclick="eliminar('extras',${e.id})" style="padding:2px 6px">✕</button>
     </div>`).join('');
 }
@@ -578,12 +604,16 @@ function renderGastos(){
       <td>${g.desc}</td>
       <td><span class="badge ${g.tipo==='Fijo'?'badge-ok':'badge-warn'}">${g.tipo}</span></td>
       <td style="font-family:var(--font-mono);color:var(--danger)">${fmt(g.monto)}</td>
-      <td><button class="btn btn-sm btn-danger" onclick="eliminar('gastos',${g.id})">✕</button></td>
+      <td>
+        <button class="btn btn-sm" onclick="editarGasto(${g.id})" style="background:var(--surface2); margin-right:4px">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminar('gastos',${g.id})">✕</button>
+      </td>
     </tr>`).join('')||`<tr><td colspan="6" class="empty">Sin gastos registrados</td></tr>`;
 }
 
-// ─── ACCIONES ────────────────────────────────────────────────────────
-function agregarVenta(){
+// ─── ACCIONES DE GUARDADO (CREAR O ACTUALIZAR) ───────────────────────
+
+function guardarVenta(){
   const cliente=document.getElementById('v-cliente').value.trim();
   const burger=document.getElementById('v-burger').value;
   const qty=parseInt(document.getElementById('v-qty').value)||1;
@@ -593,16 +623,20 @@ function agregarVenta(){
   const notas=document.getElementById('v-notas').value;
   const extras=[...document.querySelectorAll('#v-extras input:checked')].map(i=>i.value);
   if(!cliente||!precio){toast('⚠ Completá cliente y precio');return}
-  db.ventas.push({id:db.nextId++,fecha,cliente,burger,extras,qty,precio,pago,notas});
-  save();
-  document.getElementById('v-cliente').value='';
-  document.getElementById('v-precio').value='';
-  document.getElementById('v-notas').value='';
-  document.querySelectorAll('#v-extras input').forEach(i=>i.checked=false);
-  toast('✓ Venta registrada');render();
+
+  if(editando.ventas) {
+      const idx = db.ventas.findIndex(v => v.id === editando.ventas);
+      if(idx !== -1) db.ventas[idx] = { id: editando.ventas, fecha, cliente, burger, extras, qty, precio, pago, notas };
+      toast('✓ Pedido actualizado');
+  } else {
+      db.ventas.push({id:db.nextId++,fecha,cliente,burger,extras,qty,precio,pago,notas});
+      toast('✓ Venta registrada');
+  }
+  cancelarEdicion('ventas');
+  save();render();
 }
 
-function agregarStock(){
+function guardarStock(){
   const nombre=document.getElementById('s-nombre').value.trim();
   const cantidad=parseFloat(document.getElementById('s-cantidad').value)||0;
   const unidad=document.getElementById('s-unidad').value;
@@ -610,15 +644,22 @@ function agregarStock(){
   const minimo=parseFloat(document.getElementById('s-minimo').value)||0;
   const categoria=document.getElementById('s-cat').value;
   if(!nombre||!cantidad){toast('⚠ Completá nombre y cantidad');return}
-  const ex=db.stock.find(s=>s.nombre.toLowerCase()===nombre.toLowerCase());
-  if(ex){ex.cantidad=Math.round((ex.cantidad+cantidad)*100)/100;if(costo)ex.costo=costo;}
-  else db.stock.push({id:db.nextId++,nombre,cantidad,unidad,minimo,categoria,costo});
-  save();
-  ['s-nombre','s-cantidad','s-costo','s-minimo'].forEach(id=>document.getElementById(id).value='');
-  toast('✓ Stock actualizado');render();
+
+  if(editando.stock) {
+      const idx = db.stock.findIndex(s => s.id === editando.stock);
+      if(idx !== -1) db.stock[idx] = { id: editando.stock, nombre, cantidad, unidad, minimo, categoria, costo };
+      toast('✓ Ingrediente actualizado');
+  } else {
+      const ex=db.stock.find(s=>s.nombre.toLowerCase()===nombre.toLowerCase());
+      if(ex){ex.cantidad=Math.round((ex.cantidad+cantidad)*100)/100;if(costo)ex.costo=costo;}
+      else db.stock.push({id:db.nextId++,nombre,cantidad,unidad,minimo,categoria,costo});
+      toast('✓ Stock guardado');
+  }
+  cancelarEdicion('stock');
+  save();render();
 }
 
-function agregarReceta(){
+function guardarReceta(){
   const nombre=document.getElementById('r-nombre').value.trim();
   const tipo=document.getElementById('r-tipo').value;
   const precio=parseFloat(document.getElementById('r-precio').value)||0;
@@ -626,41 +667,179 @@ function agregarReceta(){
   const desc=document.getElementById('r-desc').value.trim();
   const ing=document.getElementById('r-ing').value.trim();
   if(!nombre||!precio){toast('⚠ Completá nombre y precio');return}
-  db.recetas.push({id:db.nextId++,nombre,tipo,precio,costo,desc,ing});
-  save();
-  ['r-nombre','r-precio','r-costo','r-desc','r-ing'].forEach(id=>document.getElementById(id).value='');
-  toast('✓ Variedad guardada');render();
+
+  if(editando.recetas) {
+      const idx = db.recetas.findIndex(r => r.id === editando.recetas);
+      if(idx !== -1) db.recetas[idx] = { id: editando.recetas, nombre, tipo, precio, costo, desc, ing };
+      toast('✓ Variedad actualizada');
+  } else {
+      db.recetas.push({id:db.nextId++,nombre,tipo,precio,costo,desc,ing});
+      toast('✓ Variedad guardada');
+  }
+  cancelarEdicion('recetas');
+  save();render();
 }
 
-function agregarExtra(){
+function guardarExtra(){
   const nombre=document.getElementById('e-nombre').value.trim();
   const precio=parseFloat(document.getElementById('e-precio').value)||0;
   const ing=document.getElementById('e-ing').value.trim();
   if(!nombre){toast('⚠ Ingresá el nombre');return}
-  db.extras.push({id:db.nextId++,nombre,precio,ing});
-  save();
-  ['e-nombre','e-precio','e-ing'].forEach(id=>document.getElementById(id).value='');
-  toast('✓ Extra agregado');render();
+
+  if(editando.extras) {
+      const idx = db.extras.findIndex(e => e.id === editando.extras);
+      if(idx !== -1) db.extras[idx] = { id: editando.extras, nombre, precio, ing };
+      toast('✓ Extra actualizado');
+  } else {
+      db.extras.push({id:db.nextId++,nombre,precio,ing});
+      toast('✓ Extra guardado');
+  }
+  cancelarEdicion('extras');
+  save();render();
 }
 
-function agregarGasto(){
+function guardarGasto(){
   const cat=document.getElementById('g-cat').value;
   const desc=document.getElementById('g-desc').value.trim();
   const monto=parseFloat(document.getElementById('g-monto').value)||0;
   const fecha=document.getElementById('g-fecha').value||hoy;
   const tipo=document.getElementById('g-tipo').value;
   if(!desc||!monto){toast('⚠ Completá descripción y monto');return}
-  db.gastos.push({id:db.nextId++,fecha,cat,desc,tipo,monto});
-  save();
-  document.getElementById('g-desc').value='';
-  document.getElementById('g-monto').value='';
-  toast('✓ Gasto registrado');render();
+
+  if(editando.gastos) {
+      const idx = db.gastos.findIndex(g => g.id === editando.gastos);
+      if(idx !== -1) db.gastos[idx] = { id: editando.gastos, fecha, cat, desc, tipo, monto };
+      toast('✓ Gasto actualizado');
+  } else {
+      db.gastos.push({id:db.nextId++,fecha,cat,desc,tipo,monto});
+      toast('✓ Gasto registrado');
+  }
+  cancelarEdicion('gastos');
+  save();render();
 }
 
+// ─── FUNCIONES PARA LLENAR LOS FORMULARIOS Y EDITAR ──────────────────
+
+function editarVenta(id) {
+    const v = db.ventas.find(x => x.id === id);
+    if(!v) return;
+    document.getElementById('v-fecha').value = v.fecha;
+    document.getElementById('v-cliente').value = v.cliente;
+    document.getElementById('v-burger').value = v.burger;
+    document.getElementById('v-qty').value = v.qty;
+    document.getElementById('v-precio').value = v.precio;
+    document.getElementById('v-pago').value = v.pago;
+    document.getElementById('v-notas').value = v.notas;
+    
+    document.querySelectorAll('#v-extras input').forEach(i => {
+        i.checked = v.extras.includes(i.value);
+    });
+
+    editando.ventas = id;
+    document.getElementById('btn-ventas-submit').textContent = '✓ Actualizar pedido';
+    document.getElementById('btn-ventas-cancel').style.display = 'inline-flex';
+    document.getElementById('ventas').scrollIntoView({behavior: 'smooth'});
+}
+
+function editarStock(id) {
+    const item = db.stock.find(s => s.id === id);
+    if(!item) return;
+    document.getElementById('s-nombre').value = item.nombre;
+    document.getElementById('s-cantidad').value = item.cantidad;
+    document.getElementById('s-unidad').value = item.unidad;
+    document.getElementById('s-costo').value = item.costo || '';
+    document.getElementById('s-minimo').value = item.minimo;
+    document.getElementById('s-cat').value = item.categoria;
+
+    editando.stock = id;
+    document.getElementById('btn-stock-submit').textContent = '✓ Actualizar inventario';
+    document.getElementById('btn-stock-cancel').style.display = 'inline-flex';
+    document.getElementById('stock').scrollIntoView({behavior: 'smooth'});
+}
+
+function editarReceta(id) {
+    const item = db.recetas.find(r => r.id === id);
+    if(!item) return;
+    document.getElementById('r-nombre').value = item.nombre;
+    document.getElementById('r-tipo').value = item.tipo;
+    document.getElementById('r-precio').value = item.precio;
+    document.getElementById('r-costo').value = item.costo || '';
+    document.getElementById('r-desc').value = item.desc || '';
+    document.getElementById('r-ing').value = item.ing || '';
+
+    editando.recetas = id;
+    document.getElementById('btn-recetas-submit').textContent = '✓ Actualizar variedad';
+    document.getElementById('btn-recetas-cancel').style.display = 'inline-flex';
+    document.getElementById('recetas').scrollIntoView({behavior: 'smooth'});
+}
+
+function editarExtra(id) {
+    const e = db.extras.find(x => x.id === id);
+    if(!e) return;
+    document.getElementById('e-nombre').value = e.nombre;
+    document.getElementById('e-precio').value = e.precio;
+    document.getElementById('e-ing').value = e.ing || '';
+
+    editando.extras = id;
+    document.getElementById('btn-extras-submit').textContent = '✓ Actualizar extra';
+    document.getElementById('btn-extras-cancel').style.display = 'inline-flex';
+}
+
+function editarGasto(id) {
+    const g = db.gastos.find(x => x.id === id);
+    if(!g) return;
+    document.getElementById('g-fecha').value = g.fecha;
+    document.getElementById('g-cat').value = g.cat;
+    document.getElementById('g-tipo').value = g.tipo;
+    document.getElementById('g-monto').value = g.monto;
+    document.getElementById('g-desc').value = g.desc;
+
+    editando.gastos = id;
+    document.getElementById('btn-gastos-submit').textContent = '✓ Actualizar gasto';
+    document.getElementById('btn-gastos-cancel').style.display = 'inline-flex';
+    document.getElementById('gastos').scrollIntoView({behavior: 'smooth'});
+}
+
+function cancelarEdicion(sec) {
+    editando[sec] = null;
+    const btnCancel = document.getElementById(`btn-${sec}-cancel`);
+    if(btnCancel) btnCancel.style.display = 'none';
+
+    if(sec==='ventas') {
+        document.getElementById('v-cliente').value='';
+        document.getElementById('v-precio').value='';
+        document.getElementById('v-notas').value='';
+        document.getElementById('v-qty').value='1';
+        document.getElementById('v-fecha').value=hoy;
+        document.querySelectorAll('#v-extras input').forEach(i=>i.checked=false);
+        document.getElementById('btn-ventas-submit').textContent = '✓ Registrar pedido';
+    }
+    else if(sec==='stock') {
+        ['s-nombre','s-cantidad','s-costo','s-minimo'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('btn-stock-submit').textContent = '✓ Agregar al inventario';
+    }
+    else if(sec==='recetas') {
+        ['r-nombre','r-precio','r-costo','r-desc','r-ing'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('btn-recetas-submit').textContent = '✓ Guardar';
+    }
+    else if(sec==='extras') {
+        ['e-nombre','e-precio','e-ing'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('btn-extras-submit').textContent = '+ Agregar extra';
+    }
+    else if(sec==='gastos') {
+        document.getElementById('g-desc').value='';
+        document.getElementById('g-monto').value='';
+        document.getElementById('g-fecha').value=hoy;
+        document.getElementById('btn-gastos-submit').textContent = '✓ Registrar';
+    }
+}
+
+// ─── ELIMINAR ────────────────────────────────────────────────────────
+
 function eliminar(tabla,id){
-  if(!confirm('¿Eliminar este registro?'))return;
+  if(!confirm('¿Estás seguro de eliminar este registro?'))return;
   db[tabla]=db[tabla].filter(r=>r.id!==id);
-  save();toast('Eliminado');render();
+  save();toast('✓ Eliminado');render();
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────
