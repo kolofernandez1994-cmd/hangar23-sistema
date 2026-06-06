@@ -194,12 +194,11 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
     </nav>
-    <div class="sidebar-footer">v1.1 · datos locales</div>
+    <div class="sidebar-footer">v1.2 · datos locales</div>
   </aside>
 
   <main class="main">
 
-    <!-- DASHBOARD -->
     <div id="dashboard" class="section active">
       <div class="page-header">
         <div class="page-title">Dashboard</div>
@@ -222,7 +221,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- VENTAS -->
     <div id="ventas" class="section">
       <div class="page-header">
         <div class="page-title">Ventas</div>
@@ -233,8 +231,8 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
         <div class="form-grid">
           <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="v-fecha"></div>
           <div class="form-group"><label class="form-label">Cliente</label><input type="text" id="v-cliente" placeholder="Nombre"></div>
-          <div class="form-group"><label class="form-label">Producto / Combo</label><select id="v-burger"></select></div>
-          <div class="form-group"><label class="form-label">Cantidad</label><input type="number" id="v-qty" value="1" min="1"></div>
+          <div class="form-group"><label class="form-label">Producto / Combo</label><select id="v-burger" onchange="actualizarPrecio()"></select></div>
+          <div class="form-group"><label class="form-label">Cantidad</label><input type="number" id="v-qty" value="1" min="1" oninput="actualizarPrecio()"></div>
           <div class="form-group"><label class="form-label">Precio total ($)</label><input type="number" id="v-precio" placeholder="0"></div>
           <div class="form-group"><label class="form-label">Método de pago</label><select id="v-pago"><option>Efectivo</option><option>Transferencia</option><option>Débito</option><option>Crédito</option></select></div>
         </div>
@@ -260,7 +258,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- CLIENTES -->
     <div id="clientes" class="section">
       <div class="page-header">
         <div class="page-title">Clientes</div>
@@ -276,7 +273,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- STOCK -->
     <div id="stock" class="section">
       <div class="page-header">
         <div class="page-title">Stock</div>
@@ -306,7 +302,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- RECETAS -->
     <div id="recetas" class="section">
       <div class="page-header">
         <div class="page-title">Recetas y menú</div>
@@ -344,7 +339,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- GASTOS -->
     <div id="gastos" class="section">
       <div class="page-header">
         <div class="page-title">Gastos</div>
@@ -487,9 +481,11 @@ function renderDash(){
 
 function renderVentas(){
   const sel=document.getElementById('v-burger');
-  if(sel)sel.innerHTML=db.recetas.map(r=>`<option value="${r.nombre}">${r.nombre}</option>`).join('');
+  if(sel && !editando.ventas) sel.innerHTML=db.recetas.map(r=>`<option value="${r.nombre}">${r.nombre}</option>`).join('');
+  
   const extDiv=document.getElementById('v-extras');
-  if(extDiv)extDiv.innerHTML=db.extras.map(e=>`<label class="extra-check-item"><input type="checkbox" value="${e.nombre}"> ${e.nombre} <span class="extra-precio">+${fmt(e.precio)}</span></label>`).join('');
+  if(extDiv && !editando.ventas) extDiv.innerHTML=db.extras.map(e=>`<label class="extra-check-item"><input type="checkbox" value="${e.nombre}" onchange="actualizarPrecio()"> ${e.nombre} <span class="extra-precio">+${fmt(e.precio)}</span></label>`).join('');
+  
   document.getElementById('ventas-tabla').innerHTML=db.ventas.slice().reverse().map(v=>`
     <tr>
       <td style="font-family:var(--font-mono);font-size:11px">${v.fecha}</td>
@@ -611,6 +607,26 @@ function renderGastos(){
     </tr>`).join('')||`<tr><td colspan="6" class="empty">Sin gastos registrados</td></tr>`;
 }
 
+// ─── LÓGICA DE PRECIO AUTOMÁTICO ─────────────────────────────────────
+function actualizarPrecio() {
+  const nombreBurger = document.getElementById('v-burger').value;
+  const receta = db.recetas.find(r => r.nombre === nombreBurger);
+  if (!receta) return;
+
+  let total = receta.precio;
+
+  // Sumar extras tildados
+  document.querySelectorAll('#v-extras input:checked').forEach(chk => {
+    const extra = db.extras.find(e => e.nombre === chk.value);
+    if (extra) total += extra.precio;
+  });
+
+  // Multiplicar por cantidad
+  const qty = parseInt(document.getElementById('v-qty').value) || 1;
+  
+  document.getElementById('v-precio').value = total * qty;
+}
+
 // ─── ACCIONES DE GUARDADO (CREAR O ACTUALIZAR) ───────────────────────
 
 function guardarVenta(){
@@ -677,7 +693,9 @@ function guardarReceta(){
       toast('✓ Variedad guardada');
   }
   cancelarEdicion('recetas');
-  save();render();
+  save();
+  render();
+  actualizarPrecio(); // Refresca el precio por si modificaste la burger seleccionada
 }
 
 function guardarExtra(){
@@ -727,13 +745,15 @@ function editarVenta(id) {
     document.getElementById('v-cliente').value = v.cliente;
     document.getElementById('v-burger').value = v.burger;
     document.getElementById('v-qty').value = v.qty;
-    document.getElementById('v-precio').value = v.precio;
     document.getElementById('v-pago').value = v.pago;
     document.getElementById('v-notas').value = v.notas;
     
     document.querySelectorAll('#v-extras input').forEach(i => {
         i.checked = v.extras.includes(i.value);
     });
+
+    // Colocamos el precio original guardado, por si era un precio viejo diferente al actual
+    document.getElementById('v-precio').value = v.precio;
 
     editando.ventas = id;
     document.getElementById('btn-ventas-submit').textContent = '✓ Actualizar pedido';
@@ -807,12 +827,12 @@ function cancelarEdicion(sec) {
 
     if(sec==='ventas') {
         document.getElementById('v-cliente').value='';
-        document.getElementById('v-precio').value='';
         document.getElementById('v-notas').value='';
         document.getElementById('v-qty').value='1';
         document.getElementById('v-fecha').value=hoy;
         document.querySelectorAll('#v-extras input').forEach(i=>i.checked=false);
         document.getElementById('btn-ventas-submit').textContent = '✓ Registrar pedido';
+        actualizarPrecio();
     }
     else if(sec==='stock') {
         ['s-nombre','s-cantidad','s-costo','s-minimo'].forEach(id=>document.getElementById(id).value='');
@@ -846,6 +866,7 @@ function eliminar(tabla,id){
 document.getElementById('v-fecha').value=hoy;
 document.getElementById('g-fecha').value=hoy;
 render();
+setTimeout(actualizarPrecio, 100); // Llenamos el precio automático apenas carga la página
 </script>
 </body>
 </html>
