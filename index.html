@@ -136,10 +136,13 @@ tbody tr:hover td{background:var(--surface2)}
 .ranking-name{font-size:13px;font-weight:500;margin-bottom:4px}
 .ranking-count{font-family:var(--font-mono);font-size:13px;font-weight:500}
 
-/* EXTRAS */
+/* EXTRAS & CARRITO */
 .extras-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .extra-item{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:12px}
 .extra-precio{font-family:var(--font-mono);color:var(--accent)}
+
+.carrito-box { background: rgba(0,0,0,0.2); border: 1px dashed var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+.carrito-lista { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 
 /* CHECKBOXES EXTRAS */
 .extras-check{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0}
@@ -169,6 +172,25 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 .chart-wrap{position:relative;width:100%;height:180px;margin-top:1rem}
 
 .empty{color:var(--muted);font-size:13px;padding:1.5rem 0;text-align:center;font-family:var(--font-mono)}
+
+/* CSS PARA IMPRESIÓN (COMANDA) */
+#comanda-print { display: none; }
+@media print {
+  body * { visibility: hidden; }
+  #comanda-print, #comanda-print * { visibility: visible; }
+  #comanda-print { 
+    position: absolute; 
+    left: 0; 
+    top: 0; 
+    width: 80mm; 
+    font-family: 'DM Mono', monospace; 
+    font-size: 14px; 
+    color: #000; 
+    background: #fff;
+    margin: 0;
+    padding: 10px;
+  }
+}
 </style>
 </head>
 <body>
@@ -176,6 +198,9 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú">☰</button>
 <div class="toast" id="toast"></div>
+
+<!-- CONTENEDOR OCULTO PARA IMPRIMIR LA COMANDA -->
+<div id="comanda-print"></div>
 
 <div class="app">
   <aside class="sidebar" id="sidebar">
@@ -194,11 +219,12 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
     </nav>
-    <div class="sidebar-footer">v1.2 · datos locales</div>
+    <div class="sidebar-footer">v1.4 · Carrito y Comanda</div>
   </aside>
 
   <main class="main">
 
+    <!-- DASHBOARD -->
     <div id="dashboard" class="section active">
       <div class="page-header">
         <div class="page-title">Dashboard</div>
@@ -221,6 +247,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
+    <!-- VENTAS -->
     <div id="ventas" class="section">
       <div class="page-header">
         <div class="page-title">Ventas</div>
@@ -228,36 +255,60 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
       <div class="card">
         <div class="card-title"><span class="icon">+</span> Nuevo pedido</div>
+        
+        <!-- CARRITO DE COMPRAS: Selección de Ítems -->
+        <div style="border-left: 3px solid var(--accent); padding-left: 12px; margin-bottom: 20px;">
+            <div class="form-label" style="margin-bottom:8px">1. Sumar productos al pedido</div>
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">Producto / Combo</label><select id="v-burger" onchange="actualizarPrecioItem()"></select></div>
+              <div class="form-group"><label class="form-label">Cantidad</label><input type="number" id="v-qty" value="1" min="1" oninput="actualizarPrecioItem()"></div>
+              <div class="form-group"><label class="form-label">Subtotal ítem ($)</label><input type="number" id="v-item-precio" readonly style="background:var(--surface); color:var(--accent); font-weight:bold"></div>
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label class="form-label">Extras</label>
+              <div class="extras-check" id="v-extras"></div>
+            </div>
+            <button class="btn" style="background:var(--surface2)" onclick="agregarAlCarrito()">+ Agregar al carrito</button>
+        </div>
+
+        <hr>
+
+        <!-- CARRITO DE COMPRAS: Resumen del Pedido -->
+        <div class="form-label" style="margin-bottom:8px">2. Resumen del Carrito</div>
+        <div class="carrito-box">
+            <div id="v-carrito-lista" class="carrito-lista">
+                <div class="empty" style="padding:10px 0">El carrito está vacío</div>
+            </div>
+        </div>
+
+        <!-- CARRITO DE COMPRAS: Datos Finales -->
         <div class="form-grid">
           <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="v-fecha"></div>
           <div class="form-group"><label class="form-label">Cliente</label><input type="text" id="v-cliente" placeholder="Nombre"></div>
-          <div class="form-group"><label class="form-label">Producto / Combo</label><select id="v-burger" onchange="actualizarPrecio()"></select></div>
-          <div class="form-group"><label class="form-label">Cantidad</label><input type="number" id="v-qty" value="1" min="1" oninput="actualizarPrecio()"></div>
-          <div class="form-group"><label class="form-label">Precio total ($)</label><input type="number" id="v-precio" placeholder="0"></div>
           <div class="form-group"><label class="form-label">Método de pago</label><select id="v-pago"><option>Efectivo</option><option>Transferencia</option><option>Débito</option><option>Crédito</option></select></div>
+          <div class="form-group"><label class="form-label">TOTAL DEL PEDIDO ($)</label><input type="number" id="v-precio-total" placeholder="0"></div>
         </div>
-        <div class="form-group" style="margin-bottom:12px">
-          <label class="form-label">Extras</label>
-          <div class="extras-check" id="v-extras"></div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label class="form-label">Notas para la cocina (General)</label>
+          <input type="text" id="v-notas" placeholder="Mandar aderezos, rápido...">
         </div>
-        <div class="form-group" style="margin-bottom:12px">
-          <label class="form-label">Notas</label>
-          <input type="text" id="v-notas" placeholder="Sin cebolla, bien cocida...">
-        </div>
+        
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" id="btn-ventas-submit" onclick="guardarVenta()">✓ Registrar pedido</button>
           <button class="btn" id="btn-ventas-cancel" style="display:none" onclick="cancelarEdicion('ventas')">✕ Cancelar</button>
         </div>
       </div>
+
       <div class="card">
-        <div class="card-title"><span class="icon">≡</span> Historial</div>
+        <div class="card-title"><span class="icon">≡</span> Historial de Pedidos</div>
         <div class="table-wrap">
-          <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Extras</th><th>Cant.</th><th>Pago</th><th>Total</th><th>Acciones</th></tr></thead>
+          <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Pedido</th><th>Pago</th><th>Total</th><th>Acciones</th></tr></thead>
           <tbody id="ventas-tabla"></tbody></table>
         </div>
       </div>
     </div>
 
+    <!-- CLIENTES -->
     <div id="clientes" class="section">
       <div class="page-header">
         <div class="page-title">Clientes</div>
@@ -273,6 +324,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
+    <!-- STOCK -->
     <div id="stock" class="section">
       <div class="page-header">
         <div class="page-title">Stock</div>
@@ -302,6 +354,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
+    <!-- RECETAS -->
     <div id="recetas" class="section">
       <div class="page-header">
         <div class="page-title">Recetas y menú</div>
@@ -339,6 +392,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
+    <!-- GASTOS -->
     <div id="gastos" class="section">
       <div class="page-header">
         <div class="page-title">Gastos</div>
@@ -377,6 +431,7 @@ const hoy = new Date().toISOString().split('T')[0];
 
 // ─── ESTADO GLOBAL Y EDICIÓN ──────────────────────────────────────────
 let editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null };
+let carritoActual = []; // Variable para guardar el pedido en curso
 
 let db = JSON.parse(localStorage.getItem('burger_db') || 'null') || {
   nextId: 100,
@@ -398,19 +453,22 @@ let db = JSON.parse(localStorage.getItem('burger_db') || 'null') || {
     {id:2,nombre:'Pan de hamburguesa',cantidad:30,unidad:'u',minimo:20,categoria:'Panificados',costo:120},
     {id:3,nombre:'Queso cheddar',cantidad:1.5,unidad:'kg',minimo:1,categoria:'Lácteos',costo:2800},
     {id:4,nombre:'Lechuga',cantidad:0.5,unidad:'kg',minimo:1,categoria:'Verduras',costo:400},
-    {id:5,nombre:'Tomate',cantidad:2,unidad:'kg',minimo:1,categoria:'Verduras',costo:350},
-    {id:6,nombre:'Aceite girasol',cantidad:3,unidad:'l',minimo:2,categoria:'Aceites',costo:1200},
-    {id:7,nombre:'Papas',cantidad:8,unidad:'kg',minimo:5,categoria:'Papas',costo:600},
-    {id:8,nombre:'Bacon',cantidad:0.8,unidad:'kg',minimo:1,categoria:'Carnes',costo:4500},
   ],
-  ventas: [
-    {id:1,fecha:'2026-06-01',cliente:'Juan P.',burger:'Clásica',extras:['Papas fritas'],qty:1,precio:3100,pago:'Efectivo',notas:''},
-    {id:2,fecha:'2026-06-01',cliente:'María G.',burger:'Doble cheddar',extras:['Huevo frito'],qty:2,precio:7100,pago:'Transferencia',notas:'Sin cebolla'},
-  ],
+  ventas: [],
   gastos: [
     {id:1,fecha:'2026-06-01',cat:'Materia prima',desc:'Carne y verduras semanales',tipo:'Variable',monto:15000},
   ]
 };
+
+// ─── MIGRACIÓN AUTOMÁTICA (v1.3 a v1.4) ──────────────────────────────
+// Si detecta ventas viejas (con un solo producto), las convierte al formato de Carrito.
+db.ventas.forEach(v => {
+    if (!v.items && v.burger) {
+        v.items = [{ burger: v.burger, extras: v.extras || [], qty: v.qty || 1, subtotal: v.precio }];
+        v.total = v.precio;
+        delete v.burger; delete v.extras; delete v.qty; delete v.precio;
+    }
+});
 
 function save(){localStorage.setItem('burger_db',JSON.stringify(db))}
 function fmt(n){return '$'+Math.round(n).toLocaleString('es-AR')}
@@ -437,25 +495,32 @@ function toast(msg){
 function render(){renderDash();renderVentas();renderStock();renderRecetas();renderClientes();renderGastos()}
 
 function renderDash(){
-  const totalV=db.ventas.reduce((a,v)=>a+v.precio,0);
-  const totalG=db.gastos.reduce((a,g)=>a+g.monto,0);
-  const ganancia=totalV-totalG;
-  const pedidos=db.ventas.reduce((a,v)=>a+v.qty,0);
-  const margen=totalV?Math.round(ganancia/totalV*100):0;
+  const totalV = db.ventas.reduce((a,v) => a + v.total, 0);
+  const totalG = db.gastos.reduce((a,g) => a + g.monto, 0);
+  const ganancia = totalV - totalG;
+  // Suma total de hamburguesas vendidas analizando cada item dentro del pedido
+  const pedidos = db.ventas.reduce((a, v) => a + v.items.reduce((sum, item) => sum + item.qty, 0), 0);
+  const margen = totalV ? Math.round(ganancia/totalV*100) : 0;
+  
   document.getElementById('dash-metrics').innerHTML=`
     <div class="metric"><div class="metric-label">Ventas totales</div><div class="metric-value green">${fmt(totalV)}</div></div>
     <div class="metric"><div class="metric-label">Gastos totales</div><div class="metric-value red">${fmt(totalG)}</div></div>
     <div class="metric"><div class="metric-label">Ganancia neta</div><div class="metric-value ${ganancia>=0?'green':'red'}">${fmt(ganancia)}</div></div>
-    <div class="metric"><div class="metric-label">Pedidos</div><div class="metric-value yellow">${pedidos}</div></div>
+    <div class="metric"><div class="metric-label">Prod. Vendidos</div><div class="metric-value yellow">${pedidos}</div></div>
     <div class="metric"><div class="metric-label">Margen</div><div class="metric-value ${margen>=30?'green':margen>=15?'yellow':'red'}">${margen}%</div></div>
   `;
+  
   const bajo=db.stock.filter(s=>s.cantidad<=s.minimo);
   const alertas=document.getElementById('dash-alertas');
   alertas.innerHTML=bajo.length===0?'<div class="alert alert-ok">✓ Todo el stock está en orden</div>':
     bajo.map(s=>`<div class="alert ${s.cantidad<s.minimo?'alert-danger':'alert-warn'}">${s.cantidad<s.minimo?'⚠ Urgente':'! Bajo'} — <strong>${s.nombre}</strong>: ${s.cantidad} ${s.unidad} (mín: ${s.minimo})</div>`).join('');
 
   const conteo={};
-  db.ventas.forEach(v=>{conteo[v.burger]=(conteo[v.burger]||0)+v.qty});
+  db.ventas.forEach(v=>{
+      v.items.forEach(item => {
+          conteo[item.burger] = (conteo[item.burger] || 0) + item.qty;
+      });
+  });
   const sorted=Object.entries(conteo).sort((a,b)=>b[1]-a[1]);
   const colores=['#ffdb59','#f0c000','#c89a00','#8a6a00','#4a3800'];
   document.getElementById('dash-ranking').innerHTML=sorted.length?sorted.map(([n,c],i)=>`
@@ -484,25 +549,24 @@ function renderVentas(){
   if(sel && !editando.ventas) sel.innerHTML=db.recetas.map(r=>`<option value="${r.nombre}">${r.nombre}</option>`).join('');
   
   const extDiv=document.getElementById('v-extras');
-  if(extDiv && !editando.ventas) extDiv.innerHTML=db.extras.map(e=>`<label class="extra-check-item"><input type="checkbox" value="${e.nombre}" onchange="actualizarPrecio()"> ${e.nombre} <span class="extra-precio">+${fmt(e.precio)}</span></label>`).join('');
+  if(extDiv && !editando.ventas) extDiv.innerHTML=db.extras.map(e=>`<label class="extra-check-item"><input type="checkbox" value="${e.nombre}" onchange="actualizarPrecioItem()"> ${e.nombre} <span class="extra-precio">+${fmt(e.precio)}</span></label>`).join('');
   
   document.getElementById('ventas-tabla').innerHTML=db.ventas.slice().reverse().map(v=>`
     <tr>
       <td style="font-family:var(--font-mono);font-size:11px">${v.fecha}</td>
       <td><strong>${v.cliente}</strong></td>
-      <td>${v.burger}</td>
-      <td>${v.extras.map(e=>`<span class="tag">${e}</span>`).join('')||'—'}</td>
-      <td>${v.qty}</td>
+      <td style="font-size:12px; line-height:1.4">${v.items.map(i => `<strong>${i.qty}x</strong> ${i.burger} ${i.extras.length ? `<span class="tag" style="font-size:9px">${i.extras.join(', ')}</span>` : ''}`).join('<br>')}</td>
       <td><span class="badge badge-blue">${v.pago}</span></td>
-      <td style="font-family:var(--font-mono);color:var(--accent)">${fmt(v.precio)}</td>
-      <td>
+      <td style="font-family:var(--font-mono);color:var(--accent);font-weight:bold">${fmt(v.total)}</td>
+      <td style="min-width: 110px">
+        <button class="btn btn-sm" onclick="imprimirComanda(${v.id})" style="background:var(--surface2); margin-right:4px" title="Imprimir Comanda">🖨️</button>
         <button class="btn btn-sm" onclick="editarVenta(${v.id})" style="background:var(--surface2); margin-right:4px" title="Editar">✎</button>
         <button class="btn btn-sm btn-danger" onclick="eliminar('ventas',${v.id})" title="Eliminar">✕</button>
       </td>
-    </tr>`).join('')||`<tr><td colspan="8" class="empty">Sin ventas registradas</td></tr>`;
+    </tr>`).join('')||`<tr><td colspan="6" class="empty">Sin ventas registradas</td></tr>`;
 }
 
-function renderStock(){
+function renderStock() { /* ... igual que antes ... */ 
   document.getElementById('stock-tabla').innerHTML=db.stock.map(s=>{
     const estado=s.cantidad<s.minimo?'danger':s.cantidad===s.minimo?'warn':'ok';
     const label={'danger':'Comprar','warn':'Bajo','ok':'Ok'}[estado];
@@ -521,7 +585,7 @@ function renderStock(){
   }).join('')||`<tr><td colspan="7" class="empty">Sin ingredientes</td></tr>`;
 }
 
-function renderRecetas(){
+function renderRecetas() { /* ... igual que antes ... */ 
   const colTipo={'Hamburguesa':'badge-accent','Combo':'badge-blue','Promo':'badge-warn','Vegetariana':'badge-ok','Bebida':'badge-ok','Guarnición':'badge-warn'};
   document.getElementById('recetas-grid').innerHTML=db.recetas.map(r=>{
     const margen=r.costo?Math.round((r.precio-r.costo)/r.precio*100):null;
@@ -555,17 +619,24 @@ function renderClientes(){
   const mapa={};
   db.ventas.forEach(v=>{
     if(!mapa[v.cliente])mapa[v.cliente]={pedidos:0,total:0,fav:{},pagos:{},ultimo:''};
-    mapa[v.cliente].pedidos+=v.qty;
-    mapa[v.cliente].total+=v.precio;
-    mapa[v.cliente].fav[v.burger]=(mapa[v.cliente].fav[v.burger]||0)+1;
-    mapa[v.cliente].pagos[v.pago]=(mapa[v.cliente].pagos[v.pago]||0)+1;
-    if(v.fecha>mapa[v.cliente].ultimo)mapa[v.cliente].ultimo=v.fecha;
+    // Sumamos la cantidad de todos los ítems
+    const qtyTotal = v.items.reduce((sum, item) => sum + item.qty, 0);
+    mapa[v.cliente].pedidos += qtyTotal;
+    mapa[v.cliente].total += v.total;
+    mapa[v.cliente].pagos[v.pago] = (mapa[v.cliente].pagos[v.pago]||0)+1;
+    if(v.fecha>mapa[v.cliente].ultimo) mapa[v.cliente].ultimo=v.fecha;
+    
+    // Favorita
+    v.items.forEach(item => {
+        mapa[v.cliente].fav[item.burger] = (mapa[v.cliente].fav[item.burger]||0) + item.qty;
+    });
   });
   const lista=Object.entries(mapa).sort((a,b)=>b[1].total-a[1].total);
   const ticketProm=lista.length?Math.round(lista.reduce((a,[,c])=>a+c.total,0)/lista.reduce((a,[,c])=>a+c.pedidos,0)):0;
+  
   document.getElementById('clientes-metrics').innerHTML=`
     <div class="metric"><div class="metric-label">Clientes únicos</div><div class="metric-value yellow">${lista.length}</div></div>
-    <div class="metric"><div class="metric-label">Ticket promedio</div><div class="metric-value green">${fmt(ticketProm)}</div></div>
+    <div class="metric"><div class="metric-label">Gasto promedio</div><div class="metric-value green">${fmt(ticketProm)}</div></div>
     <div class="metric"><div class="metric-label">Mejor cliente</div><div class="metric-value orange" style="font-size:18px">${lista[0]?lista[0][0]:'—'}</div></div>
   `;
   document.getElementById('clientes-tabla').innerHTML=lista.map(([nombre,c])=>{
@@ -586,7 +657,8 @@ function renderGastos(){
   const total=db.gastos.reduce((a,g)=>a+g.monto,0);
   const fijos=db.gastos.filter(g=>g.tipo==='Fijo').reduce((a,g)=>a+g.monto,0);
   const vars=db.gastos.filter(g=>g.tipo==='Variable').reduce((a,g)=>a+g.monto,0);
-  const totalV=db.ventas.reduce((a,v)=>a+v.precio,0);
+  const totalV=db.ventas.reduce((a,v)=>a+v.total,0);
+  
   document.getElementById('gastos-metrics').innerHTML=`
     <div class="metric"><div class="metric-label">Total gastos</div><div class="metric-value red">${fmt(total)}</div></div>
     <div class="metric"><div class="metric-label">Fijos</div><div class="metric-value">${fmt(fijos)}</div></div>
@@ -607,52 +679,124 @@ function renderGastos(){
     </tr>`).join('')||`<tr><td colspan="6" class="empty">Sin gastos registrados</td></tr>`;
 }
 
-// ─── LÓGICA DE PRECIO AUTOMÁTICO ─────────────────────────────────────
-function actualizarPrecio() {
+// ─── LÓGICA DEL CARRITO DE COMPRAS ───────────────────────────────────
+
+function actualizarPrecioItem() {
   const nombreBurger = document.getElementById('v-burger').value;
   const receta = db.recetas.find(r => r.nombre === nombreBurger);
   if (!receta) return;
 
-  let total = receta.precio;
-
-  // Sumar extras tildados
+  let subtotal = receta.precio;
   document.querySelectorAll('#v-extras input:checked').forEach(chk => {
     const extra = db.extras.find(e => e.nombre === chk.value);
-    if (extra) total += extra.precio;
+    if (extra) subtotal += extra.precio;
   });
 
-  // Multiplicar por cantidad
   const qty = parseInt(document.getElementById('v-qty').value) || 1;
+  document.getElementById('v-item-precio').value = subtotal * qty;
+}
+
+function agregarAlCarrito() {
+  const burger = document.getElementById('v-burger').value;
+  const qty = parseInt(document.getElementById('v-qty').value) || 1;
+  const extras = [...document.querySelectorAll('#v-extras input:checked')].map(i => i.value);
+  const subtotal = parseFloat(document.getElementById('v-item-precio').value) || 0;
+
+  carritoActual.push({ burger, qty, extras, subtotal });
   
-  document.getElementById('v-precio').value = total * qty;
+  // Limpiar campos del ítem
+  document.getElementById('v-qty').value = 1;
+  document.querySelectorAll('#v-extras input').forEach(i => i.checked = false);
+  actualizarPrecioItem();
+  
+  renderCarrito();
+}
+
+function eliminarDelCarrito(index) {
+  carritoActual.splice(index, 1);
+  renderCarrito();
+}
+
+function renderCarrito() {
+  const cartDiv = document.getElementById('v-carrito-lista');
+  let sumaTotal = 0;
+  
+  if (carritoActual.length === 0) {
+      cartDiv.innerHTML = '<div class="empty" style="padding:10px 0">El carrito está vacío</div>';
+  } else {
+      cartDiv.innerHTML = carritoActual.map((item, index) => {
+          sumaTotal += item.subtotal;
+          return `
+          <div class="extra-item" style="justify-content:space-between; display:flex; width:100%; font-size:13px">
+             <div><strong>${item.qty}x ${item.burger}</strong> <span style="color:var(--muted);font-size:11px;margin-left:6px">${item.extras.join(', ')}</span></div>
+             <div><span class="extra-precio" style="margin-right:12px">${fmt(item.subtotal)}</span> <button class="btn btn-sm btn-danger" onclick="eliminarDelCarrito(${index})" style="padding:2px 6px">✕</button></div>
+          </div>`;
+      }).join('');
+  }
+  
+  document.getElementById('v-precio-total').value = sumaTotal;
+}
+
+// ─── IMPRESIÓN DE COMANDA ────────────────────────────────────────────
+function imprimirComanda(id) {
+    const v = db.ventas.find(x => x.id === id);
+    if(!v) return;
+    
+    let htmlItems = v.items.map(i => `
+        <div style="margin-bottom:8px">
+            <div>-> <strong>${i.qty}x ${i.burger}</strong></div>
+            ${i.extras.length ? `<div style="font-size:12px;font-weight:normal;padding-left:15px">(Extras: ${i.extras.join(', ')})</div>` : ''}
+        </div>
+    `).join('');
+
+    const printDiv = document.getElementById('comanda-print');
+    printDiv.innerHTML = `
+        <div style="text-align:center;font-size:18px;font-weight:bold;margin-bottom:10px;">HANGAR23 - COCINA</div>
+        <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:10px;">
+            <strong>Pedido:</strong> #${v.id}<br>
+            <strong>Fecha:</strong> ${v.fecha}<br>
+            <strong>Cliente:</strong> ${v.cliente}
+        </div>
+        <div style="font-size:16px;font-weight:bold;margin-bottom:8px;">
+            ${htmlItems}
+        </div>
+        <div style="border-top:1px dashed #000;padding-top:5px;margin-bottom:15px;">
+            <strong>NOTAS GENERALES:</strong><br>
+            ${v.notas || 'Sin notas'}
+        </div>
+        <div style="text-align:center;">--- FIN DE TICKET ---</div>
+    `;
+    window.print();
 }
 
 // ─── ACCIONES DE GUARDADO (CREAR O ACTUALIZAR) ───────────────────────
 
 function guardarVenta(){
-  const cliente=document.getElementById('v-cliente').value.trim();
-  const burger=document.getElementById('v-burger').value;
-  const qty=parseInt(document.getElementById('v-qty').value)||1;
-  const precio=parseFloat(document.getElementById('v-precio').value)||0;
-  const fecha=document.getElementById('v-fecha').value||hoy;
-  const pago=document.getElementById('v-pago').value;
-  const notas=document.getElementById('v-notas').value;
-  const extras=[...document.querySelectorAll('#v-extras input:checked')].map(i=>i.value);
-  if(!cliente||!precio){toast('⚠ Completá cliente y precio');return}
+  const cliente = document.getElementById('v-cliente').value.trim();
+  const fecha = document.getElementById('v-fecha').value || hoy;
+  const pago = document.getElementById('v-pago').value;
+  const notas = document.getElementById('v-notas').value;
+  const total = parseFloat(document.getElementById('v-precio-total').value) || 0;
+
+  if(!cliente || carritoActual.length === 0){
+      toast('⚠ Agregá un cliente y productos al carrito');
+      return;
+  }
 
   if(editando.ventas) {
       const idx = db.ventas.findIndex(v => v.id === editando.ventas);
-      if(idx !== -1) db.ventas[idx] = { id: editando.ventas, fecha, cliente, burger, extras, qty, precio, pago, notas };
+      if(idx !== -1) db.ventas[idx] = { id: editando.ventas, fecha, cliente, items: [...carritoActual], total, pago, notas };
       toast('✓ Pedido actualizado');
   } else {
-      db.ventas.push({id:db.nextId++,fecha,cliente,burger,extras,qty,precio,pago,notas});
+      db.ventas.push({ id: db.nextId++, fecha, cliente, items: [...carritoActual], total, pago, notas });
       toast('✓ Venta registrada');
   }
+  
   cancelarEdicion('ventas');
-  save();render();
+  save(); render();
 }
 
-function guardarStock(){
+function guardarStock() { /* igual */
   const nombre=document.getElementById('s-nombre').value.trim();
   const cantidad=parseFloat(document.getElementById('s-cantidad').value)||0;
   const unidad=document.getElementById('s-unidad').value;
@@ -675,7 +819,7 @@ function guardarStock(){
   save();render();
 }
 
-function guardarReceta(){
+function guardarReceta() { /* igual */
   const nombre=document.getElementById('r-nombre').value.trim();
   const tipo=document.getElementById('r-tipo').value;
   const precio=parseFloat(document.getElementById('r-precio').value)||0;
@@ -695,10 +839,10 @@ function guardarReceta(){
   cancelarEdicion('recetas');
   save();
   render();
-  actualizarPrecio(); // Refresca el precio por si modificaste la burger seleccionada
+  actualizarPrecioItem(); 
 }
 
-function guardarExtra(){
+function guardarExtra(){ /* igual */
   const nombre=document.getElementById('e-nombre').value.trim();
   const precio=parseFloat(document.getElementById('e-precio').value)||0;
   const ing=document.getElementById('e-ing').value.trim();
@@ -716,7 +860,7 @@ function guardarExtra(){
   save();render();
 }
 
-function guardarGasto(){
+function guardarGasto() { /* igual */
   const cat=document.getElementById('g-cat').value;
   const desc=document.getElementById('g-desc').value.trim();
   const monto=parseFloat(document.getElementById('g-monto').value)||0;
@@ -743,17 +887,15 @@ function editarVenta(id) {
     if(!v) return;
     document.getElementById('v-fecha').value = v.fecha;
     document.getElementById('v-cliente').value = v.cliente;
-    document.getElementById('v-burger').value = v.burger;
-    document.getElementById('v-qty').value = v.qty;
     document.getElementById('v-pago').value = v.pago;
     document.getElementById('v-notas').value = v.notas;
     
-    document.querySelectorAll('#v-extras input').forEach(i => {
-        i.checked = v.extras.includes(i.value);
-    });
-
-    // Colocamos el precio original guardado, por si era un precio viejo diferente al actual
-    document.getElementById('v-precio').value = v.precio;
+    // Cargar los ítems guardados al carrito actual
+    carritoActual = JSON.parse(JSON.stringify(v.items));
+    renderCarrito();
+    
+    // Pisar el total calculado con el guardado (por si hizo un descuento manual)
+    document.getElementById('v-precio-total').value = v.total;
 
     editando.ventas = id;
     document.getElementById('btn-ventas-submit').textContent = '✓ Actualizar pedido';
@@ -761,7 +903,7 @@ function editarVenta(id) {
     document.getElementById('ventas').scrollIntoView({behavior: 'smooth'});
 }
 
-function editarStock(id) {
+function editarStock(id) { /* igual */
     const item = db.stock.find(s => s.id === id);
     if(!item) return;
     document.getElementById('s-nombre').value = item.nombre;
@@ -777,7 +919,7 @@ function editarStock(id) {
     document.getElementById('stock').scrollIntoView({behavior: 'smooth'});
 }
 
-function editarReceta(id) {
+function editarReceta(id) { /* igual */
     const item = db.recetas.find(r => r.id === id);
     if(!item) return;
     document.getElementById('r-nombre').value = item.nombre;
@@ -793,7 +935,7 @@ function editarReceta(id) {
     document.getElementById('recetas').scrollIntoView({behavior: 'smooth'});
 }
 
-function editarExtra(id) {
+function editarExtra(id) { /* igual */
     const e = db.extras.find(x => x.id === id);
     if(!e) return;
     document.getElementById('e-nombre').value = e.nombre;
@@ -805,7 +947,7 @@ function editarExtra(id) {
     document.getElementById('btn-extras-cancel').style.display = 'inline-flex';
 }
 
-function editarGasto(id) {
+function editarGasto(id) { /* igual */
     const g = db.gastos.find(x => x.id === id);
     if(!g) return;
     document.getElementById('g-fecha').value = g.fecha;
@@ -828,11 +970,16 @@ function cancelarEdicion(sec) {
     if(sec==='ventas') {
         document.getElementById('v-cliente').value='';
         document.getElementById('v-notas').value='';
-        document.getElementById('v-qty').value='1';
         document.getElementById('v-fecha').value=hoy;
+        
+        carritoActual = [];
+        renderCarrito();
+        
+        document.getElementById('v-qty').value='1';
         document.querySelectorAll('#v-extras input').forEach(i=>i.checked=false);
+        actualizarPrecioItem();
+        
         document.getElementById('btn-ventas-submit').textContent = '✓ Registrar pedido';
-        actualizarPrecio();
     }
     else if(sec==='stock') {
         ['s-nombre','s-cantidad','s-costo','s-minimo'].forEach(id=>document.getElementById(id).value='');
@@ -866,7 +1013,7 @@ function eliminar(tabla,id){
 document.getElementById('v-fecha').value=hoy;
 document.getElementById('g-fecha').value=hoy;
 render();
-setTimeout(actualizarPrecio, 100); // Llenamos el precio automático apenas carga la página
+setTimeout(actualizarPrecioItem, 100); 
 </script>
 </body>
 </html>
