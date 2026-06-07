@@ -51,7 +51,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-si
 
 /* PAGE HEADER */
 .page-header{margin-bottom:2rem}
-.page-title{font-family:var(--font-head);font-size:42px;font-weight:400;letter-spacing:2px;line-height:1}
+.page-title{font-family:var(--font-head);font-size:42px;font-weight:400;letter-spacing:2px;line-height:1; display:flex; align-items:center; gap:15px;}
 .page-sub{color:var(--muted);font-size:13px;margin-top:4px}
 
 /* METRIC CARDS */
@@ -185,7 +185,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
   #comanda-print {
     display: block !important;
     width: 100%;
-    max-width: 80mm; /* Adaptado perfecto para ticketera térmica */
+    max-width: 80mm;
     margin: 0;
     padding: 15px 10px;
     font-family: 'DM Mono', monospace;
@@ -201,6 +201,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú">☰</button>
 <div class="toast" id="toast"></div>
 
+<!-- CONTENEDOR OCULTO PARA IMPRIMIR LA COMANDA -->
 <div id="comanda-print"></div>
 
 <div class="app">
@@ -220,14 +221,21 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
     </nav>
-    <div class="sidebar-footer">v2.0 · Nube Firebase</div>
+    <div class="sidebar-footer">v2.1 · Nube Firebase</div>
   </aside>
 
   <main class="main">
 
+    <!-- DASHBOARD -->
     <div id="dashboard" class="section active">
       <div class="page-header">
-        <div class="page-title">Dashboard</div>
+        <div class="page-title">
+            Dashboard
+            <!-- Botón Mágico para inyectar datos iniciales -->
+            <button id="btn-seed" class="btn btn-sm" style="margin-left:20px; background:var(--surface2); color:var(--text); border: 1px solid var(--border);" onclick="cargarDatosBase()">
+                ⚙️ Restaurar Menú Base
+            </button>
+        </div>
         <div class="page-sub">Resumen general del negocio</div>
       </div>
       <div class="metrics" id="dash-metrics"></div>
@@ -247,6 +255,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
+    <!-- VENTAS -->
     <div id="ventas" class="section">
       <div class="page-header">
         <div class="page-title">Ventas</div>
@@ -255,6 +264,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="card">
         <div class="card-title"><span class="icon">+</span> Nuevo pedido</div>
         
+        <!-- CARRITO DE COMPRAS -->
         <div style="border-left: 3px solid var(--accent); padding-left: 12px; margin-bottom: 20px;">
             <div class="form-label" style="margin-bottom:8px">1. Sumar productos al pedido</div>
             <div class="form-grid">
@@ -271,6 +281,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 
         <hr>
 
+        <!-- RESUMEN DEL CARRITO -->
         <div class="form-label" style="margin-bottom:8px">2. Resumen del Carrito</div>
         <div class="carrito-box">
             <div id="v-carrito-lista" class="carrito-lista">
@@ -278,6 +289,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
             </div>
         </div>
 
+        <!-- DATOS FINALES -->
         <div class="form-grid">
           <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="v-fecha"></div>
           <div class="form-group"><label class="form-label">Cliente</label><input type="text" id="v-cliente" placeholder="Nombre"></div>
@@ -304,6 +316,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
+    <!-- CLIENTES -->
     <div id="clientes" class="section">
       <div class="page-header">
         <div class="page-title">Clientes</div>
@@ -319,6 +332,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
+    <!-- STOCK -->
     <div id="stock" class="section">
       <div class="page-header">
         <div class="page-title">Stock</div>
@@ -349,6 +363,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
+    <!-- RECETAS -->
     <div id="recetas" class="section">
       <div class="page-header">
         <div class="page-title">Recetas y menú</div>
@@ -386,6 +401,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
+    <!-- GASTOS -->
     <div id="gastos" class="section">
       <div class="page-header">
         <div class="page-title">Gastos</div>
@@ -418,6 +434,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
   </main>
 </div>
 
+<!-- LIBRERÍAS Y SCRIPT -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 
 <script type="module">
@@ -425,7 +442,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// Tu configuración extraída de la imagen
+// Credenciales
 const firebaseConfig = {
   apiKey: "AIzaSyBOYQZZkcR_f7jBvweSnauOzPe92dsHO60",
   authDomain: "hangar23-668af.firebaseapp.com",
@@ -449,12 +466,52 @@ window.carritoActual = [];
 window.fmt = (n) => '$' + Math.round(n).toLocaleString('es-AR');
 window.pct = (a, b) => b ? Math.round((a / b) * 100) : 0;
 
+// ─── INYECCIÓN DE DATOS DE PRUEBA A LA NUBE ─────────────────────────────────
+window.cargarDatosBase = async function() {
+    if(!confirm('¿Estás seguro de inyectar el menú base en la base de datos?')) return;
+    const btn = document.getElementById('btn-seed');
+    btn.textContent = "Cargando en la nube...";
+    btn.disabled = true;
+
+    const recetasBase = [
+        {nombre:'Clásica',tipo:'Hamburguesa',precio:2500,costo:900,desc:'Carne 180g, lechuga, tomate, cebolla, mayonesa',ing:'carne picada:180:g, pan de hamburguesa:1:u, lechuga:30:g, tomate:50:g'},
+        {nombre:'Doble cheddar',tipo:'Hamburguesa',precio:3200,costo:1200,desc:'Doble carne, doble cheddar fundido',ing:'carne picada:360:g, pan de hamburguesa:1:u, queso cheddar:60:g'},
+        {nombre:'Veggie',tipo:'Vegetariana',precio:2800,costo:800,desc:'Medallón de berenjena, queso, verduras frescas',ing:'pan de hamburguesa:1:u, lechuga:50:g, tomate:80:g, queso cheddar:40:g'}
+    ];
+    const extrasBase = [
+        {nombre:'Cheddar extra',precio:300,ing:'queso cheddar:30:g'},
+        {nombre:'Bacon extra',precio:500,ing:'bacon:40:g'},
+        {nombre:'Papas fritas',precio:600,ing:'papas:200:g'}
+    ];
+    const stockBase = [
+        {fecha:window.hoy,nombre:'Carne picada',cantidad:5,unidad:'kg',minimo:2,categoria:'Carnes',costo:3200},
+        {fecha:window.hoy,nombre:'Pan de hamburguesa',cantidad:30,unidad:'u',minimo:20,categoria:'Panificados',costo:120},
+        {fecha:window.hoy,nombre:'Queso cheddar',cantidad:1.5,unidad:'kg',minimo:1,categoria:'Lácteos',costo:2800},
+        {fecha:window.hoy,nombre:'Lechuga',cantidad:0.5,unidad:'kg',minimo:1,categoria:'Verduras',costo:400},
+        {fecha:window.hoy,nombre:'Tomate',cantidad:2,unidad:'kg',minimo:1,categoria:'Verduras',costo:350},
+        {fecha:window.hoy,nombre:'Papas',cantidad:8,unidad:'kg',minimo:5,categoria:'Papas',costo:600},
+        {fecha:window.hoy,nombre:'Bacon',cantidad:0.8,unidad:'kg',minimo:1,categoria:'Carnes',costo:4500}
+    ];
+
+    try {
+        for(let r of recetasBase) await addDoc(collection(fsDb, 'recetas'), r);
+        for(let e of extrasBase) await addDoc(collection(fsDb, 'extras'), e);
+        for(let s of stockBase) await addDoc(collection(fsDb, 'stock'), s);
+        window.toast('✓ Menú base cargado en la nube');
+        btn.style.display = 'none'; 
+    } catch(e) {
+        console.error(e);
+        window.toast('⚠ Error al cargar datos');
+        btn.textContent = "Error. Intentá de nuevo.";
+        btn.disabled = false;
+    }
+}
+
 // ─── LECTURA EN TIEMPO REAL DESDE FIREBASE ──────────────────────────────────
 ['recetas', 'extras', 'stock', 'ventas', 'gastos'].forEach(colName => {
     onSnapshot(collection(fsDb, colName), (snapshot) => {
         window.db[colName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        // Ordenar temporalmente por fecha o nombre si es necesario
         if(colName === 'ventas' || colName === 'gastos') {
             window.db[colName].sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
         }
@@ -837,7 +894,6 @@ window.guardarStock = async function() {
           await updateDoc(doc(fsDb, 'stock', window.editando.stock), data);
           window.toast('✓ Ingrediente actualizado');
       } else {
-          // Check for existing
           const ex = window.db.stock.find(s=>s.nombre.toLowerCase()===nombre.toLowerCase());
           if(ex){
               let newCant = Math.round((ex.cantidad + cantidad)*100)/100;
