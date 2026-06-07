@@ -220,7 +220,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
     </nav>
-    <div class="sidebar-footer">v1.6 · Descuento de Stock OK</div>
+    <div class="sidebar-footer">v1.7 · Migración Data Lista</div>
   </aside>
 
   <main class="main">
@@ -327,6 +327,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="card">
         <div class="card-title"><span class="icon">+</span> Registrar compra / ingreso</div>
         <div class="form-grid">
+          <div class="form-group"><label class="form-label">Fecha de compra</label><input type="date" id="s-fecha"></div>
           <div class="form-group"><label class="form-label">Ingrediente</label><input type="text" id="s-nombre" placeholder="ej: carne picada"></div>
           <div class="form-group"><label class="form-label">Cantidad</label><input type="number" id="s-cantidad" placeholder="0" step="0.01"></div>
           <div class="form-group"><label class="form-label">Unidad</label><select id="s-unidad"><option>kg</option><option>g</option><option>u</option><option>l</option><option>ml</option><option>paq</option><option>caja</option></select></div>
@@ -342,7 +343,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="card">
         <div class="card-title"><span class="icon">▣</span> Inventario actual</div>
         <div class="table-wrap">
-          <table><thead><tr><th>Ingrediente</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Último costo</th><th>Acciones</th></tr></thead>
+          <table><thead><tr><th>Fecha</th><th>Ingrediente</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Último costo</th><th>Acciones</th></tr></thead>
           <tbody id="stock-tabla"></tbody></table>
         </div>
       </div>
@@ -438,13 +439,13 @@ let db = JSON.parse(localStorage.getItem('burger_db') || 'null') || {
     {id:3,nombre:'Papas fritas',precio:600,ing:'papas:200:g'},
   ],
   stock: [
-    {id:1,nombre:'Carne picada',cantidad:5,unidad:'kg',minimo:2,categoria:'Carnes',costo:3200},
-    {id:2,nombre:'Pan de hamburguesa',cantidad:30,unidad:'u',minimo:20,categoria:'Panificados',costo:120},
-    {id:3,nombre:'Queso cheddar',cantidad:1.5,unidad:'kg',minimo:1,categoria:'Lácteos',costo:2800},
-    {id:4,nombre:'Lechuga',cantidad:0.5,unidad:'kg',minimo:1,categoria:'Verduras',costo:400},
-    {id:5,nombre:'Tomate',cantidad:2,unidad:'kg',minimo:1,categoria:'Verduras',costo:350},
-    {id:6,nombre:'Papas',cantidad:8,unidad:'kg',minimo:5,categoria:'Papas',costo:600},
-    {id:7,nombre:'Bacon',cantidad:0.8,unidad:'kg',minimo:1,categoria:'Carnes',costo:4500},
+    {id:1,fecha:'2026-06-01',nombre:'Carne picada',cantidad:5,unidad:'kg',minimo:2,categoria:'Carnes',costo:3200},
+    {id:2,fecha:'2026-06-01',nombre:'Pan de hamburguesa',cantidad:30,unidad:'u',minimo:20,categoria:'Panificados',costo:120},
+    {id:3,fecha:'2026-06-01',nombre:'Queso cheddar',cantidad:1.5,unidad:'kg',minimo:1,categoria:'Lácteos',costo:2800},
+    {id:4,fecha:'2026-06-01',nombre:'Lechuga',cantidad:0.5,unidad:'kg',minimo:1,categoria:'Verduras',costo:400},
+    {id:5,fecha:'2026-06-01',nombre:'Tomate',cantidad:2,unidad:'kg',minimo:1,categoria:'Verduras',costo:350},
+    {id:6,fecha:'2026-06-01',nombre:'Papas',cantidad:8,unidad:'kg',minimo:5,categoria:'Papas',costo:600},
+    {id:7,fecha:'2026-06-01',nombre:'Bacon',cantidad:0.8,unidad:'kg',minimo:1,categoria:'Carnes',costo:4500},
   ],
   ventas: [],
   gastos: []
@@ -559,6 +560,7 @@ function renderStock() {
     const estado=s.cantidad<s.minimo?'danger':s.cantidad===s.minimo?'warn':'ok';
     const label={'danger':'Comprar','warn':'Bajo','ok':'Ok'}[estado];
     return`<tr>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${s.fecha || '—'}</td>
       <td><strong>${s.nombre}</strong></td>
       <td><span class="tag">${s.categoria}</span></td>
       <td style="font-family:var(--font-mono)">${s.cantidad} ${s.unidad}</td>
@@ -570,7 +572,7 @@ function renderStock() {
         <button class="btn btn-sm btn-danger" onclick="eliminar('stock',${s.id})">✕</button>
       </td>
     </tr>`;
-  }).join('')||`<tr><td colspan="7" class="empty">Sin ingredientes</td></tr>`;
+  }).join('')||`<tr><td colspan="8" class="empty">Sin ingredientes</td></tr>`;
 }
 
 function renderRecetas() { 
@@ -725,9 +727,7 @@ function renderCarrito() {
 // ─── DESCUENTO AUTOMÁTICO DE STOCK ───────────────────────────────────
 
 function actualizarStockPorVenta(carrito, factor) {
-    // factor: -1 (para descontar stock al vender), 1 (para devolver stock al editar/eliminar)
     carrito.forEach(item => {
-        // 1. Descontar/Devolver ingredientes de la hamburguesa principal
         const receta = db.recetas.find(r => r.nombre === item.burger);
         if (receta && receta.ing) {
             receta.ing.split(',').forEach(ingLinea => {
@@ -740,7 +740,6 @@ function actualizarStockPorVenta(carrito, factor) {
                     const stockItem = db.stock.find(s => s.nombre.toLowerCase() === ingNombre);
                     if (stockItem) {
                         let uniStock = stockItem.unidad.toLowerCase();
-                        // Conversión inteligente g -> kg y ml -> l
                         if (uniReceta === 'g' && uniStock === 'kg') cant = cant / 1000;
                         else if (uniReceta === 'ml' && uniStock === 'l') cant = cant / 1000;
                         
@@ -751,7 +750,6 @@ function actualizarStockPorVenta(carrito, factor) {
             });
         }
         
-        // 2. Descontar/Devolver ingredientes de los Extras
         item.extras.forEach(extNombre => {
             const extra = db.extras.find(e => e.nombre === extNombre);
             if (extra && extra.ing) {
@@ -766,7 +764,7 @@ function actualizarStockPorVenta(carrito, factor) {
                         let uniStock = stockItem.unidad.toLowerCase();
                         if (uniReceta === 'g' && uniStock === 'kg') cant = cant / 1000;
                         else if (uniReceta === 'ml' && uniStock === 'l') cant = cant / 1000;
-                        else if (!uniReceta && uniStock === 'kg' && cant > 10) cant = cant / 1000; // Si olvidaste la unidad pero pusiste "200" en kg, asume gramos.
+                        else if (!uniReceta && uniStock === 'kg' && cant > 10) cant = cant / 1000; 
                         
                         stockItem.cantidad += (cant * factor);
                         stockItem.cantidad = Math.max(0, Math.round(stockItem.cantidad * 1000) / 1000);
@@ -782,7 +780,6 @@ function imprimirComanda(id) {
     const v = db.ventas.find(x => x.id === id);
     if(!v) return;
     
-    // Armamos el HTML de cada ítem, agregando la descripción de la receta
     let htmlItems = v.items.map(i => {
         const receta = db.recetas.find(r => r.nombre === i.burger);
         const desc = receta && receta.desc ? `<div style="font-size:12px; color:#444; margin-top:2px">${receta.desc}</div>` : '';
@@ -824,7 +821,6 @@ function imprimirComanda(id) {
         </div>
     `;
     
-    // Le damos un cuarto de segundo al navegador para que dibuje el div oculto antes de freezarse
     setTimeout(() => {
         window.print();
     }, 250);
@@ -847,18 +843,13 @@ function guardarVenta(){
   if(editando.ventas) {
       const idx = db.ventas.findIndex(v => v.id === editando.ventas);
       if(idx !== -1) {
-          // Devuelvo el stock viejo antes de guardar el nuevo
           actualizarStockPorVenta(db.ventas[idx].items, 1);
-          
           db.ventas[idx] = { id: editando.ventas, fecha, cliente, items: [...carritoActual], total, pago, notas };
-          
-          // Descuento el nuevo stock
           actualizarStockPorVenta(db.ventas[idx].items, -1);
       }
       toast('✓ Pedido actualizado');
   } else {
       db.ventas.push({ id: db.nextId++, fecha, cliente, items: [...carritoActual], total, pago, notas });
-      // Descuento el stock del nuevo pedido
       actualizarStockPorVenta(carritoActual, -1);
       toast('✓ Venta registrada');
   }
@@ -868,6 +859,7 @@ function guardarVenta(){
 }
 
 function guardarStock() { 
+  const fecha=document.getElementById('s-fecha').value||hoy;
   const nombre=document.getElementById('s-nombre').value.trim();
   const cantidad=parseFloat(document.getElementById('s-cantidad').value)||0;
   const unidad=document.getElementById('s-unidad').value;
@@ -878,12 +870,16 @@ function guardarStock() {
 
   if(editando.stock) {
       const idx = db.stock.findIndex(s => s.id === editando.stock);
-      if(idx !== -1) db.stock[idx] = { id: editando.stock, nombre, cantidad, unidad, minimo, categoria, costo };
+      if(idx !== -1) db.stock[idx] = { id: editando.stock, fecha, nombre, cantidad, unidad, minimo, categoria, costo };
       toast('✓ Ingrediente actualizado');
   } else {
       const ex=db.stock.find(s=>s.nombre.toLowerCase()===nombre.toLowerCase());
-      if(ex){ex.cantidad=Math.round((ex.cantidad+cantidad)*100)/100;if(costo)ex.costo=costo;}
-      else db.stock.push({id:db.nextId++,nombre,cantidad,unidad,minimo,categoria,costo});
+      if(ex){
+          ex.cantidad=Math.round((ex.cantidad+cantidad)*100)/100;
+          if(costo)ex.costo=costo;
+          ex.fecha = fecha;
+      }
+      else db.stock.push({id:db.nextId++,fecha,nombre,cantidad,unidad,minimo,categoria,costo});
       toast('✓ Stock guardado');
   }
   cancelarEdicion('stock');
@@ -975,6 +971,7 @@ function editarVenta(id) {
 function editarStock(id) { 
     const item = db.stock.find(s => s.id === id);
     if(!item) return;
+    document.getElementById('s-fecha').value = item.fecha || hoy;
     document.getElementById('s-nombre').value = item.nombre;
     document.getElementById('s-cantidad').value = item.cantidad;
     document.getElementById('s-unidad').value = item.unidad;
@@ -1051,6 +1048,7 @@ function cancelarEdicion(sec) {
         document.getElementById('btn-ventas-submit').textContent = '✓ Registrar pedido';
     }
     else if(sec==='stock') {
+        document.getElementById('s-fecha').value=hoy;
         ['s-nombre','s-cantidad','s-costo','s-minimo'].forEach(id=>document.getElementById(id).value='');
         document.getElementById('btn-stock-submit').textContent = '✓ Agregar al inventario';
     }
@@ -1075,7 +1073,6 @@ function cancelarEdicion(sec) {
 function eliminar(tabla,id){
   if(!confirm('¿Estás seguro de eliminar este registro?'))return;
   
-  // Si eliminamos una venta, devolver su mercadería al stock
   if (tabla === 'ventas') {
       const ventaBorrada = db.ventas.find(v => v.id === id);
       if (ventaBorrada) actualizarStockPorVenta(ventaBorrada.items, 1);
@@ -1087,6 +1084,7 @@ function eliminar(tabla,id){
 
 // ─── INIT ────────────────────────────────────────────────────────────
 document.getElementById('v-fecha').value=hoy;
+document.getElementById('s-fecha').value=hoy;
 document.getElementById('g-fecha').value=hoy;
 render();
 setTimeout(actualizarPrecioItem, 100); 
