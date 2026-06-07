@@ -220,7 +220,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
     </nav>
-    <div class="sidebar-footer">v1.7 · Migración Data Lista</div>
+    <div class="sidebar-footer">v2.0 · Nube Firebase</div>
   </aside>
 
   <main class="main">
@@ -419,76 +419,86 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script>
-const hoy = new Date().toISOString().split('T')[0];
 
-// ─── ESTADO GLOBAL Y EDICIÓN ──────────────────────────────────────────
-let editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null };
-let carritoActual = [];
+<script type="module">
+// Importación de Firebase (Módulos V10)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-let db = JSON.parse(localStorage.getItem('burger_db') || 'null') || {
-  nextId: 100,
-  recetas: [
-    {id:1,nombre:'Clásica',tipo:'Hamburguesa',precio:2500,costo:900,desc:'Carne 180g, lechuga, tomate, cebolla, mayonesa',ing:'carne picada:180:g, pan de hamburguesa:1:u, lechuga:30:g, tomate:50:g'},
-    {id:2,nombre:'Doble cheddar',tipo:'Hamburguesa',precio:3200,costo:1200,desc:'Doble carne, doble cheddar fundido',ing:'carne picada:360:g, pan de hamburguesa:1:u, queso cheddar:60:g'},
-    {id:3,nombre:'Veggie',tipo:'Vegetariana',precio:2800,costo:800,desc:'Medallón de berenjena, queso, verduras frescas',ing:'pan de hamburguesa:1:u, lechuga:50:g, tomate:80:g, queso cheddar:40:g'},
-  ],
-  extras: [
-    {id:1,nombre:'Cheddar extra',precio:300,ing:'queso cheddar:30:g'},
-    {id:2,nombre:'Bacon extra',precio:500,ing:'bacon:40:g'},
-    {id:3,nombre:'Papas fritas',precio:600,ing:'papas:200:g'},
-  ],
-  stock: [
-    {id:1,fecha:'2026-06-01',nombre:'Carne picada',cantidad:5,unidad:'kg',minimo:2,categoria:'Carnes',costo:3200},
-    {id:2,fecha:'2026-06-01',nombre:'Pan de hamburguesa',cantidad:30,unidad:'u',minimo:20,categoria:'Panificados',costo:120},
-    {id:3,fecha:'2026-06-01',nombre:'Queso cheddar',cantidad:1.5,unidad:'kg',minimo:1,categoria:'Lácteos',costo:2800},
-    {id:4,fecha:'2026-06-01',nombre:'Lechuga',cantidad:0.5,unidad:'kg',minimo:1,categoria:'Verduras',costo:400},
-    {id:5,fecha:'2026-06-01',nombre:'Tomate',cantidad:2,unidad:'kg',minimo:1,categoria:'Verduras',costo:350},
-    {id:6,fecha:'2026-06-01',nombre:'Papas',cantidad:8,unidad:'kg',minimo:5,categoria:'Papas',costo:600},
-    {id:7,fecha:'2026-06-01',nombre:'Bacon',cantidad:0.8,unidad:'kg',minimo:1,categoria:'Carnes',costo:4500},
-  ],
-  ventas: [],
-  gastos: []
+// Tu configuración extraída de la imagen
+const firebaseConfig = {
+  apiKey: "AIzaSyBOYQZZkcR_f7jBvweSnauOzPe92dsHO60",
+  authDomain: "hangar23-668af.firebaseapp.com",
+  projectId: "hangar23-668af",
+  storageBucket: "hangar23-668af.firebasestorage.app",
+  messagingSenderId: "414862836972",
+  appId: "1:414862836972:web:cfb242464ea55757f751c9"
 };
 
-// Migración de datos viejos
-db.ventas.forEach(v => {
-    if (!v.items && v.burger) {
-        v.items = [{ burger: v.burger, extras: v.extras || [], qty: v.qty || 1, subtotal: v.precio }];
-        v.total = v.precio;
-        delete v.burger; delete v.extras; delete v.qty; delete v.precio;
-    }
+// Iniciar Firebase
+const app = initializeApp(firebaseConfig);
+const fsDb = getFirestore(app);
+
+// ─── ESTADO GLOBAL ────────────────────────────────────────────────────────
+window.hoy = new Date().toISOString().split('T')[0];
+window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [] };
+window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null };
+window.carritoActual = [];
+
+// Formateadores globales
+window.fmt = (n) => '$' + Math.round(n).toLocaleString('es-AR');
+window.pct = (a, b) => b ? Math.round((a / b) * 100) : 0;
+
+// ─── LECTURA EN TIEMPO REAL DESDE FIREBASE ──────────────────────────────────
+['recetas', 'extras', 'stock', 'ventas', 'gastos'].forEach(colName => {
+    onSnapshot(collection(fsDb, colName), (snapshot) => {
+        window.db[colName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Ordenar temporalmente por fecha o nombre si es necesario
+        if(colName === 'ventas' || colName === 'gastos') {
+            window.db[colName].sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+        }
+        
+        window.render();
+        if (colName === 'recetas' || colName === 'extras') {
+            window.actualizarPrecioItem();
+        }
+    });
 });
 
-function save(){localStorage.setItem('burger_db',JSON.stringify(db))}
-function fmt(n){return '$'+Math.round(n).toLocaleString('es-AR')}
-function pct(a,b){return b?Math.round(a/b*100):0}
-
-// ─── NAVEGACIÓN ──────────────────────────────────────────────────────
-function showSection(id){
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+// ─── NAVEGACIÓN Y UTILIDADES ────────────────────────────────────────────────
+window.showSection = function(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelector(`[data-s="${id}"]`).classList.add('active');
-  closeSidebar();
-  render();
+  window.closeSidebar();
+  window.render();
 }
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('show')}
-function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show')}
-
-function toast(msg){
-  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2200);
+window.toggleSidebar = () => {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('overlay').classList.toggle('show');
+}
+window.closeSidebar = () => {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('overlay').classList.remove('show');
+}
+window.toast = (msg) => {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
 }
 
-// ─── RENDERIZADO ─────────────────────────────────────────────────────
-function render(){renderDash();renderVentas();renderStock();renderRecetas();renderClientes();renderGastos()}
+// ─── RENDERIZADO ────────────────────────────────────────────────────────────
+window.render = function() {
+    renderDash(); renderVentas(); renderStock(); renderRecetas(); renderClientes(); renderGastos();
+}
 
 function renderDash(){
-  const totalV = db.ventas.reduce((a,v) => a + v.total, 0);
-  const totalG = db.gastos.reduce((a,g) => a + g.monto, 0);
+  const totalV = window.db.ventas.reduce((a,v) => a + v.total, 0);
+  const totalG = window.db.gastos.reduce((a,g) => a + g.monto, 0);
   const ganancia = totalV - totalG;
-  const pedidos = db.ventas.reduce((a, v) => a + v.items.reduce((sum, item) => sum + item.qty, 0), 0);
+  const pedidos = window.db.ventas.reduce((a, v) => a + v.items.reduce((sum, item) => sum + item.qty, 0), 0);
   const margen = totalV ? Math.round(ganancia/totalV*100) : 0;
   
   document.getElementById('dash-metrics').innerHTML=`
@@ -499,13 +509,13 @@ function renderDash(){
     <div class="metric"><div class="metric-label">Margen</div><div class="metric-value ${margen>=30?'green':margen>=15?'yellow':'red'}">${margen}%</div></div>
   `;
   
-  const bajo=db.stock.filter(s=>s.cantidad<=s.minimo);
-  const alertas=document.getElementById('dash-alertas');
-  alertas.innerHTML=bajo.length===0?'<div class="alert alert-ok">✓ Todo el stock está en orden</div>':
+  const bajo = window.db.stock.filter(s => s.cantidad <= s.minimo);
+  const alertas = document.getElementById('dash-alertas');
+  alertas.innerHTML = bajo.length === 0 ? '<div class="alert alert-ok">✓ Todo el stock está en orden</div>' :
     bajo.map(s=>`<div class="alert ${s.cantidad<s.minimo?'alert-danger':'alert-warn'}">${s.cantidad<s.minimo?'⚠ Urgente':'! Bajo'} — <strong>${s.nombre}</strong>: ${s.cantidad} ${s.unidad} (mín: ${s.minimo})</div>`).join('');
 
   const conteo={};
-  db.ventas.forEach(v=>{
+  window.db.ventas.forEach(v=>{
       v.items.forEach(item => {
           conteo[item.burger] = (conteo[item.burger] || 0) + item.qty;
       });
@@ -535,12 +545,12 @@ function renderDash(){
 
 function renderVentas(){
   const sel=document.getElementById('v-burger');
-  if(sel && !editando.ventas) sel.innerHTML=db.recetas.map(r=>`<option value="${r.nombre}">${r.nombre}</option>`).join('');
+  if(sel && !window.editando.ventas) sel.innerHTML=window.db.recetas.map(r=>`<option value="${r.nombre}">${r.nombre}</option>`).join('');
   
   const extDiv=document.getElementById('v-extras');
-  if(extDiv && !editando.ventas) extDiv.innerHTML=db.extras.map(e=>`<label class="extra-check-item"><input type="checkbox" value="${e.nombre}" onchange="actualizarPrecioItem()"> ${e.nombre} <span class="extra-precio">+${fmt(e.precio)}</span></label>`).join('');
+  if(extDiv && !window.editando.ventas) extDiv.innerHTML=window.db.extras.map(e=>`<label class="extra-check-item"><input type="checkbox" value="${e.nombre}" onchange="actualizarPrecioItem()"> ${e.nombre} <span class="extra-precio">+${fmt(e.precio)}</span></label>`).join('');
   
-  document.getElementById('ventas-tabla').innerHTML=db.ventas.slice().reverse().map(v=>`
+  document.getElementById('ventas-tabla').innerHTML=window.db.ventas.slice().reverse().map(v=>`
     <tr>
       <td style="font-family:var(--font-mono);font-size:11px">${v.fecha}</td>
       <td><strong>${v.cliente}</strong></td>
@@ -548,15 +558,15 @@ function renderVentas(){
       <td><span class="badge badge-blue">${v.pago}</span></td>
       <td style="font-family:var(--font-mono);color:var(--accent);font-weight:bold">${fmt(v.total)}</td>
       <td style="min-width: 110px">
-        <button class="btn btn-sm" onclick="imprimirComanda(${v.id})" style="background:var(--surface2); margin-right:4px" title="Imprimir Comanda">🖨️</button>
-        <button class="btn btn-sm" onclick="editarVenta(${v.id})" style="background:var(--surface2); margin-right:4px" title="Editar">✎</button>
-        <button class="btn btn-sm btn-danger" onclick="eliminar('ventas',${v.id})" title="Eliminar">✕</button>
+        <button class="btn btn-sm" onclick="imprimirComanda('${v.id}')" style="background:var(--surface2); margin-right:4px" title="Imprimir Comanda">🖨️</button>
+        <button class="btn btn-sm" onclick="editarVenta('${v.id}')" style="background:var(--surface2); margin-right:4px" title="Editar">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminar('ventas','${v.id}')" title="Eliminar">✕</button>
       </td>
     </tr>`).join('')||`<tr><td colspan="6" class="empty">Sin ventas registradas</td></tr>`;
 }
 
 function renderStock() { 
-  document.getElementById('stock-tabla').innerHTML=db.stock.map(s=>{
+  document.getElementById('stock-tabla').innerHTML=window.db.stock.map(s=>{
     const estado=s.cantidad<s.minimo?'danger':s.cantidad===s.minimo?'warn':'ok';
     const label={'danger':'Comprar','warn':'Bajo','ok':'Ok'}[estado];
     return`<tr>
@@ -568,8 +578,8 @@ function renderStock() {
       <td><span class="badge badge-${estado}">${label}</span></td>
       <td style="font-family:var(--font-mono)">${fmt(s.costo)}</td>
       <td>
-        <button class="btn btn-sm" onclick="editarStock(${s.id})" style="background:var(--surface2); margin-right:4px">✎</button>
-        <button class="btn btn-sm btn-danger" onclick="eliminar('stock',${s.id})">✕</button>
+        <button class="btn btn-sm" onclick="editarStock('${s.id}')" style="background:var(--surface2); margin-right:4px">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminar('stock','${s.id}')">✕</button>
       </td>
     </tr>`;
   }).join('')||`<tr><td colspan="8" class="empty">Sin ingredientes</td></tr>`;
@@ -577,14 +587,14 @@ function renderStock() {
 
 function renderRecetas() { 
   const colTipo={'Hamburguesa':'badge-accent','Combo':'badge-blue','Promo':'badge-warn','Vegetariana':'badge-ok','Bebida':'badge-ok','Guarnición':'badge-warn'};
-  document.getElementById('recetas-grid').innerHTML=db.recetas.map(r=>{
+  document.getElementById('recetas-grid').innerHTML=window.db.recetas.map(r=>{
     const margen=r.costo?Math.round((r.precio-r.costo)/r.precio*100):null;
     return`<div class="receta-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <span class="badge ${colTipo[r.tipo]||'badge-blue'}">${r.tipo}</span>
         <div>
-            <button class="btn btn-sm" onclick="editarReceta(${r.id})" style="background:var(--surface2); margin-right:4px">✎</button>
-            <button class="btn btn-sm btn-danger" onclick="eliminar('recetas',${r.id})">✕</button>
+            <button class="btn btn-sm" onclick="editarReceta('${r.id}')" style="background:var(--surface2); margin-right:4px">✎</button>
+            <button class="btn btn-sm btn-danger" onclick="eliminar('recetas','${r.id}')">✕</button>
         </div>
       </div>
       <div class="receta-nombre">${r.nombre}</div>
@@ -596,18 +606,18 @@ function renderRecetas() {
     </div>`;
   }).join('')||'<div class="empty">Sin variedades registradas</div>';
 
-  document.getElementById('extras-lista').innerHTML=db.extras.map(e=>`
+  document.getElementById('extras-lista').innerHTML=window.db.extras.map(e=>`
     <div class="extra-item">
       <span>${e.nombre}</span>
       <span class="extra-precio">${fmt(e.precio)}</span>
-      <button class="btn btn-sm" onclick="editarExtra(${e.id})" style="padding:2px 6px; margin-left:6px; background:var(--surface)">✎</button>
-      <button class="btn btn-sm btn-danger" onclick="eliminar('extras',${e.id})" style="padding:2px 6px">✕</button>
+      <button class="btn btn-sm" onclick="editarExtra('${e.id}')" style="padding:2px 6px; margin-left:6px; background:var(--surface)">✎</button>
+      <button class="btn btn-sm btn-danger" onclick="eliminar('extras','${e.id}')" style="padding:2px 6px">✕</button>
     </div>`).join('');
 }
 
 function renderClientes(){
   const mapa={};
-  db.ventas.forEach(v=>{
+  window.db.ventas.forEach(v=>{
     if(!mapa[v.cliente])mapa[v.cliente]={pedidos:0,total:0,fav:{},pagos:{},ultimo:''};
     const qtyTotal = v.items.reduce((sum, item) => sum + item.qty, 0);
     mapa[v.cliente].pedidos += qtyTotal;
@@ -642,10 +652,10 @@ function renderClientes(){
 }
 
 function renderGastos(){
-  const total=db.gastos.reduce((a,g)=>a+g.monto,0);
-  const fijos=db.gastos.filter(g=>g.tipo==='Fijo').reduce((a,g)=>a+g.monto,0);
-  const vars=db.gastos.filter(g=>g.tipo==='Variable').reduce((a,g)=>a+g.monto,0);
-  const totalV=db.ventas.reduce((a,v)=>a+v.total,0);
+  const total=window.db.gastos.reduce((a,g)=>a+g.monto,0);
+  const fijos=window.db.gastos.filter(g=>g.tipo==='Fijo').reduce((a,g)=>a+g.monto,0);
+  const vars=window.db.gastos.filter(g=>g.tipo==='Variable').reduce((a,g)=>a+g.monto,0);
+  const totalV=window.db.ventas.reduce((a,v)=>a+v.total,0);
   
   document.getElementById('gastos-metrics').innerHTML=`
     <div class="metric"><div class="metric-label">Total gastos</div><div class="metric-value red">${fmt(total)}</div></div>
@@ -653,7 +663,7 @@ function renderGastos(){
     <div class="metric"><div class="metric-label">Variables</div><div class="metric-value orange">${fmt(vars)}</div></div>
     <div class="metric"><div class="metric-label">% sobre ventas</div><div class="metric-value ${totalV?pct(total,totalV)<60?'green':'red':'red'}">${totalV?pct(total,totalV):0}%</div></div>
   `;
-  document.getElementById('gastos-tabla').innerHTML=db.gastos.slice().reverse().map(g=>`
+  document.getElementById('gastos-tabla').innerHTML=window.db.gastos.slice().reverse().map(g=>`
     <tr>
       <td style="font-family:var(--font-mono);font-size:11px">${g.fecha}</td>
       <td><span class="tag">${g.cat}</span></td>
@@ -661,22 +671,22 @@ function renderGastos(){
       <td><span class="badge ${g.tipo==='Fijo'?'badge-ok':'badge-warn'}">${g.tipo}</span></td>
       <td style="font-family:var(--font-mono);color:var(--danger)">${fmt(g.monto)}</td>
       <td>
-        <button class="btn btn-sm" onclick="editarGasto(${g.id})" style="background:var(--surface2); margin-right:4px">✎</button>
-        <button class="btn btn-sm btn-danger" onclick="eliminar('gastos',${g.id})">✕</button>
+        <button class="btn btn-sm" onclick="editarGasto('${g.id}')" style="background:var(--surface2); margin-right:4px">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminar('gastos','${g.id}')">✕</button>
       </td>
     </tr>`).join('')||`<tr><td colspan="6" class="empty">Sin gastos registrados</td></tr>`;
 }
 
-// ─── LÓGICA DEL CARRITO DE COMPRAS ───────────────────────────────────
+// ─── LÓGICA DEL CARRITO ─────────────────────────────────────────────────────
 
-function actualizarPrecioItem() {
+window.actualizarPrecioItem = function() {
   const nombreBurger = document.getElementById('v-burger').value;
-  const receta = db.recetas.find(r => r.nombre === nombreBurger);
+  const receta = window.db.recetas.find(r => r.nombre === nombreBurger);
   if (!receta) return;
 
   let subtotal = receta.precio;
   document.querySelectorAll('#v-extras input:checked').forEach(chk => {
-    const extra = db.extras.find(e => e.nombre === chk.value);
+    const extra = window.db.extras.find(e => e.nombre === chk.value);
     if (extra) subtotal += extra.precio;
   });
 
@@ -684,34 +694,33 @@ function actualizarPrecioItem() {
   document.getElementById('v-item-precio').value = subtotal * qty;
 }
 
-function agregarAlCarrito() {
+window.agregarAlCarrito = function() {
   const burger = document.getElementById('v-burger').value;
   const qty = parseInt(document.getElementById('v-qty').value) || 1;
   const extras = [...document.querySelectorAll('#v-extras input:checked')].map(i => i.value);
   const subtotal = parseFloat(document.getElementById('v-item-precio').value) || 0;
 
-  carritoActual.push({ burger, qty, extras, subtotal });
+  window.carritoActual.push({ burger, qty, extras, subtotal });
   
   document.getElementById('v-qty').value = 1;
   document.querySelectorAll('#v-extras input').forEach(i => i.checked = false);
-  actualizarPrecioItem();
-  
-  renderCarrito();
+  window.actualizarPrecioItem();
+  window.renderCarrito();
 }
 
-function eliminarDelCarrito(index) {
-  carritoActual.splice(index, 1);
-  renderCarrito();
+window.eliminarDelCarrito = function(index) {
+  window.carritoActual.splice(index, 1);
+  window.renderCarrito();
 }
 
-function renderCarrito() {
+window.renderCarrito = function() {
   const cartDiv = document.getElementById('v-carrito-lista');
   let sumaTotal = 0;
   
-  if (carritoActual.length === 0) {
+  if (window.carritoActual.length === 0) {
       cartDiv.innerHTML = '<div class="empty" style="padding:10px 0">El carrito está vacío</div>';
   } else {
-      cartDiv.innerHTML = carritoActual.map((item, index) => {
+      cartDiv.innerHTML = window.carritoActual.map((item, index) => {
           sumaTotal += item.subtotal;
           return `
           <div class="extra-item" style="justify-content:space-between; display:flex; width:100%; font-size:13px">
@@ -720,70 +729,335 @@ function renderCarrito() {
           </div>`;
       }).join('');
   }
-  
   document.getElementById('v-precio-total').value = sumaTotal;
 }
 
-// ─── DESCUENTO AUTOMÁTICO DE STOCK ───────────────────────────────────
+// ─── DESCUENTO DE STOCK DIRECTO A FIREBASE ──────────────────────────────────
 
-function actualizarStockPorVenta(carrito, factor) {
-    carrito.forEach(item => {
-        const receta = db.recetas.find(r => r.nombre === item.burger);
+window.actualizarStockPorVentaAsync = async function(carrito, factor) {
+    for (const item of carrito) {
+        const receta = window.db.recetas.find(r => r.nombre === item.burger);
         if (receta && receta.ing) {
-            receta.ing.split(',').forEach(ingLinea => {
+            const lineasIng = receta.ing.split(',');
+            for (const ingLinea of lineasIng) {
                 const partes = ingLinea.split(':');
                 if (partes.length >= 2) {
                     const ingNombre = partes[0].trim().toLowerCase();
                     let cant = parseFloat(partes[1].trim()) * item.qty;
                     const uniReceta = partes.length >= 3 ? partes[2].trim().toLowerCase() : '';
                     
-                    const stockItem = db.stock.find(s => s.nombre.toLowerCase() === ingNombre);
+                    const stockItem = window.db.stock.find(s => s.nombre.toLowerCase() === ingNombre);
                     if (stockItem) {
                         let uniStock = stockItem.unidad.toLowerCase();
                         if (uniReceta === 'g' && uniStock === 'kg') cant = cant / 1000;
                         else if (uniReceta === 'ml' && uniStock === 'l') cant = cant / 1000;
                         
-                        stockItem.cantidad += (cant * factor);
-                        stockItem.cantidad = Math.max(0, Math.round(stockItem.cantidad * 1000) / 1000);
+                        let newCantidad = stockItem.cantidad + (cant * factor);
+                        newCantidad = Math.max(0, Math.round(newCantidad * 1000) / 1000);
+                        await updateDoc(doc(fsDb, 'stock', stockItem.id), { cantidad: newCantidad });
                     }
                 }
-            });
+            }
         }
         
-        item.extras.forEach(extNombre => {
-            const extra = db.extras.find(e => e.nombre === extNombre);
+        for (const extNombre of item.extras) {
+            const extra = window.db.extras.find(e => e.nombre === extNombre);
             if (extra && extra.ing) {
-                extra.ing.split(',').forEach(ingLinea => {
+                const lineasIng = extra.ing.split(',');
+                for (const ingLinea of lineasIng) {
                     const partes = ingLinea.split(':');
                     const ingNombre = partes[0].trim().toLowerCase();
                     let cant = partes.length >= 2 ? parseFloat(partes[1].trim()) * item.qty : 1 * item.qty;
                     const uniReceta = partes.length >= 3 ? partes[2].trim().toLowerCase() : '';
                     
-                    const stockItem = db.stock.find(s => s.nombre.toLowerCase() === ingNombre);
+                    const stockItem = window.db.stock.find(s => s.nombre.toLowerCase() === ingNombre);
                     if (stockItem) {
                         let uniStock = stockItem.unidad.toLowerCase();
                         if (uniReceta === 'g' && uniStock === 'kg') cant = cant / 1000;
                         else if (uniReceta === 'ml' && uniStock === 'l') cant = cant / 1000;
-                        else if (!uniReceta && uniStock === 'kg' && cant > 10) cant = cant / 1000; 
+                        else if (!uniReceta && uniStock === 'kg' && cant > 10) cant = cant / 1000;
                         
-                        stockItem.cantidad += (cant * factor);
-                        stockItem.cantidad = Math.max(0, Math.round(stockItem.cantidad * 1000) / 1000);
+                        let newCantidad = stockItem.cantidad + (cant * factor);
+                        newCantidad = Math.max(0, Math.round(newCantidad * 1000) / 1000);
+                        await updateDoc(doc(fsDb, 'stock', stockItem.id), { cantidad: newCantidad });
                     }
-                });
+                }
             }
-        });
-    });
+        }
+    }
 }
 
-// ─── IMPRESIÓN DE COMANDA ────────────────────────────────────────────
-function imprimirComanda(id) {
-    const v = db.ventas.find(x => x.id === id);
+// ─── GUARDADO Y EDICIÓN EN FIREBASE ─────────────────────────────────────────
+
+window.guardarVenta = async function() {
+  const cliente = document.getElementById('v-cliente').value.trim();
+  const fecha = document.getElementById('v-fecha').value || window.hoy;
+  const pago = document.getElementById('v-pago').value;
+  const notas = document.getElementById('v-notas').value;
+  const total = parseFloat(document.getElementById('v-precio-total').value) || 0;
+
+  if(!cliente || window.carritoActual.length === 0){
+      window.toast('⚠ Agregá un cliente y productos al carrito');
+      return;
+  }
+
+  const data = { fecha, cliente, items: [...window.carritoActual], total, pago, notas };
+
+  try {
+      if(window.editando.ventas) {
+          const ventaBorrada = window.db.ventas.find(v => v.id === window.editando.ventas);
+          if(ventaBorrada) await window.actualizarStockPorVentaAsync(ventaBorrada.items, 1);
+          
+          await updateDoc(doc(fsDb, 'ventas', window.editando.ventas), data);
+          await window.actualizarStockPorVentaAsync(data.items, -1);
+          window.toast('✓ Pedido actualizado');
+      } else {
+          await addDoc(collection(fsDb, 'ventas'), data);
+          await window.actualizarStockPorVentaAsync(data.items, -1);
+          window.toast('✓ Venta registrada');
+      }
+      window.cancelarEdicion('ventas');
+  } catch(e) { console.error(e); window.toast('⚠ Error al guardar en la nube'); }
+}
+
+window.guardarStock = async function() { 
+  const fecha=document.getElementById('s-fecha').value || window.hoy;
+  const nombre=document.getElementById('s-nombre').value.trim();
+  const cantidad=parseFloat(document.getElementById('s-cantidad').value)||0;
+  const unidad=document.getElementById('s-unidad').value;
+  const costo=parseFloat(document.getElementById('s-costo').value)||0;
+  const minimo=parseFloat(document.getElementById('s-minimo').value)||0;
+  const categoria=document.getElementById('s-cat').value;
+  if(!nombre||!cantidad){window.toast('⚠ Completá nombre y cantidad');return}
+
+  const data = { fecha, nombre, cantidad, unidad, minimo, categoria, costo };
+
+  try {
+      if(window.editando.stock) {
+          await updateDoc(doc(fsDb, 'stock', window.editando.stock), data);
+          window.toast('✓ Ingrediente actualizado');
+      } else {
+          // Check for existing
+          const ex = window.db.stock.find(s=>s.nombre.toLowerCase()===nombre.toLowerCase());
+          if(ex){
+              let newCant = Math.round((ex.cantidad + cantidad)*100)/100;
+              let updData = { cantidad: newCant, fecha: fecha };
+              if(costo) updData.costo = costo;
+              await updateDoc(doc(fsDb, 'stock', ex.id), updData);
+          } else {
+              await addDoc(collection(fsDb, 'stock'), data);
+          }
+          window.toast('✓ Stock guardado');
+      }
+      window.cancelarEdicion('stock');
+  } catch(e) { console.error(e); window.toast('⚠ Error de conexión'); }
+}
+
+window.guardarReceta = async function() { 
+  const nombre=document.getElementById('r-nombre').value.trim();
+  const tipo=document.getElementById('r-tipo').value;
+  const precio=parseFloat(document.getElementById('r-precio').value)||0;
+  const costo=parseFloat(document.getElementById('r-costo').value)||0;
+  const desc=document.getElementById('r-desc').value.trim();
+  const ing=document.getElementById('r-ing').value.trim();
+  if(!nombre||!precio){window.toast('⚠ Completá nombre y precio');return}
+
+  const data = { nombre, tipo, precio, costo, desc, ing };
+
+  try {
+      if(window.editando.recetas) {
+          await updateDoc(doc(fsDb, 'recetas', window.editando.recetas), data);
+          window.toast('✓ Variedad actualizada');
+      } else {
+          await addDoc(collection(fsDb, 'recetas'), data);
+          window.toast('✓ Variedad guardada');
+      }
+      window.cancelarEdicion('recetas');
+  } catch(e) { console.error(e); window.toast('⚠ Error de conexión'); }
+}
+
+window.guardarExtra = async function(){ 
+  const nombre=document.getElementById('e-nombre').value.trim();
+  const precio=parseFloat(document.getElementById('e-precio').value)||0;
+  const ing=document.getElementById('e-ing').value.trim();
+  if(!nombre){window.toast('⚠ Ingresá el nombre');return}
+
+  const data = { nombre, precio, ing };
+
+  try {
+      if(window.editando.extras) {
+          await updateDoc(doc(fsDb, 'extras', window.editando.extras), data);
+          window.toast('✓ Extra actualizado');
+      } else {
+          await addDoc(collection(fsDb, 'extras'), data);
+          window.toast('✓ Extra guardado');
+      }
+      window.cancelarEdicion('extras');
+  } catch(e) { console.error(e); window.toast('⚠ Error de conexión'); }
+}
+
+window.guardarGasto = async function() { 
+  const cat=document.getElementById('g-cat').value;
+  const desc=document.getElementById('g-desc').value.trim();
+  const monto=parseFloat(document.getElementById('g-monto').value)||0;
+  const fecha=document.getElementById('g-fecha').value || window.hoy;
+  const tipo=document.getElementById('g-tipo').value;
+  if(!desc||!monto){window.toast('⚠ Completá descripción y monto');return}
+
+  const data = { fecha, cat, desc, tipo, monto };
+
+  try {
+      if(window.editando.gastos) {
+          await updateDoc(doc(fsDb, 'gastos', window.editando.gastos), data);
+          window.toast('✓ Gasto actualizado');
+      } else {
+          await addDoc(collection(fsDb, 'gastos'), data);
+          window.toast('✓ Gasto registrado');
+      }
+      window.cancelarEdicion('gastos');
+  } catch(e) { console.error(e); window.toast('⚠ Error de conexión'); }
+}
+
+// ─── ELIMINAR EN FIREBASE ───────────────────────────────────────────────────
+
+window.eliminar = async function(tabla, id){
+  if(!confirm('¿Estás seguro de eliminar este registro?')) return;
+  
+  try {
+      if (tabla === 'ventas') {
+          const ventaBorrada = window.db.ventas.find(v => v.id === id);
+          if (ventaBorrada) await window.actualizarStockPorVentaAsync(ventaBorrada.items, 1);
+      }
+      await deleteDoc(doc(fsDb, tabla, id));
+      window.toast('✓ Eliminado');
+  } catch(e) { console.error(e); window.toast('⚠ Error al eliminar'); }
+}
+
+// ─── POBLAR FORMULARIOS PARA EDICIÓN ────────────────────────────────────────
+
+window.editarVenta = function(id) {
+    const v = window.db.ventas.find(x => x.id === id);
+    if(!v) return;
+    document.getElementById('v-fecha').value = v.fecha;
+    document.getElementById('v-cliente').value = v.cliente;
+    document.getElementById('v-pago').value = v.pago;
+    document.getElementById('v-notas').value = v.notas;
+    
+    window.carritoActual = JSON.parse(JSON.stringify(v.items));
+    window.renderCarrito();
+    document.getElementById('v-precio-total').value = v.total;
+
+    window.editando.ventas = id;
+    document.getElementById('btn-ventas-submit').textContent = '✓ Actualizar pedido';
+    document.getElementById('btn-ventas-cancel').style.display = 'inline-flex';
+    document.getElementById('ventas').scrollIntoView({behavior: 'smooth'});
+}
+
+window.editarStock = function(id) { 
+    const item = window.db.stock.find(s => s.id === id);
+    if(!item) return;
+    document.getElementById('s-fecha').value = item.fecha || window.hoy;
+    document.getElementById('s-nombre').value = item.nombre;
+    document.getElementById('s-cantidad').value = item.cantidad;
+    document.getElementById('s-unidad').value = item.unidad;
+    document.getElementById('s-costo').value = item.costo || '';
+    document.getElementById('s-minimo').value = item.minimo;
+    document.getElementById('s-cat').value = item.categoria;
+
+    window.editando.stock = id;
+    document.getElementById('btn-stock-submit').textContent = '✓ Actualizar inventario';
+    document.getElementById('btn-stock-cancel').style.display = 'inline-flex';
+    document.getElementById('stock').scrollIntoView({behavior: 'smooth'});
+}
+
+window.editarReceta = function(id) { 
+    const item = window.db.recetas.find(r => r.id === id);
+    if(!item) return;
+    document.getElementById('r-nombre').value = item.nombre;
+    document.getElementById('r-tipo').value = item.tipo;
+    document.getElementById('r-precio').value = item.precio;
+    document.getElementById('r-costo').value = item.costo || '';
+    document.getElementById('r-desc').value = item.desc || '';
+    document.getElementById('r-ing').value = item.ing || '';
+
+    window.editando.recetas = id;
+    document.getElementById('btn-recetas-submit').textContent = '✓ Actualizar variedad';
+    document.getElementById('btn-recetas-cancel').style.display = 'inline-flex';
+    document.getElementById('recetas').scrollIntoView({behavior: 'smooth'});
+}
+
+window.editarExtra = function(id) { 
+    const e = window.db.extras.find(x => x.id === id);
+    if(!e) return;
+    document.getElementById('e-nombre').value = e.nombre;
+    document.getElementById('e-precio').value = e.precio;
+    document.getElementById('e-ing').value = e.ing || '';
+
+    window.editando.extras = id;
+    document.getElementById('btn-extras-submit').textContent = '✓ Actualizar extra';
+    document.getElementById('btn-extras-cancel').style.display = 'inline-flex';
+}
+
+window.editarGasto = function(id) { 
+    const g = window.db.gastos.find(x => x.id === id);
+    if(!g) return;
+    document.getElementById('g-fecha').value = g.fecha;
+    document.getElementById('g-cat').value = g.cat;
+    document.getElementById('g-tipo').value = g.tipo;
+    document.getElementById('g-monto').value = g.monto;
+    document.getElementById('g-desc').value = g.desc;
+
+    window.editando.gastos = id;
+    document.getElementById('btn-gastos-submit').textContent = '✓ Actualizar gasto';
+    document.getElementById('btn-gastos-cancel').style.display = 'inline-flex';
+    document.getElementById('gastos').scrollIntoView({behavior: 'smooth'});
+}
+
+window.cancelarEdicion = function(sec) {
+    window.editando[sec] = null;
+    const btnCancel = document.getElementById(`btn-${sec}-cancel`);
+    if(btnCancel) btnCancel.style.display = 'none';
+
+    if(sec==='ventas') {
+        document.getElementById('v-cliente').value='';
+        document.getElementById('v-notas').value='';
+        document.getElementById('v-fecha').value = window.hoy;
+        window.carritoActual = [];
+        window.renderCarrito();
+        document.getElementById('v-qty').value='1';
+        document.querySelectorAll('#v-extras input').forEach(i=>i.checked=false);
+        window.actualizarPrecioItem();
+        document.getElementById('btn-ventas-submit').textContent = '✓ Registrar pedido';
+    }
+    else if(sec==='stock') {
+        document.getElementById('s-fecha').value = window.hoy;
+        ['s-nombre','s-cantidad','s-costo','s-minimo'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('btn-stock-submit').textContent = '✓ Agregar al inventario';
+    }
+    else if(sec==='recetas') {
+        ['r-nombre','r-precio','r-costo','r-desc','r-ing'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('btn-recetas-submit').textContent = '✓ Guardar';
+    }
+    else if(sec==='extras') {
+        ['e-nombre','e-precio','e-ing'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('btn-extras-submit').textContent = '+ Agregar extra';
+    }
+    else if(sec==='gastos') {
+        document.getElementById('g-desc').value='';
+        document.getElementById('g-monto').value='';
+        document.getElementById('g-fecha').value = window.hoy;
+        document.getElementById('btn-gastos-submit').textContent = '✓ Registrar';
+    }
+}
+
+// ─── IMPRIMIR COMANDA ───────────────────────────────────────────────────────
+window.imprimirComanda = function(id) {
+    const v = window.db.ventas.find(x => x.id === id);
     if(!v) return;
     
     let htmlItems = v.items.map(i => {
-        const receta = db.recetas.find(r => r.nombre === i.burger);
+        const receta = window.db.recetas.find(r => r.nombre === i.burger);
         const desc = receta && receta.desc ? `<div style="font-size:12px; color:#444; margin-top:2px">${receta.desc}</div>` : '';
-        
         return `
         <div style="margin-bottom:12px; border-bottom:1px dotted #888; padding-bottom:8px">
             <div style="font-size:16px;"><strong>${i.qty} x ${i.burger}</strong></div>
@@ -799,295 +1073,30 @@ function imprimirComanda(id) {
             <div style="font-family:'Bebas Neue', sans-serif; font-size:42px; margin:0; line-height:1; letter-spacing:2px;">HANGAR 23</div>
             <div style="font-size:14px; letter-spacing:1px; margin-top:4px;">COMANDA DE COCINA</div>
         </div>
-
         <div style="border-top:2px dashed #000; border-bottom:2px dashed #000; padding:8px 0; margin-bottom:15px; font-size:14px;">
-            <div><strong>TICKET:</strong> #${v.id}</div>
+            <div><strong>ID:</strong> ${v.id.slice(-5).toUpperCase()}</div>
             <div><strong>FECHA:</strong> ${v.fecha}</div>
             <div><strong>CLIENTE:</strong> ${v.cliente.toUpperCase()}</div>
         </div>
-
         <div style="margin-bottom:15px;">
             <div style="font-size:12px; margin-bottom:8px; text-transform:uppercase;">Detalle del pedido:</div>
             ${htmlItems}
         </div>
-
         <div style="border:2px solid #000; padding:8px; margin-bottom:15px;">
             <strong style="font-size:14px;">📝 ACLARACIONES DEL CLIENTE:</strong><br>
             <div style="font-size:15px; font-weight:bold; margin-top:4px;">${v.notas ? v.notas.toUpperCase() : 'NINGUNA'}</div>
         </div>
-
         <div style="text-align:center; font-size:12px; margin-top:20px;">
             --- FIN DE TICKET ---
         </div>
     `;
-    
-    setTimeout(() => {
-        window.print();
-    }, 250);
+    setTimeout(() => { window.print(); }, 250);
 }
 
-// ─── ACCIONES DE GUARDADO (CREAR O ACTUALIZAR) ───────────────────────
-
-function guardarVenta(){
-  const cliente = document.getElementById('v-cliente').value.trim();
-  const fecha = document.getElementById('v-fecha').value || hoy;
-  const pago = document.getElementById('v-pago').value;
-  const notas = document.getElementById('v-notas').value;
-  const total = parseFloat(document.getElementById('v-precio-total').value) || 0;
-
-  if(!cliente || carritoActual.length === 0){
-      toast('⚠ Agregá un cliente y productos al carrito');
-      return;
-  }
-
-  if(editando.ventas) {
-      const idx = db.ventas.findIndex(v => v.id === editando.ventas);
-      if(idx !== -1) {
-          actualizarStockPorVenta(db.ventas[idx].items, 1);
-          db.ventas[idx] = { id: editando.ventas, fecha, cliente, items: [...carritoActual], total, pago, notas };
-          actualizarStockPorVenta(db.ventas[idx].items, -1);
-      }
-      toast('✓ Pedido actualizado');
-  } else {
-      db.ventas.push({ id: db.nextId++, fecha, cliente, items: [...carritoActual], total, pago, notas });
-      actualizarStockPorVenta(carritoActual, -1);
-      toast('✓ Venta registrada');
-  }
-  
-  cancelarEdicion('ventas');
-  save(); render();
-}
-
-function guardarStock() { 
-  const fecha=document.getElementById('s-fecha').value||hoy;
-  const nombre=document.getElementById('s-nombre').value.trim();
-  const cantidad=parseFloat(document.getElementById('s-cantidad').value)||0;
-  const unidad=document.getElementById('s-unidad').value;
-  const costo=parseFloat(document.getElementById('s-costo').value)||0;
-  const minimo=parseFloat(document.getElementById('s-minimo').value)||0;
-  const categoria=document.getElementById('s-cat').value;
-  if(!nombre||!cantidad){toast('⚠ Completá nombre y cantidad');return}
-
-  if(editando.stock) {
-      const idx = db.stock.findIndex(s => s.id === editando.stock);
-      if(idx !== -1) db.stock[idx] = { id: editando.stock, fecha, nombre, cantidad, unidad, minimo, categoria, costo };
-      toast('✓ Ingrediente actualizado');
-  } else {
-      const ex=db.stock.find(s=>s.nombre.toLowerCase()===nombre.toLowerCase());
-      if(ex){
-          ex.cantidad=Math.round((ex.cantidad+cantidad)*100)/100;
-          if(costo)ex.costo=costo;
-          ex.fecha = fecha;
-      }
-      else db.stock.push({id:db.nextId++,fecha,nombre,cantidad,unidad,minimo,categoria,costo});
-      toast('✓ Stock guardado');
-  }
-  cancelarEdicion('stock');
-  save();render();
-}
-
-function guardarReceta() { 
-  const nombre=document.getElementById('r-nombre').value.trim();
-  const tipo=document.getElementById('r-tipo').value;
-  const precio=parseFloat(document.getElementById('r-precio').value)||0;
-  const costo=parseFloat(document.getElementById('r-costo').value)||0;
-  const desc=document.getElementById('r-desc').value.trim();
-  const ing=document.getElementById('r-ing').value.trim();
-  if(!nombre||!precio){toast('⚠ Completá nombre y precio');return}
-
-  if(editando.recetas) {
-      const idx = db.recetas.findIndex(r => r.id === editando.recetas);
-      if(idx !== -1) db.recetas[idx] = { id: editando.recetas, nombre, tipo, precio, costo, desc, ing };
-      toast('✓ Variedad actualizada');
-  } else {
-      db.recetas.push({id:db.nextId++,nombre,tipo,precio,costo,desc,ing});
-      toast('✓ Variedad guardada');
-  }
-  cancelarEdicion('recetas');
-  save();
-  render();
-  actualizarPrecioItem(); 
-}
-
-function guardarExtra(){ 
-  const nombre=document.getElementById('e-nombre').value.trim();
-  const precio=parseFloat(document.getElementById('e-precio').value)||0;
-  const ing=document.getElementById('e-ing').value.trim();
-  if(!nombre){toast('⚠ Ingresá el nombre');return}
-
-  if(editando.extras) {
-      const idx = db.extras.findIndex(e => e.id === editando.extras);
-      if(idx !== -1) db.extras[idx] = { id: editando.extras, nombre, precio, ing };
-      toast('✓ Extra actualizado');
-  } else {
-      db.extras.push({id:db.nextId++,nombre,precio,ing});
-      toast('✓ Extra guardado');
-  }
-  cancelarEdicion('extras');
-  save();render();
-}
-
-function guardarGasto() { 
-  const cat=document.getElementById('g-cat').value;
-  const desc=document.getElementById('g-desc').value.trim();
-  const monto=parseFloat(document.getElementById('g-monto').value)||0;
-  const fecha=document.getElementById('g-fecha').value||hoy;
-  const tipo=document.getElementById('g-tipo').value;
-  if(!desc||!monto){toast('⚠ Completá descripción y monto');return}
-
-  if(editando.gastos) {
-      const idx = db.gastos.findIndex(g => g.id === editando.gastos);
-      if(idx !== -1) db.gastos[idx] = { id: editando.gastos, fecha, cat, desc, tipo, monto };
-      toast('✓ Gasto actualizado');
-  } else {
-      db.gastos.push({id:db.nextId++,fecha,cat,desc,tipo,monto});
-      toast('✓ Gasto registrado');
-  }
-  cancelarEdicion('gastos');
-  save();render();
-}
-
-// ─── FUNCIONES PARA LLENAR LOS FORMULARIOS Y EDITAR ──────────────────
-
-function editarVenta(id) {
-    const v = db.ventas.find(x => x.id === id);
-    if(!v) return;
-    document.getElementById('v-fecha').value = v.fecha;
-    document.getElementById('v-cliente').value = v.cliente;
-    document.getElementById('v-pago').value = v.pago;
-    document.getElementById('v-notas').value = v.notas;
-    
-    carritoActual = JSON.parse(JSON.stringify(v.items));
-    renderCarrito();
-    
-    document.getElementById('v-precio-total').value = v.total;
-
-    editando.ventas = id;
-    document.getElementById('btn-ventas-submit').textContent = '✓ Actualizar pedido';
-    document.getElementById('btn-ventas-cancel').style.display = 'inline-flex';
-    document.getElementById('ventas').scrollIntoView({behavior: 'smooth'});
-}
-
-function editarStock(id) { 
-    const item = db.stock.find(s => s.id === id);
-    if(!item) return;
-    document.getElementById('s-fecha').value = item.fecha || hoy;
-    document.getElementById('s-nombre').value = item.nombre;
-    document.getElementById('s-cantidad').value = item.cantidad;
-    document.getElementById('s-unidad').value = item.unidad;
-    document.getElementById('s-costo').value = item.costo || '';
-    document.getElementById('s-minimo').value = item.minimo;
-    document.getElementById('s-cat').value = item.categoria;
-
-    editando.stock = id;
-    document.getElementById('btn-stock-submit').textContent = '✓ Actualizar inventario';
-    document.getElementById('btn-stock-cancel').style.display = 'inline-flex';
-    document.getElementById('stock').scrollIntoView({behavior: 'smooth'});
-}
-
-function editarReceta(id) { 
-    const item = db.recetas.find(r => r.id === id);
-    if(!item) return;
-    document.getElementById('r-nombre').value = item.nombre;
-    document.getElementById('r-tipo').value = item.tipo;
-    document.getElementById('r-precio').value = item.precio;
-    document.getElementById('r-costo').value = item.costo || '';
-    document.getElementById('r-desc').value = item.desc || '';
-    document.getElementById('r-ing').value = item.ing || '';
-
-    editando.recetas = id;
-    document.getElementById('btn-recetas-submit').textContent = '✓ Actualizar variedad';
-    document.getElementById('btn-recetas-cancel').style.display = 'inline-flex';
-    document.getElementById('recetas').scrollIntoView({behavior: 'smooth'});
-}
-
-function editarExtra(id) { 
-    const e = db.extras.find(x => x.id === id);
-    if(!e) return;
-    document.getElementById('e-nombre').value = e.nombre;
-    document.getElementById('e-precio').value = e.precio;
-    document.getElementById('e-ing').value = e.ing || '';
-
-    editando.extras = id;
-    document.getElementById('btn-extras-submit').textContent = '✓ Actualizar extra';
-    document.getElementById('btn-extras-cancel').style.display = 'inline-flex';
-}
-
-function editarGasto(id) { 
-    const g = db.gastos.find(x => x.id === id);
-    if(!g) return;
-    document.getElementById('g-fecha').value = g.fecha;
-    document.getElementById('g-cat').value = g.cat;
-    document.getElementById('g-tipo').value = g.tipo;
-    document.getElementById('g-monto').value = g.monto;
-    document.getElementById('g-desc').value = g.desc;
-
-    editando.gastos = id;
-    document.getElementById('btn-gastos-submit').textContent = '✓ Actualizar gasto';
-    document.getElementById('btn-gastos-cancel').style.display = 'inline-flex';
-    document.getElementById('gastos').scrollIntoView({behavior: 'smooth'});
-}
-
-function cancelarEdicion(sec) {
-    editando[sec] = null;
-    const btnCancel = document.getElementById(`btn-${sec}-cancel`);
-    if(btnCancel) btnCancel.style.display = 'none';
-
-    if(sec==='ventas') {
-        document.getElementById('v-cliente').value='';
-        document.getElementById('v-notas').value='';
-        document.getElementById('v-fecha').value=hoy;
-        
-        carritoActual = [];
-        renderCarrito();
-        
-        document.getElementById('v-qty').value='1';
-        document.querySelectorAll('#v-extras input').forEach(i=>i.checked=false);
-        actualizarPrecioItem();
-        
-        document.getElementById('btn-ventas-submit').textContent = '✓ Registrar pedido';
-    }
-    else if(sec==='stock') {
-        document.getElementById('s-fecha').value=hoy;
-        ['s-nombre','s-cantidad','s-costo','s-minimo'].forEach(id=>document.getElementById(id).value='');
-        document.getElementById('btn-stock-submit').textContent = '✓ Agregar al inventario';
-    }
-    else if(sec==='recetas') {
-        ['r-nombre','r-precio','r-costo','r-desc','r-ing'].forEach(id=>document.getElementById(id).value='');
-        document.getElementById('btn-recetas-submit').textContent = '✓ Guardar';
-    }
-    else if(sec==='extras') {
-        ['e-nombre','e-precio','e-ing'].forEach(id=>document.getElementById(id).value='');
-        document.getElementById('btn-extras-submit').textContent = '+ Agregar extra';
-    }
-    else if(sec==='gastos') {
-        document.getElementById('g-desc').value='';
-        document.getElementById('g-monto').value='';
-        document.getElementById('g-fecha').value=hoy;
-        document.getElementById('btn-gastos-submit').textContent = '✓ Registrar';
-    }
-}
-
-// ─── ELIMINAR ────────────────────────────────────────────────────────
-
-function eliminar(tabla,id){
-  if(!confirm('¿Estás seguro de eliminar este registro?'))return;
-  
-  if (tabla === 'ventas') {
-      const ventaBorrada = db.ventas.find(v => v.id === id);
-      if (ventaBorrada) actualizarStockPorVenta(ventaBorrada.items, 1);
-  }
-  
-  db[tabla]=db[tabla].filter(r=>r.id!==id);
-  save();toast('✓ Eliminado');render();
-}
-
-// ─── INIT ────────────────────────────────────────────────────────────
-document.getElementById('v-fecha').value=hoy;
-document.getElementById('s-fecha').value=hoy;
-document.getElementById('g-fecha').value=hoy;
-render();
-setTimeout(actualizarPrecioItem, 100); 
+// ─── INICIALIZACIÓN DE FECHAS ──────────────────────────────────────────────
+document.getElementById('v-fecha').value = window.hoy;
+document.getElementById('s-fecha').value = window.hoy;
+document.getElementById('g-fecha').value = window.hoy;
 </script>
 </body>
 </html>
