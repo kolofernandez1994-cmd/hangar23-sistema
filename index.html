@@ -173,22 +173,21 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 
 .empty{color:var(--muted);font-size:13px;padding:1.5rem 0;text-align:center;font-family:var(--font-mono)}
 
-/* CSS PARA IMPRESIÓN (COMANDA) */
+/* CSS PARA IMPRESIÓN (COMANDA TICKETERA) */
 #comanda-print { display: none; }
 @media print {
-  body * { visibility: hidden; }
-  #comanda-print, #comanda-print * { visibility: visible; }
-  #comanda-print { 
-    position: absolute; 
-    left: 0; 
-    top: 0; 
-    width: 80mm; 
-    font-family: 'DM Mono', monospace; 
-    font-size: 14px; 
-    color: #000; 
-    background: #fff;
+  @page { margin: 0; }
+  body { background: #fff !important; color: #000 !important; margin: 0; padding: 0; }
+  .app, .hamburger, .overlay, .toast { display: none !important; }
+  #comanda-print {
+    display: block !important;
+    width: 100%;
+    max-width: 80mm; /* Adaptado perfecto para ticketera térmica */
     margin: 0;
-    padding: 10px;
+    padding: 15px 10px;
+    font-family: 'DM Mono', monospace;
+    color: #000;
+    background: #fff;
   }
 }
 </style>
@@ -199,7 +198,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú">☰</button>
 <div class="toast" id="toast"></div>
 
-<!-- CONTENEDOR OCULTO PARA IMPRIMIR LA COMANDA -->
 <div id="comanda-print"></div>
 
 <div class="app">
@@ -219,12 +217,11 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
     </nav>
-    <div class="sidebar-footer">v1.4 · Carrito y Comanda</div>
+    <div class="sidebar-footer">v1.5 · Comanda Avanzada</div>
   </aside>
 
   <main class="main">
 
-    <!-- DASHBOARD -->
     <div id="dashboard" class="section active">
       <div class="page-header">
         <div class="page-title">Dashboard</div>
@@ -247,7 +244,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- VENTAS -->
     <div id="ventas" class="section">
       <div class="page-header">
         <div class="page-title">Ventas</div>
@@ -256,7 +252,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="card">
         <div class="card-title"><span class="icon">+</span> Nuevo pedido</div>
         
-        <!-- CARRITO DE COMPRAS: Selección de Ítems -->
         <div style="border-left: 3px solid var(--accent); padding-left: 12px; margin-bottom: 20px;">
             <div class="form-label" style="margin-bottom:8px">1. Sumar productos al pedido</div>
             <div class="form-grid">
@@ -273,7 +268,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 
         <hr>
 
-        <!-- CARRITO DE COMPRAS: Resumen del Pedido -->
         <div class="form-label" style="margin-bottom:8px">2. Resumen del Carrito</div>
         <div class="carrito-box">
             <div id="v-carrito-lista" class="carrito-lista">
@@ -281,7 +275,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
             </div>
         </div>
 
-        <!-- CARRITO DE COMPRAS: Datos Finales -->
         <div class="form-grid">
           <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="v-fecha"></div>
           <div class="form-group"><label class="form-label">Cliente</label><input type="text" id="v-cliente" placeholder="Nombre"></div>
@@ -289,8 +282,8 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">TOTAL DEL PEDIDO ($)</label><input type="number" id="v-precio-total" placeholder="0"></div>
         </div>
         <div class="form-group" style="margin-bottom:16px">
-          <label class="form-label">Notas para la cocina (General)</label>
-          <input type="text" id="v-notas" placeholder="Mandar aderezos, rápido...">
+          <label class="form-label">Aclaraciones y notas (Imprime grande en ticket)</label>
+          <input type="text" id="v-notas" placeholder="Sin cebolla, bien cocida, sin aderezo...">
         </div>
         
         <div style="display:flex;gap:8px">
@@ -308,7 +301,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- CLIENTES -->
     <div id="clientes" class="section">
       <div class="page-header">
         <div class="page-title">Clientes</div>
@@ -324,7 +316,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- STOCK -->
     <div id="stock" class="section">
       <div class="page-header">
         <div class="page-title">Stock</div>
@@ -354,7 +345,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- RECETAS -->
     <div id="recetas" class="section">
       <div class="page-header">
         <div class="page-title">Recetas y menú</div>
@@ -392,7 +382,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- GASTOS -->
     <div id="gastos" class="section">
       <div class="page-header">
         <div class="page-title">Gastos</div>
@@ -431,7 +420,7 @@ const hoy = new Date().toISOString().split('T')[0];
 
 // ─── ESTADO GLOBAL Y EDICIÓN ──────────────────────────────────────────
 let editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null };
-let carritoActual = []; // Variable para guardar el pedido en curso
+let carritoActual = [];
 
 let db = JSON.parse(localStorage.getItem('burger_db') || 'null') || {
   nextId: 100,
@@ -460,8 +449,7 @@ let db = JSON.parse(localStorage.getItem('burger_db') || 'null') || {
   ]
 };
 
-// ─── MIGRACIÓN AUTOMÁTICA (v1.3 a v1.4) ──────────────────────────────
-// Si detecta ventas viejas (con un solo producto), las convierte al formato de Carrito.
+// Migración de datos viejos
 db.ventas.forEach(v => {
     if (!v.items && v.burger) {
         v.items = [{ burger: v.burger, extras: v.extras || [], qty: v.qty || 1, subtotal: v.precio }];
@@ -498,7 +486,6 @@ function renderDash(){
   const totalV = db.ventas.reduce((a,v) => a + v.total, 0);
   const totalG = db.gastos.reduce((a,g) => a + g.monto, 0);
   const ganancia = totalV - totalG;
-  // Suma total de hamburguesas vendidas analizando cada item dentro del pedido
   const pedidos = db.ventas.reduce((a, v) => a + v.items.reduce((sum, item) => sum + item.qty, 0), 0);
   const margen = totalV ? Math.round(ganancia/totalV*100) : 0;
   
@@ -566,7 +553,7 @@ function renderVentas(){
     </tr>`).join('')||`<tr><td colspan="6" class="empty">Sin ventas registradas</td></tr>`;
 }
 
-function renderStock() { /* ... igual que antes ... */ 
+function renderStock() { 
   document.getElementById('stock-tabla').innerHTML=db.stock.map(s=>{
     const estado=s.cantidad<s.minimo?'danger':s.cantidad===s.minimo?'warn':'ok';
     const label={'danger':'Comprar','warn':'Bajo','ok':'Ok'}[estado];
@@ -585,7 +572,7 @@ function renderStock() { /* ... igual que antes ... */
   }).join('')||`<tr><td colspan="7" class="empty">Sin ingredientes</td></tr>`;
 }
 
-function renderRecetas() { /* ... igual que antes ... */ 
+function renderRecetas() { 
   const colTipo={'Hamburguesa':'badge-accent','Combo':'badge-blue','Promo':'badge-warn','Vegetariana':'badge-ok','Bebida':'badge-ok','Guarnición':'badge-warn'};
   document.getElementById('recetas-grid').innerHTML=db.recetas.map(r=>{
     const margen=r.costo?Math.round((r.precio-r.costo)/r.precio*100):null;
@@ -619,14 +606,12 @@ function renderClientes(){
   const mapa={};
   db.ventas.forEach(v=>{
     if(!mapa[v.cliente])mapa[v.cliente]={pedidos:0,total:0,fav:{},pagos:{},ultimo:''};
-    // Sumamos la cantidad de todos los ítems
     const qtyTotal = v.items.reduce((sum, item) => sum + item.qty, 0);
     mapa[v.cliente].pedidos += qtyTotal;
     mapa[v.cliente].total += v.total;
     mapa[v.cliente].pagos[v.pago] = (mapa[v.cliente].pagos[v.pago]||0)+1;
     if(v.fecha>mapa[v.cliente].ultimo) mapa[v.cliente].ultimo=v.fecha;
     
-    // Favorita
     v.items.forEach(item => {
         mapa[v.cliente].fav[item.burger] = (mapa[v.cliente].fav[item.burger]||0) + item.qty;
     });
@@ -704,7 +689,6 @@ function agregarAlCarrito() {
 
   carritoActual.push({ burger, qty, extras, subtotal });
   
-  // Limpiar campos del ítem
   document.getElementById('v-qty').value = 1;
   document.querySelectorAll('#v-extras input').forEach(i => i.checked = false);
   actualizarPrecioItem();
@@ -742,30 +726,49 @@ function imprimirComanda(id) {
     const v = db.ventas.find(x => x.id === id);
     if(!v) return;
     
-    let htmlItems = v.items.map(i => `
-        <div style="margin-bottom:8px">
-            <div>-> <strong>${i.qty}x ${i.burger}</strong></div>
-            ${i.extras.length ? `<div style="font-size:12px;font-weight:normal;padding-left:15px">(Extras: ${i.extras.join(', ')})</div>` : ''}
+    // Armamos el HTML de cada ítem, agregando la descripción de la receta
+    let htmlItems = v.items.map(i => {
+        const receta = db.recetas.find(r => r.nombre === i.burger);
+        const desc = receta && receta.desc ? `<div style="font-size:12px; color:#444; margin-top:2px">${receta.desc}</div>` : '';
+        
+        return `
+        <div style="margin-bottom:12px; border-bottom:1px dotted #888; padding-bottom:8px">
+            <div style="font-size:16px;"><strong>${i.qty} x ${i.burger}</strong></div>
+            ${desc}
+            ${i.extras.length ? `<div style="font-size:13px; margin-top:4px; font-weight:bold;">+ EXTRAS: ${i.extras.join(', ')}</div>` : ''}
         </div>
-    `).join('');
+        `;
+    }).join('');
 
     const printDiv = document.getElementById('comanda-print');
     printDiv.innerHTML = `
-        <div style="text-align:center;font-size:18px;font-weight:bold;margin-bottom:10px;">HANGAR23 - COCINA</div>
-        <div style="border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:10px;">
-            <strong>Pedido:</strong> #${v.id}<br>
-            <strong>Fecha:</strong> ${v.fecha}<br>
-            <strong>Cliente:</strong> ${v.cliente}
+        <div style="text-align:center; margin-bottom:15px;">
+            <div style="font-family:'Bebas Neue', sans-serif; font-size:42px; margin:0; line-height:1; letter-spacing:2px;">HANGAR 23</div>
+            <div style="font-size:14px; letter-spacing:1px; margin-top:4px;">COMANDA DE COCINA</div>
         </div>
-        <div style="font-size:16px;font-weight:bold;margin-bottom:8px;">
+
+        <div style="border-top:2px dashed #000; border-bottom:2px dashed #000; padding:8px 0; margin-bottom:15px; font-size:14px;">
+            <div><strong>TICKET:</strong> #${v.id}</div>
+            <div><strong>FECHA:</strong> ${v.fecha}</div>
+            <div><strong>CLIENTE:</strong> ${v.cliente.toUpperCase()}</div>
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <div style="font-size:12px; margin-bottom:8px; text-transform:uppercase;">Detalle del pedido:</div>
             ${htmlItems}
         </div>
-        <div style="border-top:1px dashed #000;padding-top:5px;margin-bottom:15px;">
-            <strong>NOTAS GENERALES:</strong><br>
-            ${v.notas || 'Sin notas'}
+
+        <div style="border:2px solid #000; padding:8px; margin-bottom:15px;">
+            <strong style="font-size:14px;">📝 ACLARACIONES DEL CLIENTE:</strong><br>
+            <div style="font-size:15px; font-weight:bold; margin-top:4px;">${v.notas ? v.notas.toUpperCase() : 'NINGUNA'}</div>
         </div>
-        <div style="text-align:center;">--- FIN DE TICKET ---</div>
+
+        <div style="text-align:center; font-size:12px; margin-top:20px;">
+            --- FIN DE TICKET ---
+        </div>
     `;
+    
+    // Dispara la ventana de impresión del navegador
     window.print();
 }
 
@@ -796,7 +799,7 @@ function guardarVenta(){
   save(); render();
 }
 
-function guardarStock() { /* igual */
+function guardarStock() { 
   const nombre=document.getElementById('s-nombre').value.trim();
   const cantidad=parseFloat(document.getElementById('s-cantidad').value)||0;
   const unidad=document.getElementById('s-unidad').value;
@@ -819,7 +822,7 @@ function guardarStock() { /* igual */
   save();render();
 }
 
-function guardarReceta() { /* igual */
+function guardarReceta() { 
   const nombre=document.getElementById('r-nombre').value.trim();
   const tipo=document.getElementById('r-tipo').value;
   const precio=parseFloat(document.getElementById('r-precio').value)||0;
@@ -842,7 +845,7 @@ function guardarReceta() { /* igual */
   actualizarPrecioItem(); 
 }
 
-function guardarExtra(){ /* igual */
+function guardarExtra(){ 
   const nombre=document.getElementById('e-nombre').value.trim();
   const precio=parseFloat(document.getElementById('e-precio').value)||0;
   const ing=document.getElementById('e-ing').value.trim();
@@ -860,7 +863,7 @@ function guardarExtra(){ /* igual */
   save();render();
 }
 
-function guardarGasto() { /* igual */
+function guardarGasto() { 
   const cat=document.getElementById('g-cat').value;
   const desc=document.getElementById('g-desc').value.trim();
   const monto=parseFloat(document.getElementById('g-monto').value)||0;
@@ -890,11 +893,9 @@ function editarVenta(id) {
     document.getElementById('v-pago').value = v.pago;
     document.getElementById('v-notas').value = v.notas;
     
-    // Cargar los ítems guardados al carrito actual
     carritoActual = JSON.parse(JSON.stringify(v.items));
     renderCarrito();
     
-    // Pisar el total calculado con el guardado (por si hizo un descuento manual)
     document.getElementById('v-precio-total').value = v.total;
 
     editando.ventas = id;
@@ -903,7 +904,7 @@ function editarVenta(id) {
     document.getElementById('ventas').scrollIntoView({behavior: 'smooth'});
 }
 
-function editarStock(id) { /* igual */
+function editarStock(id) { 
     const item = db.stock.find(s => s.id === id);
     if(!item) return;
     document.getElementById('s-nombre').value = item.nombre;
@@ -919,7 +920,7 @@ function editarStock(id) { /* igual */
     document.getElementById('stock').scrollIntoView({behavior: 'smooth'});
 }
 
-function editarReceta(id) { /* igual */
+function editarReceta(id) { 
     const item = db.recetas.find(r => r.id === id);
     if(!item) return;
     document.getElementById('r-nombre').value = item.nombre;
@@ -935,7 +936,7 @@ function editarReceta(id) { /* igual */
     document.getElementById('recetas').scrollIntoView({behavior: 'smooth'});
 }
 
-function editarExtra(id) { /* igual */
+function editarExtra(id) { 
     const e = db.extras.find(x => x.id === id);
     if(!e) return;
     document.getElementById('e-nombre').value = e.nombre;
@@ -947,7 +948,7 @@ function editarExtra(id) { /* igual */
     document.getElementById('btn-extras-cancel').style.display = 'inline-flex';
 }
 
-function editarGasto(id) { /* igual */
+function editarGasto(id) { 
     const g = db.gastos.find(x => x.id === id);
     if(!g) return;
     document.getElementById('g-fecha').value = g.fecha;
