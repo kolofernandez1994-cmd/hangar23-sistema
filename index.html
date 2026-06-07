@@ -201,7 +201,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú">☰</button>
 <div class="toast" id="toast"></div>
 
-<!-- CONTENEDOR OCULTO PARA IMPRIMIR LA COMANDA -->
 <div id="comanda-print"></div>
 
 <div class="app">
@@ -221,17 +220,15 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
     </nav>
-    <div class="sidebar-footer">v2.1 · Nube Firebase</div>
+    <div class="sidebar-footer">v3.0 · Firebase Final</div>
   </aside>
 
   <main class="main">
 
-    <!-- DASHBOARD -->
     <div id="dashboard" class="section active">
       <div class="page-header">
         <div class="page-title">
             Dashboard
-            <!-- Botón Mágico para inyectar datos iniciales -->
             <button id="btn-seed" class="btn btn-sm" style="margin-left:20px; background:var(--surface2); color:var(--text); border: 1px solid var(--border);" onclick="cargarDatosBase()">
                 ⚙️ Restaurar Menú Base
             </button>
@@ -255,7 +252,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- VENTAS -->
     <div id="ventas" class="section">
       <div class="page-header">
         <div class="page-title">Ventas</div>
@@ -264,7 +260,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="card">
         <div class="card-title"><span class="icon">+</span> Nuevo pedido</div>
         
-        <!-- CARRITO DE COMPRAS -->
         <div style="border-left: 3px solid var(--accent); padding-left: 12px; margin-bottom: 20px;">
             <div class="form-label" style="margin-bottom:8px">1. Sumar productos al pedido</div>
             <div class="form-grid">
@@ -281,7 +276,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 
         <hr>
 
-        <!-- RESUMEN DEL CARRITO -->
         <div class="form-label" style="margin-bottom:8px">2. Resumen del Carrito</div>
         <div class="carrito-box">
             <div id="v-carrito-lista" class="carrito-lista">
@@ -289,7 +283,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
             </div>
         </div>
 
-        <!-- DATOS FINALES -->
         <div class="form-grid">
           <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="v-fecha"></div>
           <div class="form-group"><label class="form-label">Cliente</label><input type="text" id="v-cliente" placeholder="Nombre"></div>
@@ -316,7 +309,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- CLIENTES -->
     <div id="clientes" class="section">
       <div class="page-header">
         <div class="page-title">Clientes</div>
@@ -332,7 +324,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- STOCK -->
     <div id="stock" class="section">
       <div class="page-header">
         <div class="page-title">Stock</div>
@@ -363,7 +354,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- RECETAS -->
     <div id="recetas" class="section">
       <div class="page-header">
         <div class="page-title">Recetas y menú</div>
@@ -401,7 +391,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
     </div>
 
-    <!-- GASTOS -->
     <div id="gastos" class="section">
       <div class="page-header">
         <div class="page-title">Gastos</div>
@@ -434,7 +423,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
   </main>
 </div>
 
-<!-- LIBRERÍAS Y SCRIPT -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 
 <script type="module">
@@ -442,14 +430,14 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// Credenciales
+// Credenciales (Las que sacamos recién de tu proyecto hangar23-v706)
 const firebaseConfig = {
-  apiKey: "AIzaSyBOYQZZkcR_f7jBvweSnauOzPe92dsH060",
-  authDomain: "hangar23-668af.firebaseapp.com",
-  projectId: "hangar23-668af",
-  storageBucket: "hangar23-668af.firebasestorage.app",
-  messagingSenderId: "414862836972",
-  appId: "1:414862836972:web:cfb242464ea55757f751c9"
+  apiKey: "AIzaSyDYvEr5rbVjhYLX5sbqYh4pK9bDSOH1cyk",
+  authDomain: "hangar23-v706.firebaseapp.com",
+  projectId: "hangar23-v706",
+  storageBucket: "hangar23-v706.firebasestorage.app",
+  messagingSenderId: "1073514334115",
+  appId: "1:1073514334115:web:22de1feb1e94127857bc16"
 };
 
 // Iniciar Firebase
