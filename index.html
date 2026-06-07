@@ -174,11 +174,14 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 .empty{color:var(--muted);font-size:13px;padding:1.5rem 0;text-align:center;font-family:var(--font-mono)}
 
 /* CSS PARA IMPRESIÓN (COMANDA TICKETERA) */
-#comanda-print { display: none; }
+@media screen {
+  #comanda-print { display: none; }
+}
 @media print {
   @page { margin: 0; }
   body { background: #fff !important; color: #000 !important; margin: 0; padding: 0; }
   .app, .hamburger, .overlay, .toast { display: none !important; }
+  
   #comanda-print {
     display: block !important;
     width: 100%;
@@ -217,7 +220,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
     </nav>
-    <div class="sidebar-footer">v1.5 · Comanda Avanzada</div>
+    <div class="sidebar-footer">v1.6 · Descuento de Stock OK</div>
   </aside>
 
   <main class="main">
@@ -359,7 +362,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Costo estimado ($)</label><input type="number" id="r-costo" placeholder="0"></div>
         </div>
         <div class="form-group" style="margin-bottom:10px"><label class="form-label">Descripción</label><input type="text" id="r-desc" placeholder="Carne 200g, lechuga, tomate, mayo..."></div>
-        <div class="form-group" style="margin-bottom:12px"><label class="form-label">Ingredientes (nombre:cantidad:unidad — separados por coma)</label><input type="text" id="r-ing" placeholder="carne picada:200:g, pan:1:u, queso:1:u"></div>
+        <div class="form-group" style="margin-bottom:12px"><label class="form-label">Ingredientes (nombre:cantidad:unidad — separados por coma)</label><input type="text" id="r-ing" placeholder="carne picada:200:g, pan:1:u, queso cheddar:40:g"></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" id="btn-recetas-submit" onclick="guardarReceta()">✓ Guardar</button>
           <button class="btn" id="btn-recetas-cancel" style="display:none" onclick="cancelarEdicion('recetas')">✕ Cancelar</button>
@@ -372,7 +375,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
         <div class="form-grid" style="margin-bottom:10px">
           <div class="form-group"><label class="form-label">Nombre del extra</label><input type="text" id="e-nombre" placeholder="ej: Cheddar extra"></div>
           <div class="form-group"><label class="form-label">Precio ($)</label><input type="number" id="e-precio" placeholder="0"></div>
-          <div class="form-group"><label class="form-label">Ingrediente asociado</label><input type="text" id="e-ing" placeholder="opcional"></div>
+          <div class="form-group"><label class="form-label">Ingrediente asociado</label><input type="text" id="e-ing" placeholder="ej: queso cheddar:40:g (opcional)"></div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn" id="btn-extras-submit" onclick="guardarExtra()">+ Agregar extra</button>
@@ -425,28 +428,26 @@ let carritoActual = [];
 let db = JSON.parse(localStorage.getItem('burger_db') || 'null') || {
   nextId: 100,
   recetas: [
-    {id:1,nombre:'Clásica',tipo:'Hamburguesa',precio:2500,costo:900,desc:'Carne 180g, lechuga, tomate, cebolla, mayonesa',ing:'carne picada:180:g,pan:1:u,lechuga:30:g,tomate:50:g'},
-    {id:2,nombre:'Doble cheddar',tipo:'Hamburguesa',precio:3200,costo:1200,desc:'Doble carne, doble cheddar fundido',ing:'carne picada:360:g,pan:1:u,queso cheddar:60:g'},
-    {id:3,nombre:'Bacon deluxe',tipo:'Hamburguesa',precio:3500,costo:1400,desc:'Carne, bacon crocante, cheddar, BBQ',ing:'carne picada:200:g,pan:1:u,bacon:60:g,queso cheddar:40:g'},
-    {id:4,nombre:'Veggie',tipo:'Vegetariana',precio:2800,costo:800,desc:'Medallón de berenjena, queso, verduras frescas',ing:'pan:1:u,lechuga:50:g,tomate:80:g,queso cheddar:40:g'},
+    {id:1,nombre:'Clásica',tipo:'Hamburguesa',precio:2500,costo:900,desc:'Carne 180g, lechuga, tomate, cebolla, mayonesa',ing:'carne picada:180:g, pan de hamburguesa:1:u, lechuga:30:g, tomate:50:g'},
+    {id:2,nombre:'Doble cheddar',tipo:'Hamburguesa',precio:3200,costo:1200,desc:'Doble carne, doble cheddar fundido',ing:'carne picada:360:g, pan de hamburguesa:1:u, queso cheddar:60:g'},
+    {id:3,nombre:'Veggie',tipo:'Vegetariana',precio:2800,costo:800,desc:'Medallón de berenjena, queso, verduras frescas',ing:'pan de hamburguesa:1:u, lechuga:50:g, tomate:80:g, queso cheddar:40:g'},
   ],
   extras: [
-    {id:1,nombre:'Cheddar extra',precio:300,ing:'queso cheddar'},
-    {id:2,nombre:'Bacon extra',precio:500,ing:'bacon'},
-    {id:3,nombre:'Huevo frito',precio:250,ing:'huevo'},
-    {id:4,nombre:'Papas fritas',precio:600,ing:'papas'},
-    {id:5,nombre:'Doble carne',precio:800,ing:'carne picada'},
+    {id:1,nombre:'Cheddar extra',precio:300,ing:'queso cheddar:30:g'},
+    {id:2,nombre:'Bacon extra',precio:500,ing:'bacon:40:g'},
+    {id:3,nombre:'Papas fritas',precio:600,ing:'papas:200:g'},
   ],
   stock: [
     {id:1,nombre:'Carne picada',cantidad:5,unidad:'kg',minimo:2,categoria:'Carnes',costo:3200},
     {id:2,nombre:'Pan de hamburguesa',cantidad:30,unidad:'u',minimo:20,categoria:'Panificados',costo:120},
     {id:3,nombre:'Queso cheddar',cantidad:1.5,unidad:'kg',minimo:1,categoria:'Lácteos',costo:2800},
     {id:4,nombre:'Lechuga',cantidad:0.5,unidad:'kg',minimo:1,categoria:'Verduras',costo:400},
+    {id:5,nombre:'Tomate',cantidad:2,unidad:'kg',minimo:1,categoria:'Verduras',costo:350},
+    {id:6,nombre:'Papas',cantidad:8,unidad:'kg',minimo:5,categoria:'Papas',costo:600},
+    {id:7,nombre:'Bacon',cantidad:0.8,unidad:'kg',minimo:1,categoria:'Carnes',costo:4500},
   ],
   ventas: [],
-  gastos: [
-    {id:1,fecha:'2026-06-01',cat:'Materia prima',desc:'Carne y verduras semanales',tipo:'Variable',monto:15000},
-  ]
+  gastos: []
 };
 
 // Migración de datos viejos
@@ -721,6 +722,61 @@ function renderCarrito() {
   document.getElementById('v-precio-total').value = sumaTotal;
 }
 
+// ─── DESCUENTO AUTOMÁTICO DE STOCK ───────────────────────────────────
+
+function actualizarStockPorVenta(carrito, factor) {
+    // factor: -1 (para descontar stock al vender), 1 (para devolver stock al editar/eliminar)
+    carrito.forEach(item => {
+        // 1. Descontar/Devolver ingredientes de la hamburguesa principal
+        const receta = db.recetas.find(r => r.nombre === item.burger);
+        if (receta && receta.ing) {
+            receta.ing.split(',').forEach(ingLinea => {
+                const partes = ingLinea.split(':');
+                if (partes.length >= 2) {
+                    const ingNombre = partes[0].trim().toLowerCase();
+                    let cant = parseFloat(partes[1].trim()) * item.qty;
+                    const uniReceta = partes.length >= 3 ? partes[2].trim().toLowerCase() : '';
+                    
+                    const stockItem = db.stock.find(s => s.nombre.toLowerCase() === ingNombre);
+                    if (stockItem) {
+                        let uniStock = stockItem.unidad.toLowerCase();
+                        // Conversión inteligente g -> kg y ml -> l
+                        if (uniReceta === 'g' && uniStock === 'kg') cant = cant / 1000;
+                        else if (uniReceta === 'ml' && uniStock === 'l') cant = cant / 1000;
+                        
+                        stockItem.cantidad += (cant * factor);
+                        stockItem.cantidad = Math.max(0, Math.round(stockItem.cantidad * 1000) / 1000);
+                    }
+                }
+            });
+        }
+        
+        // 2. Descontar/Devolver ingredientes de los Extras
+        item.extras.forEach(extNombre => {
+            const extra = db.extras.find(e => e.nombre === extNombre);
+            if (extra && extra.ing) {
+                extra.ing.split(',').forEach(ingLinea => {
+                    const partes = ingLinea.split(':');
+                    const ingNombre = partes[0].trim().toLowerCase();
+                    let cant = partes.length >= 2 ? parseFloat(partes[1].trim()) * item.qty : 1 * item.qty;
+                    const uniReceta = partes.length >= 3 ? partes[2].trim().toLowerCase() : '';
+                    
+                    const stockItem = db.stock.find(s => s.nombre.toLowerCase() === ingNombre);
+                    if (stockItem) {
+                        let uniStock = stockItem.unidad.toLowerCase();
+                        if (uniReceta === 'g' && uniStock === 'kg') cant = cant / 1000;
+                        else if (uniReceta === 'ml' && uniStock === 'l') cant = cant / 1000;
+                        else if (!uniReceta && uniStock === 'kg' && cant > 10) cant = cant / 1000; // Si olvidaste la unidad pero pusiste "200" en kg, asume gramos.
+                        
+                        stockItem.cantidad += (cant * factor);
+                        stockItem.cantidad = Math.max(0, Math.round(stockItem.cantidad * 1000) / 1000);
+                    }
+                });
+            }
+        });
+    });
+}
+
 // ─── IMPRESIÓN DE COMANDA ────────────────────────────────────────────
 function imprimirComanda(id) {
     const v = db.ventas.find(x => x.id === id);
@@ -768,8 +824,10 @@ function imprimirComanda(id) {
         </div>
     `;
     
-    // Dispara la ventana de impresión del navegador
-    window.print();
+    // Le damos un cuarto de segundo al navegador para que dibuje el div oculto antes de freezarse
+    setTimeout(() => {
+        window.print();
+    }, 250);
 }
 
 // ─── ACCIONES DE GUARDADO (CREAR O ACTUALIZAR) ───────────────────────
@@ -788,10 +846,20 @@ function guardarVenta(){
 
   if(editando.ventas) {
       const idx = db.ventas.findIndex(v => v.id === editando.ventas);
-      if(idx !== -1) db.ventas[idx] = { id: editando.ventas, fecha, cliente, items: [...carritoActual], total, pago, notas };
+      if(idx !== -1) {
+          // Devuelvo el stock viejo antes de guardar el nuevo
+          actualizarStockPorVenta(db.ventas[idx].items, 1);
+          
+          db.ventas[idx] = { id: editando.ventas, fecha, cliente, items: [...carritoActual], total, pago, notas };
+          
+          // Descuento el nuevo stock
+          actualizarStockPorVenta(db.ventas[idx].items, -1);
+      }
       toast('✓ Pedido actualizado');
   } else {
       db.ventas.push({ id: db.nextId++, fecha, cliente, items: [...carritoActual], total, pago, notas });
+      // Descuento el stock del nuevo pedido
+      actualizarStockPorVenta(carritoActual, -1);
       toast('✓ Venta registrada');
   }
   
@@ -1006,6 +1074,13 @@ function cancelarEdicion(sec) {
 
 function eliminar(tabla,id){
   if(!confirm('¿Estás seguro de eliminar este registro?'))return;
+  
+  // Si eliminamos una venta, devolver su mercadería al stock
+  if (tabla === 'ventas') {
+      const ventaBorrada = db.ventas.find(v => v.id === id);
+      if (ventaBorrada) actualizarStockPorVenta(ventaBorrada.items, 1);
+  }
+  
   db[tabla]=db[tabla].filter(r=>r.id!==id);
   save();toast('✓ Eliminado');render();
 }
