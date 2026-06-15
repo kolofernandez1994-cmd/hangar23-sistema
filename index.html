@@ -173,7 +173,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 </head>
 <body>
 
-<!-- MODAL META (reemplaza prompt() nativo) -->
+<!-- MODAL META -->
 <div class="modal-overlay" id="modal-meta">
   <div class="modal">
     <div class="modal-title">Objetivo de ventas</div>
@@ -210,7 +210,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
     </nav>
-    <div class="sidebar-footer">v4.1 · Business Intelligence</div>
+    <div class="sidebar-footer">v4.2 · Business Intelligence</div>
   </aside>
 
   <main class="main">
@@ -250,11 +250,13 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="card-title"><span class="icon">⭐</span> Ingeniería del Menú</div>
           <div style="display:flex;gap:10px;flex-direction:column">
             <div>
-              <div style="font-size:11px;text-transform:uppercase;color:var(--success);letter-spacing:1px;margin-bottom:4px">Estrellas (Venden mucho + Buen margen)</div>
+              <!-- TÍTULO ACTUALIZADO -->
+              <div style="font-size:11px;text-transform:uppercase;color:var(--success);letter-spacing:1px;margin-bottom:4px">Más vendida (cantidad mensual)</div>
               <div id="matrix-estrellas" style="background:var(--surface2);padding:8px 12px;border-radius:8px"></div>
             </div>
             <div>
-              <div style="font-size:11px;text-transform:uppercase;color:var(--danger);letter-spacing:1px;margin-bottom:4px">Perros (Poco vendidas + Bajo margen)</div>
+              <!-- TÍTULO ACTUALIZADO -->
+              <div style="font-size:11px;text-transform:uppercase;color:var(--danger);letter-spacing:1px;margin-bottom:4px">Menos vendida (cantidad mensual)</div>
               <div id="matrix-perros" style="background:var(--surface2);padding:8px 12px;border-radius:8px"></div>
             </div>
           </div>
@@ -426,8 +428,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const fsDb = getFirestore(app);
 
-// FIX 1: `hoy` se recalcula en cada uso para evitar problemas si la app queda abierta de un día para el otro
-window.getHoy = function() { return new Date().toISOString().split('T')[0]; }
+window.getHoy = function() { return new Date().toISOString().split('T')[0]; };
 
 window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [] };
 window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null };
@@ -436,7 +437,6 @@ window.carritoActual = [];
 window.fmt = (n) => '$' + Math.round(n).toLocaleString('es-AR');
 window.pct = (a, b) => b ? Math.round((a / b) * 100) : 0;
 
-// FIX 2: diffDias protegida contra fechas inválidas
 function diffDias(d1, d2) {
     if (!d1 || !d2) return Infinity;
     const f1 = new Date(d1 + 'T12:00:00');
@@ -445,14 +445,15 @@ function diffDias(d1, d2) {
     return Math.floor((f1 - f2) / (1000 * 60 * 60 * 24));
 }
 
-// FIX 3: Modal para configurar meta en lugar de prompt() nativo
 window.configurarMeta = function() {
     document.getElementById('modal-meta-input').value = localStorage.getItem('h23_meta') || 1000000;
     document.getElementById('modal-meta').classList.add('open');
-}
+};
+
 window.cerrarModalMeta = function() {
     document.getElementById('modal-meta').classList.remove('open');
-}
+};
+
 window.guardarMeta = function() {
     const val = document.getElementById('modal-meta-input').value;
     if (val && !isNaN(val) && parseFloat(val) > 0) {
@@ -462,12 +463,10 @@ window.guardarMeta = function() {
     } else {
         window.toast('⚠ Ingresá un número válido');
     }
-}
+};
 
-// Cerrar modal con Escape
 document.addEventListener('keydown', e => { if (e.key === 'Escape') window.cerrarModalMeta(); });
 
-// FIX 4: cargarDatosBase — función que antes no existía
 window.cargarDatosBase = async function() {
     if (!confirm('¿Restaurar el menú base? Esto agrega las recetas predeterminadas de HANGAR23.')) return;
     const recetasBase = [
@@ -475,7 +474,7 @@ window.cargarDatosBase = async function() {
         { nombre: 'Doble Fuego', tipo: 'Hamburguesa', precio: 5200, costo: 2200, desc: 'Doble medallón, cheddar, bacon crocante', ing: 'carne picada:400:g, pan:1:u, cheddar:40:g, bacon:60:g' },
         { nombre: 'Veggie', tipo: 'Vegetariana', precio: 3200, costo: 1100, desc: 'Medallón de garbanzos, palta, brotes', ing: 'medallón veggie:1:u, pan:1:u, palta:60:g' },
         { nombre: 'Combo Clásica', tipo: 'Combo', precio: 5500, costo: 1900, desc: 'Clásica + papas + bebida', ing: 'carne picada:200:g, pan:1:u, papa:300:g' },
-        { nombre: 'Limonada', tipo: 'Bebida', precio: 1200, costo: 300, desc: 'Limonada casera 500ml', ing: 'limón:2:u, azúcar:30:g' },
+        { nombre: 'Limonada', tipo: 'Bebida', precio: 1200, costo: 300, desc: 'Limonada casera 500ml', ing: 'limón:2:u, azúcar:30:g' }
     ];
     try {
         for (const r of recetasBase) {
@@ -485,7 +484,7 @@ window.cargarDatosBase = async function() {
     } catch(e) {
         window.toast('⚠ Error al restaurar');
     }
-}
+};
 
 ['recetas', 'extras', 'stock', 'ventas', 'gastos'].forEach(colName => {
     onSnapshot(collection(fsDb, colName), (snapshot) => {
@@ -494,7 +493,6 @@ window.cargarDatosBase = async function() {
             window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
         }
         window.render();
-        // FIX 5: Solo actualizar precio del ítem si el selector de productos existe y tiene opciones
         if (colName === 'recetas' || colName === 'extras') {
             const sel = document.getElementById('v-burger');
             if (sel && !window.editando.ventas) window.refrescarSelectoresVentas();
@@ -509,14 +507,14 @@ window.showSection = function(id) {
     document.querySelector(`[data-s="${id}"]`).classList.add('active');
     window.closeSidebar();
     window.render();
-}
-window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); }
-window.closeSidebar = () => { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
-window.toast = (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); }
+};
 
-window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderClientes(); renderGastos(); }
+window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); };
+window.closeSidebar = () => { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); };
+window.toast = (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
-// FIX 5: Separar la actualización de selectores de ventas para no pisarlos cuando hay carrito activo
+window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderClientes(); renderGastos(); };
+
 window.refrescarSelectoresVentas = function() {
     const sel = document.getElementById('v-burger');
     if (sel && !window.editando.ventas) {
@@ -527,15 +525,14 @@ window.refrescarSelectoresVentas = function() {
         extDiv.innerHTML = window.db.extras.map(e => `<label class="extra-check-item"><input type="checkbox" value="${e.nombre}" onchange="actualizarPrecioItem()"> ${e.nombre} <span class="extra-precio">+${window.fmt(e.precio)}</span></label>`).join('');
     }
     window.actualizarPrecioItem();
-}
+};
 
 function renderDash() {
-    const hoy = window.getHoy(); // FIX 1 en uso
+    const hoy = window.getHoy();
     const totalV = window.db.ventas.reduce((a, v) => a + v.total, 0);
     const totalG = window.db.gastos.reduce((a, g) => a + g.monto, 0);
     const ganancia = totalV - totalG;
 
-    // Termómetro de objetivos
     const mesActual = hoy.substring(0, 7);
     const ventasMes = window.db.ventas.filter(v => v.fecha && v.fecha.startsWith(mesActual)).reduce((a, v) => a + v.total, 0);
     const meta = parseFloat(localStorage.getItem('h23_meta')) || 1000000;
@@ -546,20 +543,17 @@ function renderDash() {
     document.getElementById('meta-bar').style.background = metaPct >= 100 ? 'var(--success)' : 'var(--accent)';
     document.getElementById('meta-info').innerHTML = `Has vendido <strong>${window.fmt(ventasMes)}</strong> (${metaPct}%). Faltan ${window.fmt(Math.max(0, meta - ventasMes))} para la meta.`;
 
-    // Crecimiento 7 días
     const ventasUltimos7 = window.db.ventas.filter(v => { const d = diffDias(hoy, v.fecha); return d >= 0 && d <= 6; }).reduce((a, v) => a + v.total, 0);
     const ventasAnteriores7 = window.db.ventas.filter(v => { const d = diffDias(hoy, v.fecha); return d >= 7 && d <= 13; }).reduce((a, v) => a + v.total, 0);
     const crec = ventasAnteriores7 ? Math.round(((ventasUltimos7 - ventasAnteriores7) / ventasAnteriores7) * 100) : 0;
     const crecHtml = crec >= 0 ? `<span style="color:var(--success)">▲ +${crec}%</span>` : `<span style="color:var(--danger)">▼ ${crec}%</span>`;
 
-    // Retención de clientes
     const conteoClientes = {};
     window.db.ventas.forEach(v => { conteoClientes[v.cliente] = (conteoClientes[v.cliente] || 0) + 1; });
     const recurrentes = Object.values(conteoClientes).filter(c => c > 1).length;
     const totalClientes = Object.keys(conteoClientes).length;
     const retencionPct = totalClientes ? Math.round((recurrentes / totalClientes) * 100) : 0;
 
-    // Día récord
     const ventasPorDia = {};
     window.db.ventas.forEach(v => { if (v.fecha) ventasPorDia[v.fecha] = (ventasPorDia[v.fecha] || 0) + v.total; });
     const diaMasVentas = Object.entries(ventasPorDia).sort((a, b) => b[1] - a[1])[0];
@@ -571,24 +565,23 @@ function renderDash() {
         <div class="metric"><div class="metric-label">Clientes Recurrentes</div><div class="metric-value blue">${retencionPct}%</div><div class="metric-sub">${recurrentes} de ${totalClientes} clientes volvieron</div></div>
     `;
 
-    // Ingeniería de menú
-    let volTotal = 0, margenTotal = 0;
+    // LOGICA ACTUALIZADA: TOP Y BOTTOM VENDIDAS (CANTIDAD MENSUAL)
+    const ventasDelMes = window.db.ventas.filter(v => v.fecha && v.fecha.startsWith(mesActual));
     const menuStats = window.db.recetas.map(r => {
         let sold = 0;
-        window.db.ventas.forEach(v => v.items && v.items.forEach(i => { if (i.burger === r.nombre) sold += i.qty; }));
+        ventasDelMes.forEach(v => v.items && v.items.forEach(i => { if (i.burger === r.nombre) sold += i.qty; }));
         const margin = r.precio - (r.costo || 0);
-        volTotal += sold; margenTotal += margin;
         return { nombre: r.nombre, sold, margin };
     });
-    const avgVol = menuStats.length ? volTotal / menuStats.length : 0;
-    const avgMargin = menuStats.length ? margenTotal / menuStats.length : 0;
-    const estrellas = menuStats.filter(m => m.sold >= avgVol && m.margin >= avgMargin).sort((a, b) => b.sold - a.sold);
-    const perros = menuStats.filter(m => m.sold < avgVol && m.margin < avgMargin).sort((a, b) => a.sold - b.sold);
 
-    document.getElementById('matrix-estrellas').innerHTML = estrellas.length ? estrellas.map(e => `<div class="matrix-item"><strong>${e.nombre}</strong> <span>${e.sold} ud. | Ganancia: ${window.fmt(e.margin)}/ud</span></div>`).join('') : '<div class="empty" style="padding:4px">No hay suficientes datos</div>';
-    document.getElementById('matrix-perros').innerHTML = perros.length ? perros.map(e => `<div class="matrix-item"><strong>${e.nombre}</strong> <span>${e.sold} ud. | Ganancia: ${window.fmt(e.margin)}/ud</span></div>`).join('') : '<div class="empty" style="padding:4px">¡Tu menú es excelente!</div>';
+    // Top 3 más vendidas (orden mayor a menor)
+    const masVendidas = [...menuStats].sort((a, b) => b.sold - a.sold).slice(0, 3).filter(m => m.sold > 0);
+    // Top 3 menos vendidas (orden menor a mayor)
+    const menosVendidas = [...menuStats].sort((a, b) => a.sold - b.sold).slice(0, 3);
 
-    // Alertas de stock (físico + predictivo)
+    document.getElementById('matrix-estrellas').innerHTML = masVendidas.length ? masVendidas.map(e => `<div class="matrix-item"><strong>${e.nombre}</strong> <span>${e.sold} ud. | Ganancia: ${window.fmt(e.margin)}/ud</span></div>`).join('') : '<div class="empty" style="padding:4px">Sin ventas este mes</div>';
+    document.getElementById('matrix-perros').innerHTML = menosVendidas.length ? menosVendidas.map(e => `<div class="matrix-item"><strong>${e.nombre}</strong> <span>${e.sold} ud. | Ganancia: ${window.fmt(e.margin)}/ud</span></div>`).join('') : '<div class="empty" style="padding:4px">Sin ventas este mes</div>';
+
     let alertasHtml = '';
     const ventas7dias = window.db.ventas.filter(v => { const d = diffDias(hoy, v.fecha); return d >= 0 && d <= 6; });
     const usoIngredientes = {};
@@ -633,22 +626,19 @@ function renderDash() {
     });
     document.getElementById('dash-alertas').innerHTML = alertasHtml || '<div class="alert alert-ok">✓ Todo el stock en orden y para largo</div>';
 
-    // Ranking y gráfico
     const conteo = {};
     window.db.ventas.forEach(v => v.items && v.items.forEach(i => conteo[i.burger] = (conteo[i.burger] || 0) + i.qty));
     const sorted = Object.entries(conteo).sort((a, b) => b[1] - a[1]);
     const colores = ['#ffdb59', '#f0c000', '#c89a00', '#8a6a00', '#4a3800'];
     document.getElementById('dash-ranking').innerHTML = sorted.length ? sorted.map(([n, c], i) => `<div class="ranking-item"><span class="ranking-num">${i + 1}</span><div class="ranking-bar-wrap"><div class="ranking-name">${n}</div><div class="progress"><div class="progress-fill" style="width:${window.pct(c, sorted[0][1])}%;background:${colores[i] || '#888'}"></div></div></div><span class="ranking-count">${c}</span></div>`).join('') : '<div class="empty">Sin ventas todavía</div>';
 
-    // FIX 6: Actualizar datos del gráfico sin destruirlo si ya existe (evita el flash visual)
     const ctx = document.getElementById('chartBurgers');
     if (ctx) {
         if (window._chart) {
-            // Actualizar datos en lugar de destruir y recrear
             window._chart.data.labels = sorted.map(([n]) => n);
             window._chart.data.datasets[0].data = sorted.map(([, c]) => c);
             window._chart.data.datasets[0].backgroundColor = colores.slice(0, sorted.length);
-            window._chart.update('none'); // 'none' = sin animación, evita el flash
+            window._chart.update('none');
         } else if (sorted.length) {
             window._chart = new Chart(ctx, {
                 type: 'bar',
@@ -670,9 +660,7 @@ function renderDash() {
 }
 
 function renderVentas() {
-    // FIX 5: Los selectores se actualizan solo si no estamos editando (no pisa el carrito activo)
     if (!window.editando.ventas) window.refrescarSelectoresVentas();
-
     document.getElementById('ventas-tabla').innerHTML = window.db.ventas.slice().reverse().map(v =>
         `<tr>
           <td style="font-family:var(--font-mono);font-size:11px">${v.fecha || '—'}</td>
@@ -801,7 +789,6 @@ function renderGastos() {
     ).join('') || `<tr><td colspan="6" class="empty">Sin gastos</td></tr>`;
 }
 
-// ── CARRITO ──
 window.actualizarPrecioItem = function() {
     const sel = document.getElementById('v-burger');
     if (!sel) return;
@@ -814,7 +801,7 @@ window.actualizarPrecioItem = function() {
         if (extra) subtotal += extra.precio;
     });
     document.getElementById('v-item-precio').value = subtotal * (parseInt(document.getElementById('v-qty').value) || 1);
-}
+};
 
 window.agregarAlCarrito = function() {
     const burger = document.getElementById('v-burger').value;
@@ -827,12 +814,12 @@ window.agregarAlCarrito = function() {
     document.querySelectorAll('#v-extras input').forEach(i => i.checked = false);
     window.actualizarPrecioItem();
     window.renderCarrito();
-}
+};
 
 window.eliminarDelCarrito = function(index) {
     window.carritoActual.splice(index, 1);
     window.renderCarrito();
-}
+};
 
 window.renderCarrito = function() {
     const cartDiv = document.getElementById('v-carrito-lista');
@@ -849,9 +836,8 @@ window.renderCarrito = function() {
         }).join('');
     }
     document.getElementById('v-precio-total').value = sumaTotal;
-}
+};
 
-// FIX 7: Lógica de descuento de stock mejorada para evitar inconsistencias por clampeo previo
 window.actualizarStockPorVentaAsync = async function(carrito, factor) {
     for (const item of carrito) {
         const receta = window.db.recetas.find(r => r.nombre === item.burger);
@@ -867,8 +853,6 @@ window.actualizarStockPorVentaAsync = async function(carrito, factor) {
                         let uniStock = stockItem.unidad.toLowerCase();
                         if (uniReceta === 'g' && uniStock === 'kg') cant = cant / 1000;
                         else if (uniReceta === 'ml' && uniStock === 'l') cant = cant / 1000;
-                        // FIX 7: Al sumar (factor=+1) no aplicamos Math.max para recuperar el stock real
-                        // Al restar (factor=-1) sí aplicamos Math.max(0) para no ir negativo
                         let newCantidad;
                         if (factor > 0) {
                             newCantidad = Math.round((stockItem.cantidad + cant) * 1000) / 1000;
@@ -905,9 +889,8 @@ window.actualizarStockPorVentaAsync = async function(carrito, factor) {
             }
         }
     }
-}
+};
 
-// ── GUARDAR / EDITAR ──
 window.guardarVenta = async function() {
     const cliente = document.getElementById('v-cliente').value.trim();
     const fecha = document.getElementById('v-fecha').value || window.getHoy();
@@ -930,7 +913,7 @@ window.guardarVenta = async function() {
         }
         window.cancelarEdicion('ventas');
     } catch(e) { window.toast('⚠ Error en la nube'); console.error(e); }
-}
+};
 
 window.guardarStock = async function() {
     const data = {
@@ -958,7 +941,7 @@ window.guardarStock = async function() {
         }
         window.cancelarEdicion('stock');
     } catch(e) { window.toast('⚠ Error'); console.error(e); }
-}
+};
 
 window.guardarReceta = async function() {
     const data = {
@@ -976,7 +959,7 @@ window.guardarReceta = async function() {
         window.toast('✓ Guardado');
         window.cancelarEdicion('recetas');
     } catch(e) { window.toast('⚠ Error'); console.error(e); }
-}
+};
 
 window.guardarExtra = async function() {
     const data = {
@@ -991,7 +974,7 @@ window.guardarExtra = async function() {
         window.toast('✓ Guardado');
         window.cancelarEdicion('extras');
     } catch(e) { window.toast('⚠ Error'); console.error(e); }
-}
+};
 
 window.guardarGasto = async function() {
     const data = {
@@ -1008,7 +991,7 @@ window.guardarGasto = async function() {
         window.toast('✓ Guardado');
         window.cancelarEdicion('gastos');
     } catch(e) { window.toast('⚠ Error'); console.error(e); }
-}
+};
 
 window.eliminar = async function(tabla, id) {
     if (!confirm('¿Eliminar este registro?')) return;
@@ -1020,9 +1003,8 @@ window.eliminar = async function(tabla, id) {
         await deleteDoc(doc(fsDb, tabla, id));
         window.toast('✓ Eliminado');
     } catch(e) { window.toast('⚠ Error'); console.error(e); }
-}
+};
 
-// ── EDITAR (FIX 8: editarVenta actualiza el select al producto del primer ítem) ──
 window.editarVenta = function(id) {
     const v = window.db.ventas.find(x => x.id === id);
     if (!v) return;
@@ -1034,17 +1016,18 @@ window.editarVenta = function(id) {
     window.renderCarrito();
     document.getElementById('v-precio-total').value = v.total;
     window.editando.ventas = id;
-    // FIX 8: Actualizar el select al primer producto del carrito cargado
+    
     const sel = document.getElementById('v-burger');
     if (sel && window.carritoActual.length > 0) {
         const opt = [...sel.options].find(o => o.value === window.carritoActual[0].burger);
         if (opt) sel.value = opt.value;
         window.actualizarPrecioItem();
     }
+    
     document.getElementById('btn-ventas-submit').textContent = '✓ Actualizar pedido';
     document.getElementById('btn-ventas-cancel').style.display = 'inline-flex';
     document.getElementById('ventas').scrollIntoView({ behavior: 'smooth' });
-}
+};
 
 window.editarStock = function(id) {
     const i = window.db.stock.find(s => s.id === id);
@@ -1060,7 +1043,7 @@ window.editarStock = function(id) {
     document.getElementById('btn-stock-submit').textContent = '✓ Actualizar';
     document.getElementById('btn-stock-cancel').style.display = 'inline-flex';
     document.getElementById('stock').scrollIntoView({ behavior: 'smooth' });
-}
+};
 
 window.editarReceta = function(id) {
     const i = window.db.recetas.find(r => r.id === id);
@@ -1075,7 +1058,7 @@ window.editarReceta = function(id) {
     document.getElementById('btn-recetas-submit').textContent = '✓ Actualizar';
     document.getElementById('btn-recetas-cancel').style.display = 'inline-flex';
     document.getElementById('recetas').scrollIntoView({ behavior: 'smooth' });
-}
+};
 
 window.editarExtra = function(id) {
     const e = window.db.extras.find(x => x.id === id);
@@ -1086,7 +1069,7 @@ window.editarExtra = function(id) {
     window.editando.extras = id;
     document.getElementById('btn-extras-submit').textContent = '✓ Actualizar';
     document.getElementById('btn-extras-cancel').style.display = 'inline-flex';
-}
+};
 
 window.editarGasto = function(id) {
     const g = window.db.gastos.find(x => x.id === id);
@@ -1100,7 +1083,7 @@ window.editarGasto = function(id) {
     document.getElementById('btn-gastos-submit').textContent = '✓ Actualizar';
     document.getElementById('btn-gastos-cancel').style.display = 'inline-flex';
     document.getElementById('gastos').scrollIntoView({ behavior: 'smooth' });
-}
+};
 
 window.cancelarEdicion = function(sec) {
     window.editando[sec] = null;
@@ -1133,7 +1116,7 @@ window.cancelarEdicion = function(sec) {
         document.getElementById('g-fecha').value = hoy;
         document.getElementById('btn-gastos-submit').textContent = '✓ Registrar';
     }
-}
+};
 
 window.imprimirComanda = function(id) {
     const v = window.db.ventas.find(x => x.id === id);
@@ -1161,7 +1144,7 @@ window.imprimirComanda = function(id) {
         <div style="text-align:center;font-size:12px;margin-top:20px">--- FIN DE TICKET ---</div>
     `;
     setTimeout(() => window.print(), 250);
-}
+};
 
 window.exportarCSV = function() {
     if (window.db.ventas.length === 0) { window.toast('⚠ No hay ventas'); return; }
@@ -1176,9 +1159,8 @@ window.exportarCSV = function() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-}
+};
 
-// Inicializar fechas con getHoy() en lugar de la variable estática
 document.getElementById('v-fecha').value = window.getHoy();
 document.getElementById('s-fecha').value = window.getHoy();
 document.getElementById('g-fecha').value = window.getHoy();
