@@ -78,8 +78,108 @@ async function changeStock(items,factor){for(const item of items||[]){const reci
 $('#confirm-order').onclick=async()=>{const customer=$('#customer').value.trim(),address=$('#address').value.trim(),notes=$('#notes').value.trim();if(!customer)return toast('⚠ Ingresá el nombre del cliente');if(!state.cart.length)return toast('⚠ El carrito está vacío');const btn=$('#confirm-order');btn.disabled=true;btn.textContent='Guardando…';const createdAt=Date.now(),sale={fecha:today(),hora:new Date(createdAt).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}),cliente:customer,direccion:address,items:state.cart.map(x=>({...x,extras:[...x.extras]})),total:cartTotal(),pago:state.pay,notas:notes,creadoEn:createdAt};try{const ref=await addDoc(collection(dbx,'ventas'),sale);await changeStock(sale.items,-1);state.lastId=ref.id;$('#cart-screen').classList.remove('open');$('#confirmed-customer').textContent=customer;$('#confirmed-total').textContent=fmt(sale.total);$('#confirmed-screen').classList.add('open');state.cart=[];state.pay='Efectivo';$('#customer').value='';$('#address').value='';$('#notes').value='';renderCartBar()}catch(err){console.error(err);toast('⚠ Error al guardar el pedido')}finally{btn.disabled=false;btn.textContent='✓ Confirmar pedido'}};
 function renderOrders(){const a=state.ventas.filter(x=>x.fecha===today()).slice().reverse();$('#orders').innerHTML=a.length?a.map(v=>{const time=v.hora||(v.creadoEn?new Date(v.creadoEn).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'');return `<article class="order"><div class="order-top"><div><div class="order-client">${esc(v.cliente)}</div><div class="order-time">${time} · ${esc(v.pago)}</div></div><div class="order-total">${fmt(v.total)}</div></div><div class="order-items">${(v.items||[]).map(i=>`${i.qty}x ${esc(i.burger)}${i.extras?.length?` (${i.extras.map(esc).join(', ')})`:''}`).join('<br>')}</div>${v.direccion?`<div class="badge">📍 ${esc(v.direccion)}</div>`:''}${v.notas?`<div class="badge">📝 ${esc(v.notas)}</div>`:''}<div class="actions"><button class="print" data-print="${v.id}" type="button">🖨️ Imprimir 2 tickets</button><button class="danger" data-delete="${v.id}" type="button">✕</button></div></article>`}).join(''):'<div class="empty"><span class="emoji">📋</span>Todavía no hay pedidos hoy.</div>';$('#orders').querySelectorAll('[data-print]').forEach(b=>b.onclick=()=>printTicket(state.ventas.find(x=>x.id===b.dataset.print)));$('#orders').querySelectorAll('[data-delete]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Eliminar este pedido? El stock se repone.'))return;const v=state.ventas.find(x=>x.id===b.dataset.delete);try{await changeStock(v.items,1);await deleteDoc(doc(dbx,'ventas',v.id));toast('✓ Pedido eliminado')}catch(e){console.error(e);toast('⚠ No se pudo eliminar el pedido')}})}
 function renderSummary(){const a=state.ventas.filter(x=>x.fecha===today()),total=a.reduce((s,x)=>s+(Number(x.total)||0),0);$('#top-total').textContent=fmt(total);$('#sum-total').textContent=fmt(total);$('#sum-count').textContent=a.length;const counts={};a.forEach(v=>(v.items||[]).forEach(x=>counts[x.burger]=(counts[x.burger]||0)+x.qty));const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];$('#sum-top').textContent=top?`${top[0]} (${top[1]})`:'—';const low=state.stock.filter(x=>Number(x.cantidad)<=Number(x.minimo));$('#alerts').innerHTML=low.length?low.map(x=>`<div class="alert bad">⚠ <b>${esc(x.nombre)}</b>: quedan ${Math.round(x.cantidad*100)/100} ${esc(x.unidad)}</div>`).join(''):'<div class="alert ok">✓ Todo el stock en orden</div>'}
-function printTicket(v){if(!v)return;const rows=(v.items||[]).map(i=>`<div style="padding:2.5mm 0;border-bottom:1px dotted #777"><b style="font-size:15px">${i.qty} x ${esc(i.burger)}</b>${i.extras?.length?`<div style="margin-top:1.5mm">+ EXTRAS: ${i.extras.map(esc).join(', ')}</div>`:''}</div>`).join('');const header=(copy,thankYou=false)=>`<div style="text-align:center;margin-bottom:4mm"><div style="font-size:26px;font-weight:bold">HANGAR 23</div>${thankYou?'<div style="font-size:12px;margin-top:1mm">Gracias por volar con nosotros</div>':''}<div style="font-weight:bold;margin-top:1mm">${copy}</div></div><div style="border-top:2px dashed #000;border-bottom:2px dashed #000;padding:2.5mm 0;margin-bottom:3mm"><div><b>ID:</b> ${esc(v.id.slice(-5).toUpperCase())}</div><div><b>HORA:</b> ${esc(v.hora||(v.creadoEn?new Date(v.creadoEn).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):''))}</div><div><b>CLIENTE:</b> ${esc(v.cliente.toUpperCase())}</div></div>`;const delivery=`<section class="ticket">${header('COPIA DELIVERY',true)}${rows}<div style="border:2px solid #000;padding:2.5mm;margin-top:4mm"><b>DIRECCIÓN:</b><div style="margin-top:1.5mm;font-size:14px;font-weight:bold">${esc((v.direccion||'SIN DIRECCIÓN CARGADA').toUpperCase())}</div></div><div style="text-align:center;margin-top:6mm">--- DELIVERY ---</div></section>`;const kitchen=`<section class="ticket">${header('COPIA COCINA')}${rows}<div style="border:2px solid #000;padding:2.5mm;margin-top:4mm"><b>NOTAS:</b><div style="margin-top:1.5mm;font-weight:bold">${esc((v.notas||'NINGUNA').toUpperCase())}</div></div><div style="text-align:center;margin-top:6mm">--- COCINA ---</div></section>`;$('#print-area').innerHTML=delivery+kitchen;requestAnimationFrame(()=>requestAnimationFrame(()=>window.print()))}$('#print-last').onclick=()=>printTicket(state.ventas.find(x=>x.id===state.lastId));
-if(window.visualViewport){const update=()=>document.documentElement.style.setProperty('--app-h',`${window.visualViewport.height}px`);window.visualViewport.addEventListener('resize',update);window.visualViewport.addEventListener('scroll',update);update()}
+function waitForPrintRender() {
+  return new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function ticketRows(v) {
+  return (v.items || []).map(i => `
+    <div style="padding:2.5mm 0;border-bottom:1px dotted #777">
+      <b style="font-size:15px">${i.qty} x ${esc(i.burger)}</b>
+      ${i.extras?.length
+        ? `<div style="margin-top:1.5mm">+ EXTRAS: ${i.extras.map(esc).join(', ')}</div>`
+        : ''}
+    </div>
+  `).join('');
+}
+
+function ticketHeader(v, copy, includeThankYou = false) {
+  const hora = v.hora || (
+    v.creadoEn
+      ? new Date(v.creadoEn).toLocaleTimeString('es-AR', {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : ''
+  );
+
+  return `
+    <div style="text-align:center;margin-bottom:4mm">
+      <div style="font-size:26px;font-weight:bold">HANGAR 23</div>
+      ${includeThankYou
+        ? '<div style="font-size:12px;margin-top:1mm">Gracias por volar con nosotros</div>'
+        : ''}
+      <div style="font-weight:bold;margin-top:1mm">${copy}</div>
+    </div>
+
+    <div style="border-top:2px dashed #000;border-bottom:2px dashed #000;padding:2.5mm 0;margin-bottom:3mm">
+      <div><b>ID:</b> ${esc(v.id.slice(-5).toUpperCase())}</div>
+      <div><b>HORA:</b> ${esc(hora)}</div>
+      <div><b>CLIENTE:</b> ${esc(v.cliente.toUpperCase())}</div>
+    </div>
+  `;
+}
+
+function deliveryTicket(v) {
+  return `
+    <section class="ticket">
+      ${ticketHeader(v, 'COPIA DELIVERY', true)}
+      ${ticketRows(v)}
+
+      <div style="border:2px solid #000;padding:2.5mm;margin-top:4mm">
+        <b>DIRECCIÓN:</b>
+        <div style="margin-top:1.5mm;font-size:14px;font-weight:bold">
+          ${esc((v.direccion || 'SIN DIRECCIÓN CARGADA').toUpperCase())}
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:6mm">--- DELIVERY ---</div>
+    </section>
+  `;
+}
+
+function kitchenTicket(v) {
+  return `
+    <section class="ticket">
+      ${ticketHeader(v, 'COPIA COCINA')}
+      ${ticketRows(v)}
+
+      <div style="border:2px solid #000;padding:2.5mm;margin-top:4mm">
+        <b>NOTAS:</b>
+        <div style="margin-top:1.5mm;font-weight:bold">
+          ${esc((v.notas || 'NINGUNA').toUpperCase())}
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:6mm">--- COCINA ---</div>
+    </section>
+  `;
+}
+
+async function printOneTicket(html) {
+  $('#print-area').innerHTML = html;
+  await waitForPrintRender();
+  window.print();
+}
+
+async function printTicket(v) {
+  if (!v) return;
+
+  await printOneTicket(deliveryTicket(v));
+  await wait(750);
+  await printOneTicket(kitchenTicket(v));
+}
+
+$('#print-last').onclick = () => {
+  printTicket(state.ventas.find(x => x.id === state.lastId));
+};
+  if(window.visualViewport){const update=()=>document.documentElement.style.setProperty('--app-h',`${window.visualViewport.height}px`);window.visualViewport.addEventListener('resize',update);window.visualViewport.addEventListener('scroll',update);update()}
 </script>
 </body>
 </html>
