@@ -442,7 +442,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const fsDb = getFirestore(app);
 
-window.getHoy = function() { return new Date().toISOString().split('T')[0]; };
+window.getHoy = function() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
 window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [] };
 window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null };
