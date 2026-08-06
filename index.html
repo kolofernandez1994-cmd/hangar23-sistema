@@ -584,7 +584,7 @@ window.refrescarSelectoresVentas = function() {
     window.actualizarPrecioItem();
 };
 
-function renderDash() {
+function renderDashLegacy() {
     const hoy = window.getHoy();
     const totalV = window.db.ventas.reduce((a, v) => a + v.total, 0);
     const totalG = window.db.gastos.reduce((a, g) => a + g.monto, 0);
