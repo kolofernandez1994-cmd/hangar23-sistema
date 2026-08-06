@@ -231,10 +231,12 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('promociones')" data-s="promociones"><span class="nav-icon">★</span> Promociones</div>
       <div class="nav-item" onclick="showSection('cupones')" data-s="cupones"><span class="nav-icon">#</span> Cupones</div>
       <div class="nav-item" onclick="showSection('clientes')" data-s="clientes"><span class="nav-icon">◉</span> Clientes</div>
+      <div class="nav-item" onclick="showSection('reportes')" data-s="reportes"><span class="nav-icon">↗</span> Reportes</div>
       <div class="nav-section">Gestión interna</div>
       <div class="nav-item" onclick="showSection('stock')" data-s="stock"><span class="nav-icon">▣</span> Stock</div>
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
+      <div class="nav-item" onclick="showSection('caja')" data-s="caja"><span class="nav-icon">▤</span> Caja</div>
     </nav>
     <div class="sidebar-footer">v5.0 · Creador de Recetas Inteligente</div>
   </aside>
@@ -380,13 +382,27 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="card"><div class="table-wrap"><table><thead><tr><th>Código</th><th>Beneficio</th><th>Vigencia</th><th>Usos</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="cupones-tabla"></tbody></table></div></div>
     </div>
 
+    <div id="reportes" class="section">
+      <div class="page-header"><div class="page-title">Reportes</div><div class="page-sub">Lectura consolidada de ventas, gastos y clientes.</div></div>
+      <div class="card"><div class="dashboard-tools"><select id="rpt-period" class="dashboard-filter"><option value="today">Hoy</option><option value="week">Semana</option><option value="month" selected>Mes</option><option value="year">Año</option><option value="all">Todo</option><option value="custom">Rango personalizado</option></select><input id="rpt-from" class="dashboard-filter" type="date" hidden><input id="rpt-to" class="dashboard-filter" type="date" hidden></div></div>
+      <div class="metrics" id="reportes-metrics"></div>
+      <div class="grid-2"><div class="card"><div class="card-title">Productos más vendidos</div><div id="reportes-productos"></div></div><div class="card"><div class="card-title">Mejores clientes</div><div id="reportes-clientes"></div></div></div>
+    </div>
+
     <div id="clientes" class="section">
       <div class="page-header"><div class="page-title">Clientes</div><div class="page-sub">Historial y estadísticas por cliente</div></div>
       <div class="metrics" id="clientes-metrics"></div>
       <div class="card">
         <div class="card-title"><span class="icon">⚡</span> Clientes frecuentes</div>
-        <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Pedidos</th><th>Favorita</th><th>Método usual</th><th>Total gastado</th><th>Último pedido</th></tr></thead><tbody id="clientes-tabla"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Pedidos</th><th>Ticket prom.</th><th>Favorita</th><th>Método usual</th><th>Clasificación</th><th>Total gastado</th><th>Último pedido</th></tr></thead><tbody id="clientes-tabla"></tbody></table></div>
       </div>
+    </div>
+
+    <div id="caja" class="section">
+      <div class="page-header"><div class="page-title">Caja</div><div class="page-sub">Apertura, cierre y balance operativo diario.</div></div>
+      <div class="card" id="caja-estado"></div>
+      <div class="grid-2"><div class="card"><div class="card-title">Abrir caja</div><div class="form-group"><label class="form-label">Fondo inicial ($)</label><input id="caja-inicial" type="number" min="0" placeholder="0"></div><button class="btn btn-primary" onclick="abrirCaja()">Abrir caja</button></div><div class="card"><div class="card-title">Cerrar caja</div><div class="form-group"><label class="form-label">Efectivo contado ($)</label><input id="caja-final" type="number" min="0" placeholder="0"></div><button class="btn" onclick="cerrarCaja()">Cerrar caja</button></div></div>
+      <div class="card"><div class="card-title">Historial de cierres</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Apertura</th><th>Ventas</th><th>Gastos</th><th>Esperado</th><th>Contado</th><th>Diferencia</th></tr></thead><tbody id="caja-tabla"></tbody></table></div></div>
     </div>
 
     <div id="stock" class="section">
@@ -408,6 +424,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
         </div>
       </div>
       <div class="card"><div class="card-title"><span class="icon">▣</span> Inventario actual</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Ingrediente</th><th>Cat</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Costo</th><th>Acciones</th></tr></thead><tbody id="stock-tabla"></tbody></table></div></div>
+      <div class="card"><div class="card-title"><span class="icon">◈</span> Capacidad de fabricación</div><div class="page-sub" style="margin:-12px 0 16px">Con el stock actual podés preparar:</div><div class="receta-grid" id="stock-capacidad"></div></div>
     </div>
 
     <div id="recetas" class="section">
@@ -503,7 +520,7 @@ const fsDb = getFirestore(app);
 
 window.getHoy = function() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
-window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [] };
+window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [], cajas: [] };
 window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null, promociones: null, cupones: null };
 window.carritoActual = [];
 window.cuponAplicado = null;
@@ -536,7 +553,7 @@ window.cargarDatosBase = async function() {
     try { for (const r of recetasBase) { await addDoc(collection(fsDb, 'recetas'), r); } window.toast('✓ Menú base restaurado'); } catch(e) { window.toast('⚠ Error'); }
 };
 
-['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones'].forEach(colName => {
+['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas'].forEach(colName => {
     onSnapshot(collection(fsDb, colName), (snapshot) => {
         window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
@@ -565,7 +582,7 @@ window.toggleSidebar = () => { document.getElementById('sidebar').classList.togg
 window.closeSidebar = () => { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); };
 window.toast = (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
-window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderGastos(); };
+window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); };
 
 // --- LOGICA DE UI INTELIGENTE PARA RECETAS Y EXTRAS ---
 window.renderIngredientesReceta = function() {
@@ -844,6 +861,19 @@ function renderStock() {
           </td>
         </tr>`;
     }).join('') || `<tr><td colspan="8" class="empty">Sin stock</td></tr>`;
+    renderCapacidadStock();
+}
+
+function renderCapacidadStock() {
+    const contenedor = document.getElementById('stock-capacidad'); if (!contenedor) return;
+    const normalizar = texto => limpiarText(texto);
+    const capacidad = receta => {
+        if (!receta.ing) return null;
+        const limites = receta.ing.split(',').map(linea => { const [nombre, cantidad, unidad] = linea.split(':'); const stock = window.db.stock.find(item => normalizar(item.nombre) === normalizar(nombre)); if (!stock || !parseFloat(cantidad)) return 0; let requerido = parseFloat(cantidad); if (normalizar(unidad) === 'g' && normalizar(stock.unidad) === 'kg') requerido /= 1000; if (normalizar(unidad) === 'ml' && normalizar(stock.unidad) === 'l') requerido /= 1000; return Math.floor(stock.cantidad / requerido); });
+        return limites.length ? Math.max(0, Math.min(...limites)) : null;
+    };
+    const recetas = window.db.recetas.map(r => ({...r, capacidad:capacidad(r)})).filter(r => r.capacidad !== null);
+    contenedor.innerHTML = recetas.map(r => `<div class="receta-card"><div class="receta-nombre">${r.nombre}</div><div class="metric-value yellow">${r.capacidad}</div><div class="metric-sub">unidades posibles</div></div>`).join('') || '<div class="empty">Agregá ingredientes a las recetas para estimar capacidad.</div>';
 }
 
 function renderRecetas() {
@@ -898,12 +928,17 @@ function renderCupones() {
     document.getElementById('cupones-tabla').innerHTML = lista.map(c => { const e = estadoCupon(c); const beneficio = c.tipo === 'porcentaje' ? `${c.valor}% OFF` : `${window.fmt(c.valor)} OFF`; return `<tr><td><strong style="font-family:var(--font-mono);color:var(--accent)">${c.codigo}</strong></td><td>${beneficio}</td><td>${c.inicio || '—'} / ${c.fin || '—'}</td><td>${c.usado || 0} / ${c.max || 1}</td><td><span class="badge ${e === 'Disponible' ? 'badge-ok' : 'badge-warn'}">${e}</span></td><td><button class="btn btn-sm" onclick="editarCupon('${c.id}')">✎</button><button class="btn btn-sm" onclick="alternarCupon('${c.id}')">${c.activo ? 'Pausar' : 'Activar'}</button><button class="btn btn-sm btn-danger" onclick="eliminar('cupones','${c.id}')">✕</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="empty">Todavía no hay cupones.</td></tr>';
 }
 
+function filtroReporte() { const periodo=document.getElementById('rpt-period')?.value||'month', desde=document.getElementById('rpt-from')?.value, hasta=document.getElementById('rpt-to')?.value, hoy=window.getHoy(); return fecha => { if(!fecha)return false; if(periodo==='today')return fecha===hoy; if(periodo==='week')return diffDias(hoy,fecha)>=0&&diffDias(hoy,fecha)<=6; if(periodo==='month')return fecha.startsWith(hoy.slice(0,7)); if(periodo==='year')return fecha.startsWith(hoy.slice(0,4)); if(periodo==='custom')return (!desde||fecha>=desde)&&(!hasta||fecha<=hasta); return true; }; }
+function renderReportes() { const incluye=filtroReporte(), ventas=window.db.ventas.filter(v=>incluye(v.fecha)), gastos=window.db.gastos.filter(g=>incluye(g.fecha)), total=ventas.reduce((s,v)=>s+(v.total||0),0), egresos=gastos.reduce((s,g)=>s+(g.monto||0),0), productos={}, clientes={}; ventas.forEach(v=>{clientes[v.cliente]=(clientes[v.cliente]||0)+(v.total||0); (v.items||[]).forEach(i=>productos[i.burger]=(productos[i.burger]||0)+(i.qty||0));}); const rankingP=Object.entries(productos).sort((a,b)=>b[1]-a[1]), rankingC=Object.entries(clientes).sort((a,b)=>b[1]-a[1]); document.getElementById('reportes-metrics').innerHTML=`<div class="metric"><div class="metric-label">Ventas</div><div class="metric-value green">${window.fmt(total)}</div></div><div class="metric"><div class="metric-label">Pedidos</div><div class="metric-value yellow">${ventas.length}</div></div><div class="metric"><div class="metric-label">Gastos</div><div class="metric-value red">${window.fmt(egresos)}</div></div><div class="metric"><div class="metric-label">Resultado</div><div class="metric-value ${total-egresos>=0?'green':'red'}">${window.fmt(total-egresos)}</div></div>`; const listado=(lista,formatter)=>lista.slice(0,5).map(([n,v],i)=>`<div class="ranking-item"><span class="ranking-num">${i+1}</span><div class="ranking-bar-wrap"><div class="ranking-name">${n}</div></div><span class="ranking-count">${formatter(v)}</span></div>`).join('')||'<div class="empty">Sin datos en el período.</div>'; document.getElementById('reportes-productos').innerHTML=listado(rankingP,v=>v+' ud.'); document.getElementById('reportes-clientes').innerHTML=listado(rankingC,window.fmt); }
+function renderCaja() { const cajas=window.db.cajas.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')), abierta=cajas.find(c=>c.estado==='abierta'), hoy=window.getHoy(); const balance=abierta?calcularCaja(abierta):null; document.getElementById('caja-estado').innerHTML=abierta?`<div class="card-title">Caja abierta · ${abierta.fecha}</div><div class="metrics" style="margin:0"><div class="metric"><div class="metric-label">Fondo inicial</div><div class="metric-value">${window.fmt(abierta.inicial)}</div></div><div class="metric"><div class="metric-label">Ventas del día</div><div class="metric-value green">${window.fmt(balance.ventas)}</div></div><div class="metric"><div class="metric-label">Egresos del día</div><div class="metric-value red">${window.fmt(balance.gastos)}</div></div><div class="metric"><div class="metric-label">Efectivo esperado</div><div class="metric-value yellow">${window.fmt(balance.esperado)}</div></div></div>`:`<div class="card-title">No hay caja abierta</div><div class="page-sub">Abrí la caja para controlar el turno de hoy.</div>`; document.getElementById('caja-tabla').innerHTML=cajas.filter(c=>c.estado==='cerrada').map(c=>`<tr><td>${c.fecha}</td><td>${window.fmt(c.inicial)}</td><td>${window.fmt(c.ventas)}</td><td>${window.fmt(c.gastos)}</td><td>${window.fmt(c.esperado)}</td><td>${window.fmt(c.final)}</td><td class="${c.diferencia>=0?'green':'red'}">${window.fmt(c.diferencia)}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">Sin cierres registrados.</td></tr>'; }
+function calcularCaja(caja) { const ventas=window.db.ventas.filter(v=>v.fecha===caja.fecha).reduce((s,v)=>s+(v.total||0),0), gastos=window.db.gastos.filter(g=>g.fecha===caja.fecha).reduce((s,g)=>s+(g.monto||0),0); return {ventas,gastos,esperado:(caja.inicial||0)+ventas-gastos}; }
+
 function renderClientes() {
     const mapa = {};
     window.db.ventas.forEach(v => {
-        if (!mapa[v.cliente]) mapa[v.cliente] = { pedidos: 0, total: 0, fav: {}, pagos: {}, ultimo: '' };
+        if (!mapa[v.cliente]) mapa[v.cliente] = { pedidos: 0, compras: 0, total: 0, fav: {}, pagos: {}, ultimo: '' };
         const qtyTotal = (v.items || []).reduce((sum, item) => sum + item.qty, 0);
-        mapa[v.cliente].pedidos += qtyTotal; mapa[v.cliente].total += v.total; mapa[v.cliente].pagos[v.pago] = (mapa[v.cliente].pagos[v.pago] || 0) + 1;
+        mapa[v.cliente].pedidos += qtyTotal; mapa[v.cliente].compras += 1; mapa[v.cliente].total += v.total; mapa[v.cliente].pagos[v.pago] = (mapa[v.cliente].pagos[v.pago] || 0) + 1;
         if (v.fecha > mapa[v.cliente].ultimo) mapa[v.cliente].ultimo = v.fecha;
         (v.items || []).forEach(item => { mapa[v.cliente].fav[item.burger] = (mapa[v.cliente].fav[item.burger] || 0) + item.qty; });
     });
@@ -914,8 +949,9 @@ function renderClientes() {
     document.getElementById('clientes-metrics').innerHTML = `<div class="metric"><div class="metric-label">Clientes únicos</div><div class="metric-value yellow">${lista.length}</div></div><div class="metric"><div class="metric-label">Gasto promedio</div><div class="metric-value green">${window.fmt(ticketProm)}</div></div><div class="metric"><div class="metric-label">Mejor cliente</div><div class="metric-value orange" style="font-size:18px">${lista[0] ? lista[0][0] : '—'}</div></div>`;
     document.getElementById('clientes-tabla').innerHTML = lista.map(([nombre, c]) => {
         const fav = Object.entries(c.fav).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'; const pagoFav = Object.entries(c.pagos).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
-        return `<tr><td><strong>${nombre}</strong></td><td style="font-family:var(--font-mono)">${c.pedidos}</td><td>${fav}</td><td><span class="badge badge-blue">${pagoFav}</span></td><td style="font-family:var(--font-mono);color:var(--accent)">${window.fmt(c.total)}</td><td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${c.ultimo}</td></tr>`;
-    }).join('') || `<tr><td colspan="6" class="empty">Sin clientes</td></tr>`;
+        const dias = diffDias(window.getHoy(), c.ultimo); const clase = dias > 60 ? 'Inactivo' : c.total >= (lista[0]?.[1].total || 0) * .65 || c.compras >= 5 ? 'VIP' : c.compras >= 2 ? 'Frecuente' : 'Nuevo'; const estilo = clase === 'VIP' ? 'badge-accent' : clase === 'Frecuente' ? 'badge-ok' : clase === 'Inactivo' ? 'badge-warn' : 'badge-blue';
+        return `<tr><td><strong>${nombre}</strong></td><td style="font-family:var(--font-mono)">${c.compras}</td><td>${window.fmt(c.total / c.compras)}</td><td>${fav}</td><td><span class="badge badge-blue">${pagoFav}</span></td><td><span class="badge ${estilo}">${clase}</span></td><td style="font-family:var(--font-mono);color:var(--accent)">${window.fmt(c.total)}</td><td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${c.ultimo}</td></tr>`;
+    }).join('') || `<tr><td colspan="8" class="empty">Sin clientes</td></tr>`;
 }
 
 function renderGastos() {
@@ -1116,6 +1152,8 @@ window.guardarCupon = async function() { const data = { codigo: document.getElem
 window.alternarCupon = async function(id) { const c = window.db.cupones.find(x=>x.id===id); if(!c)return; try { await updateDoc(doc(fsDb,'cupones',id),{activo:!c.activo}); } catch(e) { window.toast('⚠ No se pudo actualizar'); } };
 window.editarCupon = function(id) { const c = window.db.cupones.find(x=>x.id===id); if(!c)return; document.getElementById('c-codigo').value=c.codigo; document.getElementById('c-tipo').value=c.tipo; document.getElementById('c-valor').value=c.valor; document.getElementById('c-max').value=c.max; document.getElementById('c-inicio').value=c.inicio||''; document.getElementById('c-fin').value=c.fin||''; window.editando.cupones=id; document.getElementById('btn-cupones-submit').textContent='✓ Actualizar cupón'; document.getElementById('btn-cupones-cancel').style.display='inline-flex'; document.getElementById('cupones').scrollIntoView({behavior:'smooth'}); };
 window.aplicarCupon = function() { const codigo=document.getElementById('v-cupon').value.trim().toUpperCase(); const c=window.db.cupones.find(x=>x.codigo===codigo); if(!c || estadoCupon(c)!=='Disponible'){ window.cuponAplicado=null; window.toast('⚠ Cupón inválido, vencido o agotado'); window.renderCarrito(); return; } window.cuponAplicado={id:c.id,codigo:c.codigo,tipo:c.tipo,valor:c.valor}; window.renderCarrito(); window.toast('✓ Cupón aplicado'); };
+window.abrirCaja = async function() { if(window.db.cajas.some(c=>c.estado==='abierta')) { window.toast('⚠ Ya hay una caja abierta'); return; } const inicial=parseFloat(document.getElementById('caja-inicial').value)||0; try { await addDoc(collection(fsDb,'cajas'),{fecha:window.getHoy(),inicial,estado:'abierta'}); document.getElementById('caja-inicial').value=''; window.toast('✓ Caja abierta'); } catch(e) { window.toast('⚠ No se pudo abrir la caja'); } };
+window.cerrarCaja = async function() { const caja=window.db.cajas.find(c=>c.estado==='abierta'); const final=parseFloat(document.getElementById('caja-final').value); if(!caja) { window.toast('⚠ No hay una caja abierta'); return; } if(isNaN(final)) { window.toast('⚠ Ingresá el efectivo contado'); return; } const datos=calcularCaja(caja); try { await updateDoc(doc(fsDb,'cajas',caja.id),{...datos,final,diferencia:final-datos.esperado,estado:'cerrada',cerradaEn:new Date().toISOString()}); document.getElementById('caja-final').value=''; window.toast('✓ Caja cerrada'); } catch(e) { window.toast('⚠ No se pudo cerrar la caja'); } };
 
 window.guardarGasto = async function() {
     const data = { fecha: document.getElementById('g-fecha').value || window.getHoy(), cat: document.getElementById('g-cat').value, desc: document.getElementById('g-desc').value.trim(), tipo: document.getElementById('g-tipo').value, monto: parseFloat(document.getElementById('g-monto').value) || 0 };
@@ -1221,6 +1259,12 @@ dashPeriod?.addEventListener('change', actualizarControlesDashboard);
 dashFrom?.addEventListener('change', () => window.render());
 dashTo?.addEventListener('change', () => window.render());
 document.getElementById('dash-search')?.addEventListener('input', () => window.render());
+const reportesPeriodo = document.getElementById('rpt-period');
+const reportesDesde = document.getElementById('rpt-from');
+const reportesHasta = document.getElementById('rpt-to');
+reportesPeriodo?.addEventListener('change', () => { const personalizado = reportesPeriodo.value === 'custom'; reportesDesde.hidden = !personalizado; reportesHasta.hidden = !personalizado; window.render(); });
+reportesDesde?.addEventListener('change', () => window.render());
+reportesHasta?.addEventListener('change', () => window.render());
 
 document.getElementById('v-fecha').value = window.getHoy(); document.getElementById('s-fecha').value = window.getHoy(); document.getElementById('g-fecha').value = window.getHoy();
 
