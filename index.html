@@ -229,6 +229,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-section">Operaciones</div>
       <div class="nav-item" onclick="showSection('ventas')" data-s="ventas"><span class="nav-icon">◎</span> Ventas</div>
       <div class="nav-item" onclick="showSection('promociones')" data-s="promociones"><span class="nav-icon">★</span> Promociones</div>
+      <div class="nav-item" onclick="showSection('cupones')" data-s="cupones"><span class="nav-icon">#</span> Cupones</div>
       <div class="nav-item" onclick="showSection('clientes')" data-s="clientes"><span class="nav-icon">◉</span> Clientes</div>
       <div class="nav-section">Gestión interna</div>
       <div class="nav-item" onclick="showSection('stock')" data-s="stock"><span class="nav-icon">▣</span> Stock</div>
@@ -337,6 +338,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Método de pago</label><select id="v-pago"><option>Efectivo</option><option>Transferencia</option><option>Débito</option><option>Crédito</option></select></div>
           <div class="form-group"><label class="form-label">TOTAL DEL PEDIDO ($)</label><input type="number" id="v-precio-total" placeholder="0"></div>
         </div>
+        <div class="form-grid" style="align-items:end"><div class="form-group"><label class="form-label">Cupón de descuento</label><input type="text" id="v-cupon" placeholder="Ej: H23-7KS92D" style="text-transform:uppercase"></div><div class="form-group"><button class="btn" type="button" onclick="aplicarCupon()">Aplicar cupón</button></div><div class="form-group"><label class="form-label">Descuento aplicado</label><input type="text" id="v-descuento" value="$0" readonly></div></div>
         <div class="form-group" style="margin-bottom:16px"><label class="form-label">Aclaraciones (Imprime en ticket)</label><input type="text" id="v-notas" placeholder="Sin cebolla..."></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" id="btn-ventas-submit" onclick="guardarVenta()">✓ Registrar pedido</button>
@@ -366,6 +368,16 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
       <div class="metrics" id="promos-metrics"></div>
       <div class="receta-grid" id="promos-grid"></div>
+    </div>
+
+    <div id="cupones" class="section">
+      <div class="page-header"><div class="page-title">Cupones</div><div class="page-sub">Creá beneficios únicos y controlá cada canje.</div></div>
+      <div class="card"><div class="card-title"><span class="icon">+</span> Generar cupón</div>
+        <div class="form-grid"><div class="form-group"><label class="form-label">Código</label><div style="display:flex;gap:8px"><input id="c-codigo" type="text" placeholder="H23-7KS92D" style="text-transform:uppercase"><button class="btn btn-sm" type="button" onclick="generarCodigoCupon()">Generar</button></div></div><div class="form-group"><label class="form-label">Tipo</label><select id="c-tipo"><option value="porcentaje">Descuento %</option><option value="monto">Descuento $</option></select></div><div class="form-group"><label class="form-label">Valor</label><input id="c-valor" type="number" min="0" step="0.01"></div><div class="form-group"><label class="form-label">Usos máximos</label><input id="c-max" type="number" min="1" value="1"></div><div class="form-group"><label class="form-label">Inicio</label><input id="c-inicio" type="date"></div><div class="form-group"><label class="form-label">Fin</label><input id="c-fin" type="date"></div></div>
+        <div style="display:flex;gap:8px"><button class="btn btn-primary" id="btn-cupones-submit" onclick="guardarCupon()">✓ Guardar cupón</button><button class="btn" id="btn-cupones-cancel" style="display:none" onclick="cancelarEdicion('cupones')">✕ Cancelar</button></div>
+      </div>
+      <div class="metrics" id="cupones-metrics"></div>
+      <div class="card"><div class="table-wrap"><table><thead><tr><th>Código</th><th>Beneficio</th><th>Vigencia</th><th>Usos</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="cupones-tabla"></tbody></table></div></div>
     </div>
 
     <div id="clientes" class="section">
@@ -491,9 +503,10 @@ const fsDb = getFirestore(app);
 
 window.getHoy = function() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
-window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [] };
-window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null, promociones: null };
+window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [] };
+window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null, promociones: null, cupones: null };
 window.carritoActual = [];
+window.cuponAplicado = null;
 
 // ARRAY TEMPORAL PARA CREAR RECETAS VISUALMENTE
 window.ingredientesRecetaTemp = [];
@@ -523,7 +536,7 @@ window.cargarDatosBase = async function() {
     try { for (const r of recetasBase) { await addDoc(collection(fsDb, 'recetas'), r); } window.toast('✓ Menú base restaurado'); } catch(e) { window.toast('⚠ Error'); }
 };
 
-['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones'].forEach(colName => {
+['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones'].forEach(colName => {
     onSnapshot(collection(fsDb, colName), (snapshot) => {
         window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
@@ -552,7 +565,7 @@ window.toggleSidebar = () => { document.getElementById('sidebar').classList.togg
 window.closeSidebar = () => { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); };
 window.toast = (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
-window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderClientes(); renderGastos(); };
+window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderGastos(); };
 
 // --- LOGICA DE UI INTELIGENTE PARA RECETAS Y EXTRAS ---
 window.renderIngredientesReceta = function() {
@@ -878,6 +891,13 @@ function renderPromociones() {
     document.getElementById('promos-grid').innerHTML = window.db.promociones.map(p => { const e = estado(p), beneficio = p.tipo === 'porcentaje' ? `${p.valor || 0}% OFF` : p.tipo === 'monto' ? `${window.fmt(p.valor || 0)} OFF` : tipos[p.tipo]; return `<div class="receta-card"><div style="display:flex;justify-content:space-between;gap:8px"><span class="badge ${e === 'Activa' ? 'badge-ok' : 'badge-warn'}">${e}</span><div><button class="btn btn-sm" onclick="editarPromocion('${p.id}')">✎</button><button class="btn btn-sm btn-danger" onclick="eliminar('promociones','${p.id}')">✕</button></div></div><div class="receta-nombre" style="margin-top:12px">${p.nombre}</div><div class="receta-precio">${beneficio}</div><div class="receta-desc">${p.descripcion || 'Sin descripción'}</div><div style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">${p.producto ? 'Aplica a: ' + p.producto : 'Todo el menú'}<br>${p.inicio || 'Sin inicio'} → ${p.fin || 'Sin vencimiento'}</div><button class="btn btn-sm" style="margin-top:12px;width:100%;justify-content:center" onclick="alternarPromocion('${p.id}')">${p.activo ? 'Pausar promoción' : 'Activar promoción'}</button></div>`; }).join('') || '<div class="empty">Todavía no hay promociones creadas.</div>';
 }
 
+function estadoCupon(cupon) { const hoy = window.getHoy(); if (!cupon.activo) return 'Inactivo'; if (cupon.inicio && cupon.inicio > hoy) return 'Pendiente'; if (cupon.fin && cupon.fin < hoy) return 'Vencido'; if ((cupon.usado || 0) >= (cupon.max || 1)) return 'Agotado'; return 'Disponible'; }
+function renderCupones() {
+    const lista = window.db.cupones; const disponibles = lista.filter(c => estadoCupon(c) === 'Disponible').length;
+    document.getElementById('cupones-metrics').innerHTML = `<div class="metric"><div class="metric-label">Disponibles</div><div class="metric-value green">${disponibles}</div></div><div class="metric"><div class="metric-label">Canjes realizados</div><div class="metric-value yellow">${lista.reduce((s,c) => s + (c.usado || 0), 0)}</div></div>`;
+    document.getElementById('cupones-tabla').innerHTML = lista.map(c => { const e = estadoCupon(c); const beneficio = c.tipo === 'porcentaje' ? `${c.valor}% OFF` : `${window.fmt(c.valor)} OFF`; return `<tr><td><strong style="font-family:var(--font-mono);color:var(--accent)">${c.codigo}</strong></td><td>${beneficio}</td><td>${c.inicio || '—'} / ${c.fin || '—'}</td><td>${c.usado || 0} / ${c.max || 1}</td><td><span class="badge ${e === 'Disponible' ? 'badge-ok' : 'badge-warn'}">${e}</span></td><td><button class="btn btn-sm" onclick="editarCupon('${c.id}')">✎</button><button class="btn btn-sm" onclick="alternarCupon('${c.id}')">${c.activo ? 'Pausar' : 'Activar'}</button><button class="btn btn-sm btn-danger" onclick="eliminar('cupones','${c.id}')">✕</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="empty">Todavía no hay cupones.</td></tr>';
+}
+
 function renderClientes() {
     const mapa = {};
     window.db.ventas.forEach(v => {
@@ -928,7 +948,12 @@ window.renderCarrito = function() {
     const cartDiv = document.getElementById('v-carrito-lista'); let sumaTotal = 0;
     if (window.carritoActual.length === 0) { cartDiv.innerHTML = '<div class="empty" style="padding:10px 0">El carrito está vacío</div>'; } 
     else { cartDiv.innerHTML = window.carritoActual.map((item, index) => { sumaTotal += item.subtotal; return `<div class="extra-item" style="justify-content:space-between;display:flex;width:100%;font-size:13px"><div><strong>${item.qty}x ${item.burger}</strong> <span style="color:var(--muted);font-size:11px;margin-left:6px">${item.extras.join(', ')}</span></div><div><span class="extra-precio" style="margin-right:12px">${window.fmt(item.subtotal)}</span> <button class="btn btn-sm btn-danger" onclick="eliminarDelCarrito(${index})" style="padding:2px 6px">✕</button></div></div>`; }).join(''); }
-    document.getElementById('v-precio-total').value = sumaTotal;
+    let descuento = 0;
+    if (window.cuponAplicado) descuento = window.cuponAplicado.tipo === 'porcentaje' ? sumaTotal * window.cuponAplicado.valor / 100 : window.cuponAplicado.valor;
+    descuento = Math.min(sumaTotal, Math.round(descuento * 100) / 100);
+    document.getElementById('v-descuento').value = window.fmt(descuento);
+    document.getElementById('v-precio-total').value = Math.max(0, sumaTotal - descuento);
+    if (window.cuponAplicado) window.cuponAplicado.descuento = descuento;
 };
 
 // NUEVA LOGICA DE DESCUENTO INTELIGENTE (PERDONA ERRORES Y ESPACIOS)
@@ -992,7 +1017,7 @@ window.guardarVenta = async function() {
     const notas = document.getElementById('v-notas').value;
     const total = parseFloat(document.getElementById('v-precio-total').value) || 0;
     if (!cliente || window.carritoActual.length === 0) { window.toast('⚠ Agregá un cliente y productos al carrito'); return; }
-    const data = { fecha, cliente, items: [...window.carritoActual], total, pago, notas };
+    const data = { fecha, cliente, items: [...window.carritoActual], total, pago, notas, cupon: window.cuponAplicado ? { codigo: window.cuponAplicado.codigo, descuento: window.cuponAplicado.descuento || 0 } : null };
     try {
         if (window.editando.ventas) {
             const ventaBorrada = window.db.ventas.find(v => v.id === window.editando.ventas);
@@ -1002,6 +1027,7 @@ window.guardarVenta = async function() {
             window.toast('✓ Pedido actualizado');
         } else {
             await addDoc(collection(fsDb, 'ventas'), data);
+            if (window.cuponAplicado) { const c = window.db.cupones.find(x => x.id === window.cuponAplicado.id); if (c) await updateDoc(doc(fsDb, 'cupones', c.id), { usado: (c.usado || 0) + 1 }); }
             await window.actualizarStockPorVentaAsync(data.items, -1);
             window.toast('✓ Venta registrada');
         }
@@ -1085,6 +1111,12 @@ window.guardarPromocion = async function() {
 window.alternarPromocion = async function(id) { const promo = window.db.promociones.find(p => p.id === id); if (!promo) return; try { await updateDoc(doc(fsDb, 'promociones', id), { activo: !promo.activo }); window.toast(promo.activo ? 'Promoción pausada' : 'Promoción activada'); } catch(e) { window.toast('⚠ No se pudo actualizar'); } };
 window.editarPromocion = function(id) { const p = window.db.promociones.find(x => x.id === id); if (!p) return; document.getElementById('p-nombre').value = p.nombre || ''; document.getElementById('p-tipo').value = p.tipo || 'porcentaje'; document.getElementById('p-valor').value = p.valor || ''; document.getElementById('p-producto').value = p.producto || ''; document.getElementById('p-inicio').value = p.inicio || ''; document.getElementById('p-fin').value = p.fin || ''; document.getElementById('p-desc').value = p.descripcion || ''; window.editando.promociones = id; window.actualizarFormularioPromo(); document.getElementById('btn-promos-submit').textContent = '✓ Actualizar promoción'; document.getElementById('btn-promos-cancel').style.display = 'inline-flex'; document.getElementById('promociones').scrollIntoView({behavior:'smooth'}); };
 
+window.generarCodigoCupon = function() { const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let codigo = 'H23-'; for(let i=0;i<5;i++) codigo += chars[Math.floor(Math.random() * chars.length)]; document.getElementById('c-codigo').value = codigo; };
+window.guardarCupon = async function() { const data = { codigo: document.getElementById('c-codigo').value.trim().toUpperCase(), tipo: document.getElementById('c-tipo').value, valor: parseFloat(document.getElementById('c-valor').value) || 0, max: parseInt(document.getElementById('c-max').value) || 1, inicio: document.getElementById('c-inicio').value, fin: document.getElementById('c-fin').value, usado: 0, activo: true }; if (!/^H23-[A-Z0-9]{5}$/.test(data.codigo)) { window.toast('⚠ Generá o ingresá un código H23-XXXXX válido'); return; } if (data.valor <= 0 || data.max < 1 || (data.inicio && data.fin && data.fin < data.inicio)) { window.toast('⚠ Revisá el beneficio, usos y fechas'); return; } if (!window.editando.cupones && window.db.cupones.some(c => c.codigo === data.codigo)) { window.toast('⚠ Ese cupón ya existe'); return; } try { if (window.editando.cupones) { const anterior = window.db.cupones.find(c => c.id === window.editando.cupones); data.usado = anterior?.usado || 0; data.activo = anterior?.activo ?? true; await updateDoc(doc(fsDb,'cupones',window.editando.cupones), data); } else await addDoc(collection(fsDb,'cupones'),data); window.toast('✓ Cupón guardado'); window.cancelarEdicion('cupones'); } catch(e) { window.toast('⚠ No se pudo guardar'); } };
+window.alternarCupon = async function(id) { const c = window.db.cupones.find(x=>x.id===id); if(!c)return; try { await updateDoc(doc(fsDb,'cupones',id),{activo:!c.activo}); } catch(e) { window.toast('⚠ No se pudo actualizar'); } };
+window.editarCupon = function(id) { const c = window.db.cupones.find(x=>x.id===id); if(!c)return; document.getElementById('c-codigo').value=c.codigo; document.getElementById('c-tipo').value=c.tipo; document.getElementById('c-valor').value=c.valor; document.getElementById('c-max').value=c.max; document.getElementById('c-inicio').value=c.inicio||''; document.getElementById('c-fin').value=c.fin||''; window.editando.cupones=id; document.getElementById('btn-cupones-submit').textContent='✓ Actualizar cupón'; document.getElementById('btn-cupones-cancel').style.display='inline-flex'; document.getElementById('cupones').scrollIntoView({behavior:'smooth'}); };
+window.aplicarCupon = function() { const codigo=document.getElementById('v-cupon').value.trim().toUpperCase(); const c=window.db.cupones.find(x=>x.codigo===codigo); if(!c || estadoCupon(c)!=='Disponible'){ window.cuponAplicado=null; window.toast('⚠ Cupón inválido, vencido o agotado'); window.renderCarrito(); return; } window.cuponAplicado={id:c.id,codigo:c.codigo,tipo:c.tipo,valor:c.valor}; window.renderCarrito(); window.toast('✓ Cupón aplicado'); };
+
 window.guardarGasto = async function() {
     const data = { fecha: document.getElementById('g-fecha').value || window.getHoy(), cat: document.getElementById('g-cat').value, desc: document.getElementById('g-desc').value.trim(), tipo: document.getElementById('g-tipo').value, monto: parseFloat(document.getElementById('g-monto').value) || 0 };
     if (!data.desc || !data.monto) { window.toast('⚠ Completá info'); return; }
@@ -1153,7 +1185,7 @@ window.cancelarEdicion = function(sec) {
     window.editando[sec] = null;
     const btnCancel = document.getElementById(`btn-${sec}-cancel`); if (btnCancel) btnCancel.style.display = 'none';
     const hoy = window.getHoy();
-    if (sec === 'ventas') { document.getElementById('v-cliente').value = ''; document.getElementById('v-notas').value = ''; document.getElementById('v-fecha').value = hoy; window.carritoActual = []; window.renderCarrito(); document.getElementById('v-qty').value = '1'; document.querySelectorAll('#v-extras input').forEach(i => i.checked = false); window.actualizarPrecioItem(); document.getElementById('btn-ventas-submit').textContent = '✓ Registrar pedido'; } 
+    if (sec === 'ventas') { document.getElementById('v-cliente').value = ''; document.getElementById('v-notas').value = ''; document.getElementById('v-fecha').value = hoy; document.getElementById('v-cupon').value = ''; window.cuponAplicado = null; window.carritoActual = []; window.renderCarrito(); document.getElementById('v-qty').value = '1'; document.querySelectorAll('#v-extras input').forEach(i => i.checked = false); window.actualizarPrecioItem(); document.getElementById('btn-ventas-submit').textContent = '✓ Registrar pedido'; } 
     else if (sec === 'stock') { document.getElementById('s-fecha').value = hoy; ['s-nombre', 's-cantidad', 's-costo', 's-minimo'].forEach(id => document.getElementById(id).value = ''); document.getElementById('btn-stock-submit').textContent = '✓ Agregar'; } 
     else if (sec === 'recetas') { 
         ['r-nombre', 'r-precio', 'r-costo', 'r-desc'].forEach(id => document.getElementById(id).value = ''); 
@@ -1167,6 +1199,8 @@ window.cancelarEdicion = function(sec) {
         ['p-nombre', 'p-valor', 'p-inicio', 'p-fin', 'p-desc'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('p-tipo').value = 'porcentaje'; document.getElementById('p-producto').value = '';
         window.actualizarFormularioPromo(); document.getElementById('btn-promos-submit').textContent = '✓ Guardar promoción';
+    } else if (sec === 'cupones') {
+        ['c-codigo','c-valor','c-inicio','c-fin'].forEach(id => document.getElementById(id).value = ''); document.getElementById('c-tipo').value='porcentaje'; document.getElementById('c-max').value='1'; document.getElementById('btn-cupones-submit').textContent='✓ Guardar cupón';
     } else if (sec === 'gastos') { document.getElementById('g-desc').value = ''; document.getElementById('g-monto').value = ''; document.getElementById('g-fecha').value = hoy; document.getElementById('btn-gastos-submit').textContent = '✓ Registrar'; }
 };
 
