@@ -228,6 +228,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item active" onclick="showSection('dashboard')" data-s="dashboard"><span class="nav-icon">◈</span> Dashboard</div>
       <div class="nav-section">Operaciones</div>
       <div class="nav-item" onclick="showSection('ventas')" data-s="ventas"><span class="nav-icon">◎</span> Ventas</div>
+      <div class="nav-item" onclick="showSection('promociones')" data-s="promociones"><span class="nav-icon">★</span> Promociones</div>
       <div class="nav-item" onclick="showSection('clientes')" data-s="clientes"><span class="nav-icon">◉</span> Clientes</div>
       <div class="nav-section">Gestión interna</div>
       <div class="nav-item" onclick="showSection('stock')" data-s="stock"><span class="nav-icon">▣</span> Stock</div>
@@ -346,6 +347,25 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
         <div class="card-title"><span class="icon">≡</span> Historial de Pedidos</div>
         <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Pedido</th><th>Pago</th><th>Total</th><th>Acciones</th></tr></thead><tbody id="ventas-tabla"></tbody></table></div>
       </div>
+    </div>
+
+    <div id="promociones" class="section">
+      <div class="page-header"><div class="page-title">Promociones</div><div class="page-sub">Diseñá beneficios claros para impulsar cada servicio.</div></div>
+      <div class="card">
+        <div class="card-title"><span class="icon">+</span> Crear promoción</div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Nombre</label><input id="p-nombre" type="text" placeholder="Ej: Martes de amigos"></div>
+          <div class="form-group"><label class="form-label">Tipo</label><select id="p-tipo" onchange="actualizarFormularioPromo()"><option value="porcentaje">Descuento %</option><option value="monto">Descuento $</option><option value="2x1">2x1</option><option value="combo">Combo</option><option value="gratis">Producto gratis</option><option value="envio">Envío gratis</option></select></div>
+          <div class="form-group"><label class="form-label" id="p-valor-label">Descuento (%)</label><input id="p-valor" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="form-group"><label class="form-label">Producto / alcance</label><select id="p-producto"><option value="">Todo el menú</option></select></div>
+          <div class="form-group"><label class="form-label">Válida desde</label><input id="p-inicio" type="date"></div>
+          <div class="form-group"><label class="form-label">Válida hasta</label><input id="p-fin" type="date"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:16px"><label class="form-label">Descripción interna</label><input id="p-desc" type="text" placeholder="Condiciones o mensaje para el equipo"></div>
+        <div style="display:flex;gap:8px"><button class="btn btn-primary" id="btn-promos-submit" onclick="guardarPromocion()">✓ Guardar promoción</button><button class="btn" id="btn-promos-cancel" style="display:none" onclick="cancelarEdicion('promociones')">✕ Cancelar</button></div>
+      </div>
+      <div class="metrics" id="promos-metrics"></div>
+      <div class="receta-grid" id="promos-grid"></div>
     </div>
 
     <div id="clientes" class="section">
@@ -471,8 +491,8 @@ const fsDb = getFirestore(app);
 
 window.getHoy = function() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
-window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [] };
-window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null };
+window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [] };
+window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null, promociones: null };
 window.carritoActual = [];
 
 // ARRAY TEMPORAL PARA CREAR RECETAS VISUALMENTE
@@ -503,7 +523,7 @@ window.cargarDatosBase = async function() {
     try { for (const r of recetasBase) { await addDoc(collection(fsDb, 'recetas'), r); } window.toast('✓ Menú base restaurado'); } catch(e) { window.toast('⚠ Error'); }
 };
 
-['recetas', 'extras', 'stock', 'ventas', 'gastos'].forEach(colName => {
+['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones'].forEach(colName => {
     onSnapshot(collection(fsDb, colName), (snapshot) => {
         window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
@@ -532,7 +552,7 @@ window.toggleSidebar = () => { document.getElementById('sidebar').classList.togg
 window.closeSidebar = () => { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); };
 window.toast = (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
-window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderClientes(); renderGastos(); };
+window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderClientes(); renderGastos(); };
 
 // --- LOGICA DE UI INTELIGENTE PARA RECETAS Y EXTRAS ---
 window.renderIngredientesReceta = function() {
@@ -847,6 +867,17 @@ function renderRecetas() {
     if(!window.editando.recetas && window.ingredientesRecetaTemp.length === 0) window.renderIngredientesReceta();
 }
 
+function renderPromociones() {
+    const selector = document.getElementById('p-producto');
+    if (selector && !window.editando.promociones) { const anterior = selector.value; selector.innerHTML = '<option value="">Todo el menú</option>' + window.db.recetas.map(r => `<option value="${r.nombre}">${r.nombre}</option>`).join(''); selector.value = anterior; }
+    const hoy = window.getHoy();
+    const estado = p => !p.activo ? 'Pausada' : (p.inicio && p.inicio > hoy) || (p.fin && p.fin < hoy) ? 'Programada / vencida' : 'Activa';
+    const activas = window.db.promociones.filter(p => estado(p) === 'Activa').length;
+    document.getElementById('promos-metrics').innerHTML = `<div class="metric"><div class="metric-label">Promociones activas</div><div class="metric-value green">${activas}</div></div><div class="metric"><div class="metric-label">Pausadas o vencidas</div><div class="metric-value yellow">${window.db.promociones.length - activas}</div></div>`;
+    const tipos = { porcentaje:'Descuento %', monto:'Descuento $', '2x1':'2x1', combo:'Combo', gratis:'Producto gratis', envio:'Envío gratis' };
+    document.getElementById('promos-grid').innerHTML = window.db.promociones.map(p => { const e = estado(p), beneficio = p.tipo === 'porcentaje' ? `${p.valor || 0}% OFF` : p.tipo === 'monto' ? `${window.fmt(p.valor || 0)} OFF` : tipos[p.tipo]; return `<div class="receta-card"><div style="display:flex;justify-content:space-between;gap:8px"><span class="badge ${e === 'Activa' ? 'badge-ok' : 'badge-warn'}">${e}</span><div><button class="btn btn-sm" onclick="editarPromocion('${p.id}')">✎</button><button class="btn btn-sm btn-danger" onclick="eliminar('promociones','${p.id}')">✕</button></div></div><div class="receta-nombre" style="margin-top:12px">${p.nombre}</div><div class="receta-precio">${beneficio}</div><div class="receta-desc">${p.descripcion || 'Sin descripción'}</div><div style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">${p.producto ? 'Aplica a: ' + p.producto : 'Todo el menú'}<br>${p.inicio || 'Sin inicio'} → ${p.fin || 'Sin vencimiento'}</div><button class="btn btn-sm" style="margin-top:12px;width:100%;justify-content:center" onclick="alternarPromocion('${p.id}')">${p.activo ? 'Pausar promoción' : 'Activar promoción'}</button></div>`; }).join('') || '<div class="empty">Todavía no hay promociones creadas.</div>';
+}
+
 function renderClientes() {
     const mapa = {};
     window.db.ventas.forEach(v => {
@@ -1035,6 +1066,25 @@ window.guardarExtra = async function() {
     } catch(e) { window.toast('⚠ Error'); }
 };
 
+window.actualizarFormularioPromo = function() {
+    const tipo = document.getElementById('p-tipo').value;
+    const campo = document.getElementById('p-valor');
+    const etiqueta = document.getElementById('p-valor-label');
+    const requiereValor = tipo === 'porcentaje' || tipo === 'monto';
+    campo.disabled = !requiereValor; campo.value = requiereValor ? campo.value : '';
+    etiqueta.textContent = tipo === 'porcentaje' ? 'Descuento (%)' : tipo === 'monto' ? 'Descuento ($)' : 'Valor no requerido';
+};
+window.guardarPromocion = async function() {
+    const tipo = document.getElementById('p-tipo').value;
+    const data = { nombre: document.getElementById('p-nombre').value.trim(), tipo, valor: parseFloat(document.getElementById('p-valor').value) || 0, producto: document.getElementById('p-producto').value, inicio: document.getElementById('p-inicio').value, fin: document.getElementById('p-fin').value, descripcion: document.getElementById('p-desc').value.trim(), activo: true };
+    if (!data.nombre) { window.toast('⚠ Ingresá un nombre para la promoción'); return; }
+    if ((tipo === 'porcentaje' || tipo === 'monto') && data.valor <= 0) { window.toast('⚠ Ingresá un descuento válido'); return; }
+    if (data.inicio && data.fin && data.fin < data.inicio) { window.toast('⚠ La fecha final no puede ser anterior'); return; }
+    try { if (window.editando.promociones) { data.activo = window.db.promociones.find(p => p.id === window.editando.promociones)?.activo ?? true; await updateDoc(doc(fsDb, 'promociones', window.editando.promociones), data); } else { await addDoc(collection(fsDb, 'promociones'), data); } window.toast('✓ Promoción guardada'); window.cancelarEdicion('promociones'); } catch(e) { window.toast('⚠ No se pudo guardar'); }
+};
+window.alternarPromocion = async function(id) { const promo = window.db.promociones.find(p => p.id === id); if (!promo) return; try { await updateDoc(doc(fsDb, 'promociones', id), { activo: !promo.activo }); window.toast(promo.activo ? 'Promoción pausada' : 'Promoción activada'); } catch(e) { window.toast('⚠ No se pudo actualizar'); } };
+window.editarPromocion = function(id) { const p = window.db.promociones.find(x => x.id === id); if (!p) return; document.getElementById('p-nombre').value = p.nombre || ''; document.getElementById('p-tipo').value = p.tipo || 'porcentaje'; document.getElementById('p-valor').value = p.valor || ''; document.getElementById('p-producto').value = p.producto || ''; document.getElementById('p-inicio').value = p.inicio || ''; document.getElementById('p-fin').value = p.fin || ''; document.getElementById('p-desc').value = p.descripcion || ''; window.editando.promociones = id; window.actualizarFormularioPromo(); document.getElementById('btn-promos-submit').textContent = '✓ Actualizar promoción'; document.getElementById('btn-promos-cancel').style.display = 'inline-flex'; document.getElementById('promociones').scrollIntoView({behavior:'smooth'}); };
+
 window.guardarGasto = async function() {
     const data = { fecha: document.getElementById('g-fecha').value || window.getHoy(), cat: document.getElementById('g-cat').value, desc: document.getElementById('g-desc').value.trim(), tipo: document.getElementById('g-tipo').value, monto: parseFloat(document.getElementById('g-monto').value) || 0 };
     if (!data.desc || !data.monto) { window.toast('⚠ Completá info'); return; }
@@ -1113,6 +1163,10 @@ window.cancelarEdicion = function(sec) {
     } else if (sec === 'extras') { 
         ['e-nombre', 'e-precio', 'e-ing-nom', 'e-ing-cant'].forEach(id => document.getElementById(id).value = ''); 
         document.getElementById('btn-extras-submit').textContent = '+ Guardar Extra'; 
+    } else if (sec === 'promociones') {
+        ['p-nombre', 'p-valor', 'p-inicio', 'p-fin', 'p-desc'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('p-tipo').value = 'porcentaje'; document.getElementById('p-producto').value = '';
+        window.actualizarFormularioPromo(); document.getElementById('btn-promos-submit').textContent = '✓ Guardar promoción';
     } else if (sec === 'gastos') { document.getElementById('g-desc').value = ''; document.getElementById('g-monto').value = ''; document.getElementById('g-fecha').value = hoy; document.getElementById('btn-gastos-submit').textContent = '✓ Registrar'; }
 };
 
