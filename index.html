@@ -162,6 +162,27 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 .matrix-item{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
 .matrix-item:last-child{border-bottom:none;}
 
+/* Dashboard PRO */
+.dashboard-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:1.5rem;flex-wrap:wrap}
+.dashboard-welcome{font-size:13px;color:var(--muted);margin-top:6px}
+.dashboard-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dashboard-search{min-width:220px;position:relative}
+.dashboard-search input{padding-left:34px}
+.dashboard-search::before{content:'⌕';position:absolute;left:12px;top:7px;color:var(--muted);font-size:20px;z-index:1}
+.dashboard-filter{width:auto;padding:9px 11px}
+.dash-hero{border-color:rgba(255,219,89,.3);background:linear-gradient(110deg,rgba(255,219,89,.12),rgba(20,20,20,.95) 52%);padding:1.25rem 1.5rem}
+.dash-hero-row{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.dash-hero-label{font:11px var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.dash-hero-value{font:32px var(--font-head);color:var(--accent);letter-spacing:1px;margin-top:4px}
+.dash-quick-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
+.quick-action{padding:13px 14px;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);cursor:pointer;transition:.18s;font:500 13px var(--font-body)}
+.quick-action:hover{border-color:var(--accent);background:rgba(255,219,89,.07);transform:translateY(-2px)}
+.quick-action span{display:block;font:11px var(--font-mono);color:var(--muted);margin-top:4px}
+.dash-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.dash-section-head .card-title{margin:0}
+.mini-insight{font:11px var(--font-mono);color:var(--muted)}
+@media(max-width:768px){.dashboard-search{min-width:100%;order:2}.dashboard-tools{width:100%}.dash-quick-actions{grid-template-columns:1fr}.dash-hero-value{font-size:28px}}
+
 /* ESTILOS PARA LOS DESPLEGABLES DINÁMICOS DE INGREDIENTES */
 .ing-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; background:var(--surface2); padding:6px; border-radius:6px; border:1px solid var(--border); }
 .ing-row select, .ing-row input { background:var(--surface); border:1px solid var(--border); }
@@ -219,37 +240,43 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
   <main class="main">
 
     <div id="dashboard" class="section active">
-      <div class="page-header">
-        <div class="page-title">
-          Dashboard
-          <button id="btn-seed" class="btn btn-sm" style="margin-left:20px;background:var(--surface2);color:var(--text);border:1px solid var(--border);" onclick="cargarDatosBase()">
-            ⚙️ Restaurar Menú Base
-          </button>
+      <div class="dashboard-topbar">
+        <div><div class="page-title">Panel de control</div><div class="dashboard-welcome">Visión operativa de Hangar23, actualizada en tiempo real.</div></div>
+        <div class="dashboard-tools">
+          <div class="dashboard-search"><input id="dash-search" type="search" placeholder="Buscar cliente o producto" aria-label="Buscar en el panel"></div>
+          <select id="dash-period" class="dashboard-filter" aria-label="Período del panel"><option value="today">Hoy</option><option value="week">Últimos 7 días</option><option value="month" selected>Este mes</option><option value="all">Todo el historial</option><option value="custom">Rango personalizado</option></select>
+          <input id="dash-from" class="dashboard-filter" type="date" aria-label="Fecha inicial" hidden>
+          <input id="dash-to" class="dashboard-filter" type="date" aria-label="Fecha final" hidden>
+          <button id="btn-seed" class="btn btn-sm" onclick="cargarDatosBase()">Restaurar menú</button>
         </div>
-        <div class="page-sub">Inteligencia de negocio y rendimiento en tiempo real</div>
       </div>
 
-      <div class="card" style="padding-bottom:1rem">
-        <div class="card-title" style="justify-content:space-between;margin-bottom:8px">
-          <span>🎯 Objetivo de Ventas (Este mes)</span>
+      <div class="card dash-hero">
+        <div class="dash-hero-row">
+          <div><div class="dash-hero-label">Objetivo mensual</div><div class="dash-hero-value" id="meta-text"></div></div>
           <div>
-            <span id="meta-text" style="font-family:var(--font-mono);color:var(--accent);font-size:20px;margin-right:10px"></span>
-            <button onclick="configurarMeta()" class="btn btn-sm" style="padding:4px 8px">✎ Editar</button>
+            <button onclick="configurarMeta()" class="btn btn-sm">Editar objetivo</button>
           </div>
         </div>
-        <div class="progress" style="height:14px;background:var(--surface2)"><div class="progress-fill" id="meta-bar" style="background:var(--success);width:0%"></div></div>
-        <div style="font-size:12px;margin-top:6px;color:var(--muted);text-align:right" id="meta-info"></div>
+        <div class="progress" style="height:10px;background:var(--surface2);margin-top:16px"><div class="progress-fill" id="meta-bar" style="width:0%"></div></div>
+        <div class="mini-insight" style="margin-top:8px;text-align:right" id="meta-info"></div>
       </div>
 
       <div class="metrics" id="dash-metrics"></div>
 
+      <div class="dash-quick-actions">
+        <button class="quick-action" onclick="showSection('ventas')">Nuevo pedido<span>Registrar una venta</span></button>
+        <button class="quick-action" onclick="showSection('stock')">Actualizar stock<span>Ingresar mercadería</span></button>
+        <button class="quick-action" onclick="showSection('recetas')">Gestionar menú<span>Recetas y extras</span></button>
+      </div>
+
       <div class="grid-2">
         <div class="card">
-          <div class="card-title"><span class="icon">⚡</span> Alertas de stock (Físico y Predictivo)</div>
+          <div class="dash-section-head"><div class="card-title"><span class="icon">⚡</span> Stock crítico</div><span class="mini-insight" id="dash-stock-summary"></span></div>
           <div id="dash-alertas"></div>
         </div>
         <div class="card">
-          <div class="card-title"><span class="icon">⭐</span> Ingeniería del Menú</div>
+          <div class="dash-section-head"><div class="card-title"><span class="icon">★</span> Ingeniería del menú</div><span class="mini-insight">Período seleccionado</span></div>
           <div style="display:flex;gap:10px;flex-direction:column">
             <div>
               <div style="font-size:11px;text-transform:uppercase;color:var(--success);letter-spacing:1px;margin-bottom:4px">Más vendida (cantidad mensual)</div>
@@ -265,11 +292,11 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 
       <div class="grid-2">
         <div class="card">
-          <div class="card-title"><span class="icon">⚡</span> Ranking de ventas (Unidades)</div>
+          <div class="dash-section-head"><div class="card-title"><span class="icon">◈</span> Ranking de productos</div><span class="mini-insight" id="dash-ranking-total"></span></div>
           <div id="dash-ranking"></div>
         </div>
         <div class="card">
-          <div class="card-title"><span class="icon">⚡</span> Ventas por variedad</div>
+          <div class="card-title"><span class="icon">↗</span> Ventas por variedad</div>
           <div class="chart-wrap"><canvas id="chartBurgers" role="img" aria-label="Gráfico de ventas por variedad"></canvas></div>
         </div>
       </div>
@@ -676,6 +703,78 @@ function renderDash() {
     }
 }
 
+// Dashboard PRO: calcula todo desde las colecciones existentes, sin alterar datos en Firestore.
+function renderDash() {
+    const hoy = window.getHoy();
+    const periodo = document.getElementById('dash-period')?.value || 'month';
+    const desde = document.getElementById('dash-from')?.value;
+    const hasta = document.getElementById('dash-to')?.value;
+    const busqueda = limpiarText(document.getElementById('dash-search')?.value || '');
+    const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char]));
+    const enPeriodo = fecha => {
+        if (!fecha) return false;
+        if (periodo === 'today') return fecha === hoy;
+        if (periodo === 'week') return diffDias(hoy, fecha) >= 0 && diffDias(hoy, fecha) <= 6;
+        if (periodo === 'month') return fecha.startsWith(hoy.slice(0, 7));
+        if (periodo === 'custom') return (!desde || fecha >= desde) && (!hasta || fecha <= hasta);
+        return true;
+    };
+    const coincide = venta => !busqueda || limpiarText(venta.cliente).includes(busqueda) || (venta.items || []).some(item => limpiarText(item.burger).includes(busqueda));
+    const ventas = window.db.ventas.filter(venta => enPeriodo(venta.fecha) && coincide(venta));
+    const gastos = window.db.gastos.filter(gasto => enPeriodo(gasto.fecha));
+    const ventasHoy = window.db.ventas.filter(venta => venta.fecha === hoy).reduce((sum, venta) => sum + (venta.total || 0), 0);
+    const ventasMes = window.db.ventas.filter(venta => venta.fecha?.startsWith(hoy.slice(0, 7))).reduce((sum, venta) => sum + (venta.total || 0), 0);
+    const facturacion = ventas.reduce((sum, venta) => sum + (venta.total || 0), 0);
+    const egresos = gastos.reduce((sum, gasto) => sum + (gasto.monto || 0), 0);
+    const pedidos = ventas.length;
+    const ticket = pedidos ? facturacion / pedidos : 0;
+    const meta = parseFloat(localStorage.getItem('h23_meta')) || 1000000;
+    const metaPct = Math.min(100, Math.round((ventasMes / meta) * 100));
+    document.getElementById('meta-text').textContent = window.fmt(meta);
+    document.getElementById('meta-bar').style.width = `${metaPct}%`;
+    document.getElementById('meta-bar').style.background = metaPct >= 100 ? 'var(--success)' : 'var(--accent)';
+    document.getElementById('meta-info').textContent = `${window.fmt(ventasMes)} vendidos este mes · faltan ${window.fmt(Math.max(0, meta - ventasMes))} (${metaPct}%)`;
+
+    const productos = {};
+    const clientes = {};
+    ventas.forEach(venta => {
+        if (venta.cliente) clientes[venta.cliente] = (clientes[venta.cliente] || 0) + (venta.total || 0);
+        (venta.items || []).forEach(item => productos[item.burger] = (productos[item.burger] || 0) + (item.qty || 0));
+    });
+    const ranking = Object.entries(productos).sort((a, b) => b[1] - a[1]);
+    const vip = Object.entries(clientes).sort((a, b) => b[1] - a[1])[0];
+    const masVendido = ranking[0];
+    const criticos = window.db.stock.filter(item => item.cantidad <= item.minimo);
+    const ganancias = facturacion - egresos;
+    document.getElementById('dash-metrics').innerHTML = `
+      <div class="metric"><div class="metric-label">Ventas hoy</div><div class="metric-value yellow">${window.fmt(ventasHoy)}</div><div class="metric-sub">Facturación diaria</div></div>
+      <div class="metric"><div class="metric-label">Ventas del período</div><div class="metric-value green">${window.fmt(facturacion)}</div><div class="metric-sub">${pedidos} pedido${pedidos === 1 ? '' : 's'}</div></div>
+      <div class="metric"><div class="metric-label">Ticket promedio</div><div class="metric-value blue">${window.fmt(ticket)}</div><div class="metric-sub">Por pedido</div></div>
+      <div class="metric"><div class="metric-label">Ganancia estimada</div><div class="metric-value ${ganancias >= 0 ? 'green' : 'red'}">${window.fmt(ganancias)}</div><div class="metric-sub">Ventas menos gastos</div></div>
+      <div class="metric"><div class="metric-label">Cliente VIP</div><div class="metric-value orange" style="font-size:20px">${vip ? esc(vip[0]) : '—'}</div><div class="metric-sub">${vip ? window.fmt(vip[1]) + ' en compras' : 'Sin registros'}</div></div>
+      <div class="metric"><div class="metric-label">Producto líder</div><div class="metric-value yellow" style="font-size:20px">${masVendido ? esc(masVendido[0]) : '—'}</div><div class="metric-sub">${masVendido ? masVendido[1] + ' unidades' : 'Sin ventas'}</div></div>
+      <div class="metric"><div class="metric-label">Stock crítico</div><div class="metric-value ${criticos.length ? 'red' : 'green'}">${criticos.length}</div><div class="metric-sub">Requiere reposición</div></div>`;
+
+    const menuStats = window.db.recetas.map(receta => ({ nombre: receta.nombre, sold: productos[receta.nombre] || 0, margin: (receta.precio || 0) - (receta.costo || 0) }));
+    const estrellas = menuStats.filter(item => item.sold).sort((a,b) => b.sold - a.sold).slice(0,3);
+    const perros = [...menuStats].sort((a,b) => a.sold - b.sold).slice(0,3);
+    const matriz = items => items.length ? items.map(item => `<div class="matrix-item"><strong>${esc(item.nombre)}</strong><span>${item.sold} ud. · ${window.fmt(item.margin)}/ud</span></div>`).join('') : '<div class="empty" style="padding:4px">Sin datos en este período</div>';
+    document.getElementById('matrix-estrellas').innerHTML = matriz(estrellas);
+    document.getElementById('matrix-perros').innerHTML = matriz(perros);
+
+    const alertas = criticos.map(item => `<div class="alert alert-danger">⚠ <strong>${esc(item.nombre)}</strong>: ${item.cantidad} ${esc(item.unidad)} disponibles (mínimo: ${item.minimo})</div>`);
+    document.getElementById('dash-stock-summary').textContent = criticos.length ? `${criticos.length} alerta${criticos.length === 1 ? '' : 's'} activa${criticos.length === 1 ? '' : 's'}` : 'Inventario estable';
+    document.getElementById('dash-alertas').innerHTML = alertas.join('') || '<div class="alert alert-ok">✓ Sin insumos en nivel crítico</div>';
+    document.getElementById('dash-ranking-total').textContent = ranking.length ? `${ranking.reduce((sum, [,qty]) => sum + qty, 0)} unidades` : 'Sin ventas';
+    const colores = ['#ffdb59','#f0c000','#c89a00','#8a6a00','#6c5a19'];
+    document.getElementById('dash-ranking').innerHTML = ranking.length ? ranking.slice(0,5).map(([nombre,cantidad], index) => `<div class="ranking-item"><span class="ranking-num">${index + 1}</span><div class="ranking-bar-wrap"><div class="ranking-name">${esc(nombre)}</div><div class="progress"><div class="progress-fill" style="width:${window.pct(cantidad, ranking[0][1])}%;background:${colores[index]}"></div></div></div><span class="ranking-count">${cantidad}</span></div>`).join('') : '<div class="empty">Sin ventas en este período</div>';
+    const canvas = document.getElementById('chartBurgers');
+    if (canvas && window.Chart) {
+        if (window._chartProducts) window._chartProducts.destroy();
+        window._chartProducts = new Chart(canvas, { type:'bar', data:{ labels:ranking.slice(0,6).map(([n]) => n), datasets:[{data:ranking.slice(0,6).map(([,n]) => n), backgroundColor:colores, borderRadius:6}] }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:'#777',precision:0},grid:{color:'#2a2a2a'}},x:{ticks:{color:'#aaa'},grid:{display:false}}}} });
+    }
+}
+
 function renderVentas() {
     if (!window.editando.ventas) window.refrescarSelectoresVentas();
     document.getElementById('ventas-tabla').innerHTML = window.db.ventas.slice().reverse().map(v =>
@@ -1019,6 +1118,21 @@ window.cancelarEdicion = function(sec) {
 
 window.imprimirComanda = function(id) { const v = window.db.ventas.find(x => x.id === id); if (!v) return; const htmlItems = (v.items || []).map(i => `<div style="margin-bottom:12px;border-bottom:1px dotted #888;padding-bottom:8px"><div style="font-size:16px"><strong>${i.qty} x ${i.burger}</strong></div>${i.extras && i.extras.length ? `<div style="font-size:13px;margin-top:4px;font-weight:bold">+ EXTRAS: ${i.extras.join(', ')}</div>` : ''}</div>`).join(''); document.getElementById('comanda-print').innerHTML = `<div style="text-align:center;margin-bottom:15px"><div style="font-family:'Bebas Neue',sans-serif;font-size:42px;margin:0;line-height:1">HANGAR 23</div><div style="font-size:14px;margin-top:4px">COMANDA</div></div><div style="border-top:2px dashed #000;border-bottom:2px dashed #000;padding:8px 0;margin-bottom:15px;font-size:14px"><div><strong>ID:</strong> ${v.id.slice(-5).toUpperCase()}</div><div><strong>CLIENTE:</strong> ${v.cliente.toUpperCase()}</div></div><div style="margin-bottom:15px">${htmlItems}</div><div style="border:2px solid #000;padding:8px;margin-bottom:15px"><strong style="font-size:14px">📝 NOTAS:</strong><div style="font-size:15px;font-weight:bold;margin-top:4px">${v.notas ? v.notas.toUpperCase() : 'NINGUNA'}</div></div><div style="text-align:center;font-size:12px;margin-top:20px">--- FIN DE TICKET ---</div>`; setTimeout(() => window.print(), 250); };
 window.exportarCSV = function() { if (window.db.ventas.length === 0) { window.toast('⚠ No hay ventas'); return; } let csv = "Fecha,Cliente,Detalle del Pedido,Metodo de Pago,Total Cobrado\n"; window.db.ventas.forEach(v => { csv += `${v.fecha},"${v.cliente}","${(v.items || []).map(i => `${i.qty}x ${i.burger}`).join(' + ')}",${v.pago},${v.total}\n`; }); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.setAttribute('href', URL.createObjectURL(blob)); link.setAttribute('download', `Hangar23_Ventas_${window.getHoy()}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); };
+
+// Los filtros sólo cambian la lectura del dashboard: nunca modifican los datos.
+const dashPeriod = document.getElementById('dash-period');
+const dashFrom = document.getElementById('dash-from');
+const dashTo = document.getElementById('dash-to');
+const actualizarControlesDashboard = () => {
+    const personalizado = dashPeriod.value === 'custom';
+    dashFrom.hidden = !personalizado;
+    dashTo.hidden = !personalizado;
+    window.render();
+};
+dashPeriod?.addEventListener('change', actualizarControlesDashboard);
+dashFrom?.addEventListener('change', () => window.render());
+dashTo?.addEventListener('change', () => window.render());
+document.getElementById('dash-search')?.addEventListener('input', () => window.render());
 
 document.getElementById('v-fecha').value = window.getHoy(); document.getElementById('s-fecha').value = window.getHoy(); document.getElementById('g-fecha').value = window.getHoy();
 
