@@ -43,13 +43,39 @@
   <main>
     <section class="view active" id="view-pedir"><div class="chips" id="chips"></div><div class="products" id="products"></div></section>
     <section class="view" id="view-pedidos"><div id="orders"></div></section>
-    <section class="view" id="view-resumen"><div class="metrics"><div class="metric"><div class="label">Vendido hoy</div><div class="metric-value green" id="sum-total">$0</div></div><div class="metric"><div class="label">Pedidos hoy</div><div class="metric-value yellow" id="sum-count">0</div></div></div><div class="metric"><div class="label">Más vendida hoy</div><div class="metric-value" style="font-size:25px" id="sum-top">—</div></div><div class="metric"><div class="label">🛵 A pagar al delivery</div><div class="metric-value yellow" id="sum-delivery">$10.000</div><div class="order-time" id="sum-delivery-detail" style="margin-top:6px"></div></div><div class="metric"><div class="label">Alertas de stock</div><div id="alerts"></div></div></section>
+    <section class="view" id="view-resumen">
+      <div class="metrics"><div class="metric"><div class="label">Vendido hoy</div><div class="metric-value green" id="sum-total">$0</div></div><div class="metric"><div class="label">Pedidos hoy</div><div class="metric-value yellow" id="sum-count">0</div></div></div>
+      <div class="metric"><div class="label">Más vendida hoy</div><div class="metric-value" style="font-size:25px" id="sum-top">—</div></div>
+      <div class="metric" style="background:var(--surface2); border-color:var(--accent);">
+        <div class="label" style="color:var(--accent)">🛵 A pagar al delivery</div>
+        <div class="metric-value yellow" id="sum-delivery">$10.000</div>
+        <div class="order-time" id="sum-delivery-detail" style="margin-top:6px; color:#ddd"></div>
+        <button class="primary" id="btn-pay-delivery" type="button" style="margin-top:12px; padding:12px; font-size:14px; background:var(--accent); color:#000">💸 Registrar Pago y Emitir Ticket</button>
+      </div>
+      <div class="metric"><div class="label">Alertas de stock</div><div id="alerts"></div></div>
+    </section>
   </main>
   <button class="cartbar" id="cartbar" type="button"><span class="cart-info"><span id="cart-count">0 ítems</span><small>Tocá para ver el pedido</small></span><span class="cart-total" id="cart-total">$0 ›</span></button>
   <nav class="tabbar"><button class="tab active" data-view="pedir"><span class="icon">🍔</span>Pedir</button><button class="tab" data-view="pedidos"><span class="icon">📋</span>Pedidos</button><button class="tab" data-view="resumen"><span class="icon">📊</span>Resumen</button></nav>
 </div>
 <div class="toast" id="toast" role="status"></div><div id="print-area"></div>
+
 <div class="overlay" id="product-sheet"><div class="sheet"><div class="handle"></div><div class="sheet-title" id="sheet-name">—</div><div class="sub" id="sheet-desc"></div><div class="stepper"><button class="round" id="qty-less" type="button">−</button><div class="step-value" id="qty">1</div><button class="round" id="qty-more" type="button">+</button></div><div class="label" id="extra-label">Extras</div><div class="extras" id="extras"></div><button class="primary" id="add-product" type="button">Agregar</button></div></div>
+
+<!-- Modal Pagar Delivery -->
+<div class="overlay" id="pay-delivery-sheet">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title" style="color:var(--accent)">Pago a Delivery</div>
+    <div class="sub">Se registrará como gasto en Firebase y descontará de la caja.</div>
+    <label class="label">Nombre del Repartidor</label>
+    <input class="field" id="delivery-name" placeholder="Ej: Maxi, Fede...">
+    <label class="label">Monto a pagar ($)</label>
+    <input class="field" type="number" inputmode="numeric" id="delivery-amount" placeholder="0">
+    <button class="primary" id="confirm-pay-delivery" type="button" style="margin-top:10px">✓ Confirmar y Emitir Tickets</button>
+  </div>
+</div>
+
 <section class="full" id="cart-screen"><header class="full-head"><div class="head-title">Tu pedido</div><button class="close" data-close="cart-screen" type="button">✕</button></header><div class="full-body"><div id="cart-lines"></div><div class="total-row"><span>Total</span><b id="checkout-total">$0</b></div><hr class="divider"><label class="label" for="customer">Cliente</label><input class="field" id="customer" autocomplete="name" placeholder="Nombre del cliente"><div class="label">Entrega</div><div class="type-grid" id="entrega-tipo"></div><div id="delivery-fields"><label class="label" for="address">Dirección de entrega</label><input class="field" id="address" autocomplete="street-address" placeholder="Calle, número, piso/depto"><label class="label" for="envio">Costo de envío</label><input class="field" id="envio" type="number" inputmode="numeric" placeholder="0"></div><div class="label">Método de pago</div><div class="pay-grid" id="payments"></div><label class="label" for="notes">Aclaraciones (imprime en cocina)</label><textarea class="field" id="notes" rows="2" placeholder="Sin cebolla, salsa aparte..."></textarea></div><footer class="full-foot"><button class="primary" id="confirm-order" type="button">✓ Confirmar pedido</button></footer></section>
 <section class="full" id="confirmed-screen"><header class="full-head"><div class="head-title">Pedido confirmado</div><button class="close" data-close="confirmed-screen" type="button">✕</button></header><div class="confirmed"><div class="check">✅</div><div class="customer" id="confirmed-customer"></div><div class="amount" id="confirmed-total"></div></div><footer class="full-foot" style="display:grid;gap:10px"><button class="print" id="print-last" type="button">🛵 Imprimir copia delivery</button><button class="print" id="print-kitchen" type="button">👨‍🍳 Imprimir copia cocina</button><button class="secondary" data-close="confirmed-screen" type="button">Nuevo pedido</button></footer></section>
 <script type="module">
@@ -84,7 +110,107 @@ async function changeStock(items,factor){for(const item of items||[]){const reci
 $('#confirm-order').onclick=async()=>{const customer=$('#customer').value.trim(),address=$('#address').value.trim(),notes=$('#notes').value.trim(),envio=envioMonto();if(!customer)return toast('⚠ Ingresá el nombre del cliente');if(!state.cart.length)return toast('⚠ El carrito está vacío');if(state.entrega==='Delivery'&&!address)return toast('⚠ Ingresá la dirección de entrega');const btn=$('#confirm-order');btn.disabled=true;btn.textContent='Guardando…';const createdAt=Date.now(),sale={fecha:today(),hora:new Date(createdAt).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}),cliente:customer,entrega:state.entrega,direccion:state.entrega==='Delivery'?address:'',envio:state.entrega==='Delivery'?envio:0,items:state.cart.map(x=>({...x,extras:[...x.extras]})),total:cartTotal()+envio,pago:state.pay,notas:notes,creadoEn:createdAt};try{const ref=await addDoc(collection(dbx,'ventas'),sale);await changeStock(sale.items,-1);state.lastId=ref.id;$('#cart-screen').classList.remove('open');$('#confirmed-customer').textContent=customer;$('#confirmed-total').textContent=fmt(sale.total);$('#confirmed-screen').classList.add('open');state.cart=[];state.pay='Efectivo';state.entrega='Retira en local';$('#customer').value='';$('#address').value='';$('#envio').value='';$('#notes').value='';renderCartBar()}catch(err){console.error(err);toast('⚠ Error al guardar el pedido')}finally{btn.disabled=false;btn.textContent='✓ Confirmar pedido'}};
 function renderOrders(){const a=state.ventas.filter(x=>x.fecha===today()).slice().reverse();$('#orders').innerHTML=a.length?a.map(v=>{const time=v.hora||(v.creadoEn?new Date(v.creadoEn).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'');return `<article class="order"><div class="order-top"><div><div class="order-client">${esc(v.cliente)}</div><div class="order-time">${time} · ${esc(v.pago)}</div></div><div class="order-total">${fmt(v.total)}</div></div><div class="order-items">${(v.items||[]).map(i=>`${i.qty}x ${esc(i.burger)}${i.extras?.length?` (${i.extras.map(esc).join(', ')})`:''}`).join('<br>')}</div>${v.entrega?`<div class="badge">${v.entrega==='Delivery'?'🛵':'🏠'} ${esc(v.entrega)}</div>`:''}${v.direccion?`<div class="badge">📍 ${esc(v.direccion)}</div>`:''}${v.notas?`<div class="badge">📝 ${esc(v.notas)}</div>`:''}<div class="actions"><button class="print" data-print-delivery="${v.id}" type="button">🛵 Delivery</button><button class="print" data-print-kitchen="${v.id}" type="button">👨‍🍳 Cocina</button><button class="danger" data-delete="${v.id}" type="button">✕</button></div></article>`}).join(''):'<div class="empty"><span class="emoji">📋</span>Todavía no hay pedidos hoy.</div>';$('#orders').querySelectorAll('[data-print-delivery]').forEach(b=>b.onclick=()=>printDelivery(state.ventas.find(x=>x.id===b.dataset.printDelivery)));$('#orders').querySelectorAll('[data-print-kitchen]').forEach(b=>b.onclick=()=>printKitchen(state.ventas.find(x=>x.id===b.dataset.printKitchen)));$('#orders').querySelectorAll('[data-delete]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Eliminar este pedido? El stock se repone.'))return;const v=state.ventas.find(x=>x.id===b.dataset.delete);try{await changeStock(v.items,1);await deleteDoc(doc(dbx,'ventas',v.id));toast('✓ Pedido eliminado')}catch(e){console.error(e);toast('⚠ No se pudo eliminar el pedido')}})}
 const PAGO_FIJO_DELIVERY=10000;
-function renderSummary(){const a=state.ventas.filter(x=>x.fecha===today()),total=a.reduce((s,x)=>s+(Number(x.total)||0),0);$('#top-total').textContent=fmt(total);$('#sum-total').textContent=fmt(total);$('#sum-count').textContent=a.length;const counts={};a.forEach(v=>(v.items||[]).forEach(x=>counts[x.burger]=(counts[x.burger]||0)+x.qty));const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];$('#sum-top').textContent=top?`${top[0]} (${top[1]})`:'—';const deliveries=a.filter(x=>x.entrega==='Delivery'),totalEnvios=deliveries.reduce((s,x)=>s+(Number(x.envio)||0),0),pagoDelivery=totalEnvios+PAGO_FIJO_DELIVERY;$('#sum-delivery').textContent=fmt(pagoDelivery);$('#sum-delivery-detail').textContent=`${deliveries.length} envío${deliveries.length===1?'':'s'} · ${fmt(totalEnvios)} cobrado + ${fmt(PAGO_FIJO_DELIVERY)} fijo`;const low=state.stock.filter(x=>Number(x.cantidad)<=Number(x.minimo));$('#alerts').innerHTML=low.length?low.map(x=>`<div class="alert bad">⚠ <b>${esc(x.nombre)}</b>: quedan ${Math.round(x.cantidad*100)/100} ${esc(x.unidad)}</div>`).join(''):'<div class="alert ok">✓ Todo el stock en orden</div>'}
+let pagoDeliveryCalculado=0;
+
+function renderSummary(){const a=state.ventas.filter(x=>x.fecha===today()),total=a.reduce((s,x)=>s+(Number(x.total)||0),0);$('#top-total').textContent=fmt(total);$('#sum-total').textContent=fmt(total);$('#sum-count').textContent=a.length;const counts={};a.forEach(v=>(v.items||[]).forEach(x=>counts[x.burger]=(counts[x.burger]||0)+x.qty));const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];$('#sum-top').textContent=top?`${top[0]} (${top[1]})`:'—';const deliveries=a.filter(x=>x.entrega==='Delivery'),totalEnvios=deliveries.reduce((s,x)=>s+(Number(x.envio)||0),0);pagoDeliveryCalculado=totalEnvios+PAGO_FIJO_DELIVERY;$('#sum-delivery').textContent=fmt(pagoDeliveryCalculado);$('#sum-delivery-detail').textContent=`${deliveries.length} envío${deliveries.length===1?'':'s'} · ${fmt(totalEnvios)} cobrado + ${fmt(PAGO_FIJO_DELIVERY)} fijo`;const low=state.stock.filter(x=>Number(x.cantidad)<=Number(x.minimo));$('#alerts').innerHTML=low.length?low.map(x=>`<div class="alert bad">⚠ <b>${esc(x.nombre)}</b>: quedan ${Math.round(x.cantidad*100)/100} ${esc(x.unidad)}</div>`).join(''):'<div class="alert ok">✓ Todo el stock en orden</div>'}
+
+// ─── LÓGICA DE REGISTRO Y PAGO A DELIVERY ───
+$('#btn-pay-delivery').onclick = () => {
+  $('#delivery-amount').value = pagoDeliveryCalculado;
+  $('#delivery-name').value = '';
+  $('#pay-delivery-sheet').classList.add('open');
+};
+
+$('#pay-delivery-sheet').onclick = e => {
+  if(e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+};
+
+$('#confirm-pay-delivery').onclick = async () => {
+  const nombre = $('#delivery-name').value.trim() || 'Delivery';
+  const monto = parseFloat($('#delivery-amount').value) || 0;
+  
+  if (monto <= 0) return toast('⚠ Ingresá un monto válido');
+  
+  const btn = $('#confirm-pay-delivery');
+  btn.disabled = true;
+  btn.textContent = 'Registrando pago...';
+  
+  const gastoObj = {
+    fecha: today(),
+    cat: 'Personal',
+    tipo: 'Variable',
+    desc: 'Pago a Delivery: ' + nombre,
+    monto: monto
+  };
+  
+  try {
+    await addDoc(collection(dbx, 'gastos'), gastoObj);
+    toast('✓ Pago a delivery registrado');
+    $('#pay-delivery-sheet').classList.remove('open');
+    printDeliveryPaymentTicket(nombre, monto);
+  } catch(e) {
+    console.error(e);
+    toast('⚠ Error al registrar el gasto en Firebase');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✓ Confirmar y Emitir Tickets';
+  }
+};
+
+// IMPRESIÓN DE DOBLE TICKET (COPIA LOCAL Y COPIA REPARTIDOR)
+function printDeliveryPaymentTicket(nombre, monto) {
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  
+  const ticketLocal = `
+    <section class="ticket">
+      <div style="text-align:center;margin-bottom:4mm">
+        <div style="font-size:26px;font-weight:bold">HANGAR 23</div>
+        <div style="font-weight:bold;margin-top:1mm">COMPROBANTE DE PAGO</div>
+        <div style="font-size:12px;font-weight:bold;margin-top:1mm">--- COPIA LOCAL / CAJA ---</div>
+      </div>
+      <div style="border-top:2px dashed #000;border-bottom:2px dashed #000;padding:2.5mm 0;margin-bottom:3mm">
+        <div><b>FECHA:</b> ${esc(fechaLarga(today()))} · <b>HORA:</b> ${esc(hora)}</div>
+        <div><b>CONCEPTO:</b> PAGO DELIVERY</div>
+        <div><b>REPARTIDOR:</b> ${esc(nombre.toUpperCase())}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:bold;padding:2mm 0;">
+        <span>TOTAL PAGADO</span>
+        <span>${fmt(monto)}</span>
+      </div>
+      <div style="text-align:center;margin-top:8mm;font-size:12px;">
+        --- FIRMA ---<br><br><br><br>
+        ................................<br>
+        Firma Repartidor (Recibí conforme)
+      </div>
+    </section>
+  `;
+
+  const ticketDelivery = `
+    <section class="ticket">
+      <div style="text-align:center;margin-bottom:4mm">
+        <div style="font-size:26px;font-weight:bold">HANGAR 23</div>
+        <div style="font-weight:bold;margin-top:1mm">COMPROBANTE DE PAGO</div>
+        <div style="font-size:12px;font-weight:bold;margin-top:1mm">--- COPIA REPARTIDOR ---</div>
+      </div>
+      <div style="border-top:2px dashed #000;border-bottom:2px dashed #000;padding:2.5mm 0;margin-bottom:3mm">
+        <div><b>FECHA:</b> ${esc(fechaLarga(today()))} · <b>HORA:</b> ${esc(hora)}</div>
+        <div><b>CONCEPTO:</b> PAGO DELIVERY</div>
+        <div><b>REPARTIDOR:</b> ${esc(nombre.toUpperCase())}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:bold;padding:2mm 0;">
+        <span>TOTAL PAGADO</span>
+        <span>${fmt(monto)}</span>
+      </div>
+      <div style="text-align:center;margin-top:8mm;font-size:12px;">
+        Gracias por volar con nosotros 🍔<br>
+        --- HANGAR 23 ---
+      </div>
+    </section>
+  `;
+
+  printOneTicket(ticketLocal + ticketDelivery);
+}
+
 function waitForPrintRender(){
   return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
 }
