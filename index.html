@@ -108,7 +108,7 @@ tbody tr:hover td{background:var(--surface2)}
 .progress{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:4px}
 .progress-fill{height:100%;border-radius:2px;transition:width 0.3s}
 
-.receta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:1rem}
+.receta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:1rem}
 .receta-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;position:relative;transition:border 0.15s}
 .receta-card:hover{border-color:#444}
 .receta-nombre{font-family:var(--font-head);font-size:22px;font-weight:400;letter-spacing:1px;margin-bottom:4px}
@@ -238,7 +238,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
       <div class="nav-item" onclick="showSection('caja')" data-s="caja"><span class="nav-icon">▤</span> Caja</div>
     </nav>
-    <div class="sidebar-footer">v5.1 · Control Total</div>
+    <div class="sidebar-footer">v5.3 · Costeo y Precios Pro</div>
   </aside>
 
   <main class="main">
@@ -428,16 +428,26 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
     </div>
 
     <div id="recetas" class="section">
-      <div class="page-header"><div class="page-title">Recetas</div></div>
+      <div class="page-header"><div class="page-title">Recetas y Menú</div></div>
+      
       <div class="card">
         <div class="form-grid">
           <div class="form-group"><label class="form-label">Nombre</label><input type="text" id="r-nombre"></div>
           <div class="form-group"><label class="form-label">Tipo</label><select id="r-tipo"><option>Hamburguesa</option><option>Combo</option><option>Promo</option><option>Vegetariana</option><option>Bebida</option></select></div>
-          <div class="form-group"><label class="form-label">Precio de venta ($)</label><input type="number" id="r-precio"></div>
-          <div class="form-group"><label class="form-label">Costo estimado ($)</label><input type="number" id="r-costo"></div>
+          <div class="form-group"><label class="form-label">Costo estimado ($) ⚡ Auto</label><input type="number" id="r-costo" placeholder="0" oninput="window.calcularPrecioSugeridoForm()"></div>
+          <div class="form-group"><label class="form-label">% Margen Deseado</label><input type="number" id="r-margen-deseado" value="60" min="1" max="99" oninput="window.calcularPrecioSugeridoForm()"></div>
+          <div class="form-group">
+            <label class="form-label">Precio Sugerido ($)</label>
+            <div style="display:flex; gap:6px">
+              <input type="number" id="r-precio-sugerido" readonly style="background:var(--surface); color:var(--success); font-weight:bold" placeholder="0">
+              <button type="button" class="btn btn-sm" onclick="aplicarPrecioSugeridoForm()" style="background:var(--surface2)" title="Usar precio sugerido">⚡ Usar</button>
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">Precio de venta ($)</label><input type="number" id="r-precio" placeholder="0"></div>
         </div>
         <div class="form-group" style="margin-bottom:14px"><label class="form-label">Descripción</label><input type="text" id="r-desc"></div>
         
+        <!-- Creador de Ingredientes Visual -->
         <div class="form-group" style="margin-bottom:16px; border:1px dashed var(--border); padding:12px; border-radius:8px">
             <label class="form-label" style="color:var(--accent); font-size:12px; margin-bottom:8px">Ingredientes de la Receta (Se descuentan del stock)</label>
             <div id="r-ing-list"></div>
@@ -449,6 +459,20 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <button class="btn" id="btn-recetas-cancel" style="display:none" onclick="cancelarEdicion('recetas')">✕ Cancelar</button>
         </div>
       </div>
+
+      <!-- SIMULADOR GLOBAL DE PRECIOS DEL MENÚ -->
+      <div class="card" style="padding: 1rem 1.25rem; margin-bottom: 1rem; border-color: rgba(255,219,89,0.3); background: rgba(255,219,89,0.03);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
+          <div style="font-size:13px; font-weight:500;">
+            💡 <strong>Simulador Global de Precios:</strong> Calcular precio de venta sugerido para todo el menú con un margen del
+          </div>
+          <div style="display:flex; align-items:center; gap:8px">
+            <input type="number" id="margen-global-sim" value="60" min="1" max="99" style="width:75px; text-align:center; padding:6px; font-weight:bold; color:var(--accent); background:var(--surface2); border:1px solid var(--border); border-radius:6px" oninput="window.renderRecetas()">
+            <span style="font-weight:bold; font-family:var(--font-mono)">%</span>
+          </div>
+        </div>
+      </div>
+
       <div class="receta-grid" id="recetas-grid"></div>
       
       <div class="card">
@@ -491,14 +515,13 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Tipo</label><select id="g-tipo"><option>Variable</option><option>Fijo</option></select></div>
           <div class="form-group"><label class="form-label">Monto ($)</label><input type="number" id="g-monto" placeholder="0"></div>
         </div>
-        <div class="form-group" style="margin-bottom:12px"><label class="form-label">Descripción</label><input type="text" id="g-desc" placeholder="Detalle del gasto (ej: Carne para la semana)"></div>
+        <div class="form-group" style="margin-bottom:12px"><label class="form-label">Descripción</label><input type="text" id="g-desc" placeholder="Detalle del gasto"></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" id="btn-gastos-submit" onclick="guardarGasto()">✓ Registrar</button>
           <button class="btn" id="btn-gastos-cancel" style="display:none" onclick="cancelarEdicion('gastos')">✕ Cancelar</button>
         </div>
       </div>
 
-      <!-- CARD PARA ADMINISTRAR CATEGORÍAS DE GASTOS -->
       <div class="card">
         <div class="card-title"><span class="icon">⚙</span> Administrar categorías de gastos</div>
         <div style="display:flex; gap:10px; margin-bottom:12px; align-items:end">
@@ -587,6 +610,7 @@ window.cargarDatosBase = async function() {
         if (colName === 'stock') {
             window.renderIngredientesReceta();
             window.renderSelectorExtra();
+            window.calcularCostoRecetaAuto();
         }
         if (colName === 'categorias_gastos') {
             window.renderCategoriasGastos();
@@ -608,6 +632,75 @@ window.closeSidebar = () => { document.getElementById('sidebar').classList.remov
 window.toast = (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
 window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCategoriasGastos(); renderCaja(); };
+
+// --- CÁLCULO AUTOMÁTICO DE COSTO Y PRECIO SUGERIDO DE RECETA ---
+window.calcularCostoRecetaAuto = function() {
+    let costoTotal = 0;
+    
+    window.ingredientesRecetaTemp.forEach(ing => {
+        if (!ing.nombre || !ing.cant) return;
+        const cantReceta = parseFloat(ing.cant) || 0;
+        const ingNombre = limpiarText(ing.nombre);
+        const uniReceta = limpiarText(ing.unidad || 'g');
+        
+        const stockItem = window.db.stock.find(s => limpiarText(s.nombre) === ingNombre);
+        if (stockItem && stockItem.cantidad > 0 && stockItem.costo > 0) {
+            let stockCantBase = stockItem.cantidad;
+            let stockUni = limpiarText(stockItem.unidad);
+            
+            if (stockUni === 'kg') stockCantBase *= 1000;
+            else if (stockUni === 'l') stockCantBase *= 1000;
+            
+            let recetaCantBase = cantReceta;
+            if (uniReceta === 'kg') recetaCantBase *= 1000;
+            else if (uniReceta === 'l') recetaCantBase *= 1000;
+            
+            const costoIng = recetaCantBase * (stockItem.costo / stockCantBase);
+            costoTotal += costoIng;
+        }
+    });
+
+    const inputCosto = document.getElementById('r-costo');
+    if (inputCosto) {
+        inputCosto.value = Math.round(costoTotal);
+    }
+    
+    window.calcularPrecioSugeridoForm();
+    return Math.round(costoTotal);
+};
+
+window.calcularPrecioSugeridoForm = function() {
+    const costo = parseFloat(document.getElementById('r-costo')?.value) || 0;
+    const margen = parseFloat(document.getElementById('r-margen-deseado')?.value) || 60;
+    const inputSugerido = document.getElementById('r-precio-sugerido');
+    
+    if (inputSugerido) {
+        if (costo > 0 && margen < 100 && margen > 0) {
+            const sugerido = Math.round(costo / (1 - (margen / 100)));
+            inputSugerido.value = sugerido;
+        } else {
+            inputSugerido.value = 0;
+        }
+    }
+};
+
+window.aplicarPrecioSugeridoForm = function() {
+    const sug = document.getElementById('r-precio-sugerido')?.value;
+    if (sug && parseFloat(sug) > 0) {
+        document.getElementById('r-precio').value = sug;
+        window.toast('✓ Precio sugerido aplicado');
+    }
+};
+
+window.aplicarPrecioSugeridoTarjeta = async function(recetaId, precioSugerido) {
+    try {
+        await updateDoc(doc(fsDb, 'recetas', recetaId), { precio: precioSugerido });
+        window.toast('✓ Precio actualizado en el menú');
+    } catch(e) {
+        console.error(e);
+        window.toast('⚠ Error al actualizar precio');
+    }
+};
 
 // --- GESTIÓN DINÁMICA DE CATEGORÍAS DE GASTOS ---
 window.renderCategoriasGastos = function() {
@@ -643,7 +736,6 @@ window.guardarCategoriaGasto = async function() {
     const nombre = input ? input.value.trim() : '';
     if (!nombre) { window.toast('⚠ Ingresá el nombre de la categoría'); return; }
     
-    // Si la lista en DB estaba vacía, primero poblamos las por defecto
     if (window.db.categorias_gastos.length === 0) {
         const defaults = ['Materia prima', 'Gas', 'Personal', 'Marketing', 'Packaging', 'Transporte', 'Otros'];
         for (const d of defaults) {
@@ -679,17 +771,19 @@ window.renderIngredientesReceta = function() {
     
     container.innerHTML = window.ingredientesRecetaTemp.map((ing, idx) => `
         <div class="ing-row">
-            <select style="flex:2; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].nombre = this.value">
+            <select style="flex:2; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].nombre = this.value; window.calcularCostoRecetaAuto();">
                 <option value="">Seleccione ingrediente de stock...</option>
                 ${window.db.stock.map(s => `<option value="${s.nombre}" ${s.nombre === ing.nombre ? 'selected' : ''}>${s.nombre}</option>`).join('')}
             </select>
-            <input type="number" placeholder="Cant" value="${ing.cant || ''}" style="flex:1; outline:none;" oninput="window.ingredientesRecetaTemp[${idx}].cant = this.value">
-            <select style="flex:1; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].unidad = this.value">
+            <input type="number" placeholder="Cant" value="${ing.cant || ''}" style="flex:1; outline:none;" oninput="window.ingredientesRecetaTemp[${idx}].cant = this.value; window.calcularCostoRecetaAuto();">
+            <select style="flex:1; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].unidad = this.value; window.calcularCostoRecetaAuto();">
                 ${['u','g','kg','ml','l','paq'].map(u => `<option value="${u}" ${ing.unidad === u ? 'selected' : ''}>${u}</option>`).join('')}
             </select>
             <button class="btn btn-sm btn-danger" style="padding:4px 8px; border-radius:4px" onclick="removerFilaIngrediente(${idx})">✕</button>
         </div>
     `).join('');
+    
+    window.calcularCostoRecetaAuto();
 };
 
 window.agregarFilaIngrediente = function() {
@@ -761,11 +855,16 @@ function renderDash() {
     const masVendido = ranking[0];
     const criticos = window.db.stock.filter(item => item.cantidad <= item.minimo);
     const ganancias = facturacion - egresos;
+    
+    // Cálculo de % de margen neto
+    const margenPct = facturacion ? Math.round((ganancias / facturacion) * 100) : 0;
+
     document.getElementById('dash-metrics').innerHTML = `
       <div class="metric"><div class="metric-label">Ventas hoy</div><div class="metric-value yellow">${window.fmt(ventasHoy)}</div><div class="metric-sub">Facturación diaria</div></div>
       <div class="metric"><div class="metric-label">Ventas del período</div><div class="metric-value green">${window.fmt(facturacion)}</div><div class="metric-sub">${pedidos} pedido${pedidos === 1 ? '' : 's'}</div></div>
       <div class="metric"><div class="metric-label">Ticket promedio</div><div class="metric-value blue">${window.fmt(ticket)}</div><div class="metric-sub">Por pedido</div></div>
       <div class="metric"><div class="metric-label">Ganancia estimada</div><div class="metric-value ${ganancias >= 0 ? 'green' : 'red'}">${window.fmt(ganancias)}</div><div class="metric-sub">Ventas menos gastos</div></div>
+      <div class="metric"><div class="metric-label">% Margen Neto</div><div class="metric-value ${margenPct >= 30 ? 'green' : margenPct >= 15 ? 'yellow' : 'red'}">${margenPct}%</div><div class="metric-sub">Rentabilidad sobre ventas</div></div>
       <div class="metric"><div class="metric-label">Cliente VIP</div><div class="metric-value orange" style="font-size:20px">${vip ? esc(vip[0]) : '—'}</div><div class="metric-sub">${vip ? window.fmt(vip[1]) + ' en compras' : 'Sin registros'}</div></div>
       <div class="metric"><div class="metric-label">Producto líder</div><div class="metric-value yellow" style="font-size:20px">${masVendido ? esc(masVendido[0]) : '—'}</div><div class="metric-sub">${masVendido ? masVendido[1] + ' unidades' : 'Sin ventas'}</div></div>
       <div class="metric"><div class="metric-label">Stock crítico</div><div class="metric-value ${criticos.length ? 'red' : 'green'}">${criticos.length}</div><div class="metric-sub">Requiere reposición</div></div>`;
@@ -831,11 +930,30 @@ function renderStock() {
 
 function renderCapacidadStock() {
     const contenedor = document.getElementById('stock-capacidad'); if (!contenedor) return;
-    const normalizar = texto => limpiarText(texto);
     const capacidad = receta => {
-        if (!receta.ing) return null;
-        const limites = receta.ing.split(',').map(linea => { const [nombre, cantidad, unidad] = linea.split(':'); const stock = window.db.stock.find(item => normalizar(item.nombre) === normalizar(nombre)); if (!stock || !parseFloat(cantidad)) return 0; let requerido = parseFloat(cantidad); if (normalizar(unidad) === 'g' && normalizar(stock.unidad) === 'kg') requerido /= 1000; if (normalizar(unidad) === 'ml' && normalizar(stock.unidad) === 'l') requerido /= 1000; return Math.floor(stock.cantidad / requerido); });
-        return limites.length ? Math.max(0, Math.min(...limites)) : null;
+        if (!receta.ing || !receta.ing.trim()) return null;
+        const limites = receta.ing.split(',').map(linea => {
+            const [nombre, cantidad, unidad] = linea.split(':');
+            if (!nombre || !parseFloat(cantidad)) return Infinity;
+            const ingNombre = limpiarText(nombre);
+            const uniReceta = limpiarText(unidad);
+            const stock = window.db.stock.find(item => limpiarText(item.nombre) === ingNombre);
+            
+            if (!stock) return 0;
+            
+            let requerido = parseFloat(cantidad);
+            let stockUni = limpiarText(stock.unidad);
+            
+            if ((uniReceta === 'g' || uniReceta === 'gr') && stockUni === 'kg') requerido /= 1000;
+            else if (uniReceta === 'kg' && (stockUni === 'g' || stockUni === 'gr')) requerido *= 1000;
+            else if ((uniReceta === 'ml' || uniReceta === 'cc') && stockUni === 'l') requerido /= 1000;
+            else if (uniReceta === 'l' && (stockUni === 'ml' || stockUni === 'cc')) requerido *= 1000;
+            
+            if (requerido <= 0) return Infinity;
+            return Math.floor(stock.cantidad / requerido);
+        });
+        const validos = limites.filter(l => l !== Infinity);
+        return validos.length ? Math.max(0, Math.min(...validos)) : null;
     };
     const recetas = window.db.recetas.map(r => ({...r, capacidad:capacidad(r)})).filter(r => r.capacidad !== null);
     contenedor.innerHTML = recetas.map(r => `<div class="receta-card"><div class="receta-nombre">${r.nombre}</div><div class="metric-value yellow">${r.capacidad}</div><div class="metric-sub">unidades posibles</div></div>`).join('') || '<div class="empty">Agregá ingredientes a las recetas para estimar capacidad.</div>';
@@ -843,8 +961,12 @@ function renderCapacidadStock() {
 
 function renderRecetas() {
     const colTipo = { 'Hamburguesa': 'badge-accent', 'Combo': 'badge-blue', 'Promo': 'badge-warn', 'Vegetariana': 'badge-ok', 'Bebida': 'badge-ok' };
+    const margenSim = parseFloat(document.getElementById('margen-global-sim')?.value) || 60;
+
     document.getElementById('recetas-grid').innerHTML = window.db.recetas.map(r => {
         const margen = r.costo ? Math.round((r.precio - r.costo) / r.precio * 100) : null;
+        const sugeridoSim = (r.costo && margenSim < 100 && margenSim > 0) ? Math.round(r.costo / (1 - (margenSim / 100))) : null;
+
         return `<div class="receta-card">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
             <span class="badge ${colTipo[r.tipo] || 'badge-blue'}">${r.tipo}</span>
@@ -856,7 +978,13 @@ function renderRecetas() {
           <div class="receta-nombre">${r.nombre}</div>
           <div class="receta-precio">${window.fmt(r.precio)}</div>
           <div class="receta-desc">${r.desc || ''}</div>
-          ${r.costo ? `<div style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">Costo: ${window.fmt(r.costo)} · Margen: ${margen}%</div>` : ''}
+          ${r.costo ? `<div style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">Costo: ${window.fmt(r.costo)} · Margen actual: ${margen}%</div>` : ''}
+          ${sugeridoSim ? `
+            <div style="margin-top:6px; padding:6px; background:rgba(71,255,142,0.08); border:1px solid rgba(71,255,142,0.2); border-radius:6px; display:flex; justify-content:space-between; align-items:center">
+              <span style="font-size:11px; color:var(--success); font-family:var(--font-mono)">Sugerido (${margenSim}%): <strong>${window.fmt(sugeridoSim)}</strong></span>
+              <button class="btn btn-sm" style="padding:2px 6px; font-size:10px; background:var(--surface)" onclick="aplicarPrecioSugeridoTarjeta('${r.id}', ${sugeridoSim})">⚡ Aplicar</button>
+            </div>
+          ` : ''}
           <hr>
           <div style="margin-top:6px">${r.ing ? r.ing.split(',').map(i => `<span class="tag">${i.trim()}</span>`).join('') : '<span style="color:var(--muted); font-size:11px">Sin descuento de stock</span>'}</div>
         </div>`;
@@ -1224,7 +1352,7 @@ window.cancelarEdicion = function(sec) {
     if (sec === 'ventas') { document.getElementById('v-cliente').value = ''; document.getElementById('v-notas').value = ''; document.getElementById('v-fecha').value = hoy; document.getElementById('v-cupon').value = ''; window.cuponAplicado = null; window.carritoActual = []; window.renderCarrito(); document.getElementById('v-qty').value = '1'; document.querySelectorAll('#v-extras input').forEach(i => i.checked = false); window.actualizarPrecioItem(); document.getElementById('btn-ventas-submit').textContent = '✓ Registrar pedido'; } 
     else if (sec === 'stock') { document.getElementById('s-fecha').value = hoy; ['s-nombre', 's-cantidad', 's-costo', 's-minimo'].forEach(id => document.getElementById(id).value = ''); document.getElementById('btn-stock-submit').textContent = '✓ Agregar'; } 
     else if (sec === 'recetas') { 
-        ['r-nombre', 'r-precio', 'r-costo', 'r-desc'].forEach(id => document.getElementById(id).value = ''); 
+        ['r-nombre', 'r-precio', 'r-costo', 'r-desc', 'r-precio-sugerido'].forEach(id => document.getElementById(id).value = ''); 
         window.ingredientesRecetaTemp = [];
         window.renderIngredientesReceta();
         document.getElementById('btn-recetas-submit').textContent = '✓ Guardar Receta'; 
