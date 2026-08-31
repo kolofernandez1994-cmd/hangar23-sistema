@@ -1304,7 +1304,36 @@ window.guardarGasto = async function() {
 
 window.eliminar = async function(tabla, id) {
     if (!confirm('¿Eliminar este registro?')) return;
-    try { if (tabla === 'ventas') { const vb = window.db.ventas.find(v => v.id === id); if (vb) await window.actualizarStockPorVentaAsync(vb.items, 1); } if (tabla === 'gastos') { const gb = window.db.gastos.find(g => g.id === id); if (gb) await window.actualizarStockPorCompra(gb, -1); } await deleteDoc(doc(fsDb, tabla, id)); window.toast('✓ Eliminado'); } catch(e) { window.toast('⚠ Error'); }
+    try {
+        if (tabla === 'ventas') {
+            const vb = window.db.ventas.find(v => v.id === id);
+            if (vb) await window.actualizarStockPorVentaAsync(vb.items, 1);
+        }
+
+        if (tabla === 'gastos') {
+            const gb = window.db.gastos.find(g => g.id === id);
+
+            if (gb && gb.materiaPrimaId) {
+                // Si la materia prima todavía existe en Stock, revertimos
+                // la cantidad que esta compra había agregado.
+                // Si ya fue eliminada de Stock, simplemente eliminamos
+                // el gasto sin bloquear la operación.
+                const existeMateriaPrima = window.db.stock.some(
+                    s => s.id === gb.materiaPrimaId
+                );
+
+                if (existeMateriaPrima) {
+                    await window.actualizarStockPorCompra(gb, -1);
+                }
+            }
+        }
+
+        await deleteDoc(doc(fsDb, tabla, id));
+        window.toast('✓ Eliminado');
+    } catch(e) {
+        console.error(e);
+        window.toast('⚠ Error: ' + (e.message || 'no se pudo eliminar'));
+    }
 };
 
 window.editarVenta = function(id) { const v = window.db.ventas.find(x => x.id === id); if (!v) return; document.getElementById('v-fecha').value = v.fecha; document.getElementById('v-cliente').value = v.cliente; document.getElementById('v-pago').value = v.pago; document.getElementById('v-notas').value = v.notas || ''; window.carritoActual = JSON.parse(JSON.stringify(v.items || [])); window.renderCarrito(); document.getElementById('v-precio-total').value = v.total; window.editando.ventas = id; const sel = document.getElementById('v-burger'); if (sel && window.carritoActual.length > 0) { const opt = [...sel.options].find(o => o.value === window.carritoActual[0].burger); if (opt) sel.value = opt.value; window.actualizarPrecioItem(); } document.getElementById('btn-ventas-submit').textContent = '✓ Actualizar pedido'; document.getElementById('btn-ventas-cancel').style.display = 'inline-flex'; document.getElementById('ventas').scrollIntoView({ behavior: 'smooth' }); };
