@@ -194,6 +194,26 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
   .app,.hamburger,.overlay,.toast,.modal-overlay{display:none !important}
   #comanda-print{display:block !important;width:100%;max-width:80mm;margin:0;padding:15px 10px;font-family:'DM Mono',monospace;color:#000;background:#fff}
 }
+
+/* ===== HANGAR 23 · MILLAS ===== */
+.millas-panel{margin-top:16px}
+.millas-hero{background:linear-gradient(135deg,rgba(255,219,89,.10),rgba(255,219,89,.03));border:1px solid rgba(255,219,89,.28);border-radius:12px;padding:18px}
+.millas-hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.millas-stat{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px}
+.millas-stat-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px}
+.millas-stat-value{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--accent)}
+.millas-rules{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-top:16px}
+.millas-rule{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px}
+.millas-table{width:100%;border-collapse:collapse;margin-top:10px}
+.millas-table th,.millas-table td{padding:9px 7px;border-bottom:1px solid var(--border);text-align:left;font-size:12px}
+.millas-table th{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
+.millas-badge{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;background:rgba(255,219,89,.10);border:1px solid rgba(255,219,89,.25);color:var(--accent);font-family:var(--font-mono);font-size:11px}
+.millas-link{background:none;border:0;color:var(--accent);cursor:pointer;font:inherit;padding:0}
+.millas-progress{height:6px;background:var(--surface);border-radius:999px;overflow:hidden;margin-top:8px}
+.millas-progress>div{height:100%;background:var(--accent);border-radius:999px}
+@media(max-width:900px){.millas-hero-grid,.millas-rules{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.millas-hero-grid,.millas-rules{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -226,6 +246,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
     <nav class="nav">
       <div class="nav-section">General</div>
       <div class="nav-item active" onclick="showSection('dashboard')" data-s="dashboard"><span class="nav-icon">◈</span> Dashboard</div>
+      <div class="nav-item" onclick="showSection('rentabilidad')" data-s="rentabilidad"><span class="nav-icon">↗</span> Rentabilidad real</div>
       <div class="nav-section">Operaciones</div>
       <div class="nav-item" onclick="showSection('ventas')" data-s="ventas"><span class="nav-icon">◎</span> Ventas</div>
       <div class="nav-item" onclick="showSection('promociones')" data-s="promociones"><span class="nav-icon">★</span> Promociones</div>
@@ -234,7 +255,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('reportes')" data-s="reportes"><span class="nav-icon">↗</span> Reportes</div>
       <div class="nav-section">Gestión interna</div>
       <div class="nav-item" onclick="showSection('stock')" data-s="stock"><span class="nav-icon">▣</span> Stock</div>
-      <div class="nav-item" onclick="showSection('periodos')" data-s="periodos"><span class="nav-icon">◷</span> Períodos</div>
       <div class="nav-item" onclick="showSection('recetas')" data-s="recetas"><span class="nav-icon">◈</span> Recetas</div>
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
       <div class="nav-item" onclick="showSection('caja')" data-s="caja"><span class="nav-icon">▤</span> Caja</div>
@@ -305,6 +325,16 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="chart-wrap"><canvas id="chartBurgers" role="img" aria-label="Gráfico de ventas por variedad"></canvas></div>
         </div>
       </div>
+    </div>
+
+
+    <div id="rentabilidad" class="section">
+      <div class="page-header">
+        <div class="page-title">Rentabilidad real del período</div>
+        <div class="page-sub">Resultado económico calculado sobre las ventas y los costos reales del período seleccionado.</div>
+      </div>
+
+      <div class="metrics" id="rentabilidad-metrics"></div>
     </div>
 
     <div id="ventas" class="section">
@@ -391,11 +421,44 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
     </div>
 
     <div id="clientes" class="section">
-      <div class="page-header"><div class="page-title">Clientes</div><div class="page-sub">Historial y estadísticas por cliente</div></div>
+      <div class="page-header"><div class="page-title">Clientes</div><div class="page-sub">Historial, estadísticas y programa de millas</div></div>
       <div class="metrics" id="clientes-metrics"></div>
       <div class="card">
         <div class="card-title"><span class="icon">⚡</span> Clientes frecuentes</div>
-        <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Pedidos</th><th>Ticket prom.</th><th>Favorita</th><th>Método usual</th><th>Clasificación</th><th>Total gastado</th><th>Último pedido</th></tr></thead><tbody id="clientes-tabla"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Pedidos</th><th>Ticket prom.</th><th>Favorita</th><th>Método usual</th><th>Clasificación</th><th>Total gastado</th><th>Millas</th><th>Último pedido</th></tr></thead><tbody id="clientes-tabla"></tbody></table></div>
+      </div>
+      <div class="card millas-panel">
+        <div class="millas-hero">
+          <div class="card-title" style="margin-bottom:4px"><span class="icon">✈</span> Programa de Millas Hangar 23</div>
+          <div class="page-sub">Configuración de prueba · todavía no ejecuta canjes ni modifica datos históricos.</div>
+          <div class="millas-hero-grid" id="millas-metrics"></div>
+        </div>
+        <div class="millas-rules">
+          <div class="millas-rule">
+            <div class="card-title">Reglas actuales</div>
+            <div class="page-sub">Cada $1.000 efectivamente pagados genera <strong style="color:var(--accent)">100 millas</strong>. Cada lote vence a los <strong style="color:var(--accent)">90 días</strong> desde su compra. Los canjes consumirán primero las millas más antiguas.</div>
+            <div class="millas-progress"><div style="width:25%"></div></div>
+            <div style="display:flex;justify-content:space-between;margin-top:7px;font-size:11px;color:var(--muted)"><span>Primer canje: 4.500 millas</span><span>45.000 de consumo</span></div>
+          </div>
+          <div class="millas-rule">
+            <div class="card-title">Umbrales de canje</div>
+            <table class="millas-table"><thead><tr><th>Millas</th><th>Equivalente acumulado</th><th>Estado</th></tr></thead><tbody>
+              <tr><td><span class="millas-badge">4.500</span></td><td>$45.000</td><td>Primer canje</td></tr>
+              <tr><td><span class="millas-badge">10.000</span></td><td>$100.000</td><td>Segundo nivel</td></tr>
+              <tr><td><span class="millas-badge">20.000</span></td><td>$200.000</td><td>Tercer nivel</td></tr>
+              <tr><td><span class="millas-badge">30.000</span></td><td>$300.000</td><td>Nivel premium</td></tr>
+              <tr><td><span class="millas-badge">40.000</span></td><td>$400.000</td><td>Gran premio</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-millas" class="modal-overlay" onclick="if(event.target===this) cerrarModalMillas()">
+      <div class="modal" style="width:620px;max-width:94vw">
+        <div class="modal-title">✈ Detalle de millas · <span id="modal-millas-cliente"></span></div>
+        <div id="modal-millas-contenido"></div>
+        <div class="modal-actions"><button class="btn" onclick="cerrarModalMillas()">Cerrar</button></div>
       </div>
     </div>
 
@@ -426,13 +489,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
       <div class="card"><div class="card-title"><span class="icon">▣</span> Inventario actual</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Ingrediente</th><th>Cat</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Costo</th><th>Acciones</th></tr></thead><tbody id="stock-tabla"></tbody></table></div></div>
       <div class="card"><div class="card-title"><span class="icon">◈</span> Capacidad de fabricación</div><div class="page-sub" style="margin:-12px 0 16px">Con el stock actual podés preparar:</div><div class="receta-grid" id="stock-capacidad"></div></div>
-    </div>
-
-    <div id="periodos" class="section">
-      <div class="page-header"><div class="page-title">Períodos</div><div class="page-sub">Cerrá un mes sin borrar datos y trasladá el stock existente como inventario inicial del siguiente.</div></div>
-      <div class="card" id="periodo-estado"></div>
-      <div class="card"><div class="card-title"><span class="icon">◷</span> Cierre y apertura mensual</div><div class="page-sub" style="margin-bottom:14px">El cierre guarda una foto del stock actual. El stock no se pone en cero y el valor del stock inicial no se registra como gasto del nuevo mes.</div><div class="metrics" id="periodo-metrics"></div><button class="btn btn-primary" id="btn-cerrar-abrir-mes" onclick="cerrarYAbrirMes()">Cerrar mes y abrir siguiente</button></div>
-      <div class="card"><div class="card-title">Historial de cierres mensuales</div><div class="table-wrap"><table><thead><tr><th>Mes cerrado</th><th>Mes abierto</th><th>Fecha</th><th>Stock inicial</th><th>Valor inicial</th></tr></thead><tbody id="periodos-tabla"></tbody></table></div></div>
     </div>
 
     <div id="recetas" class="section">
@@ -491,7 +547,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="card">
         <div class="form-grid">
           <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="g-fecha"></div>
-          <div class="form-group"><label class="form-label">Categoría</label><select id="g-cat"><option>Materia prima</option><option>Gas</option><option>Personal</option><option>Marketing</option><option>Otros</option></select></div>
+          <div class="form-group"><label class="form-label">Categoría</label><select id="g-cat"><option>Materia prima</option><option>Impuestos</option><option>Personal</option><option>Marketing</option><option>Otros</option></select></div>
           <div class="form-group" id="g-mp-wrap" style="display:flex"><label class="form-label">Materia prima</label><select id="g-materia-prima" required><option value="">Seleccionar ingrediente…</option></select></div>
           <div class="form-group" id="g-cantidad-wrap" style="display:flex"><label class="form-label">Cantidad comprada</label><input type="number" id="g-cantidad" min="0" step="0.001" placeholder="ej: 5"></div>
           <div class="form-group" id="g-unidad-wrap" style="display:flex"><label class="form-label">Unidad comprada</label><select id="g-unidad"><option>kg</option><option>g</option><option>u</option><option>l</option><option>ml</option><option>paq</option></select></div>
@@ -531,8 +587,7 @@ const fsDb = getFirestore(app);
 
 window.getHoy = function() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
-window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [], cajas: [], cierresMensuales: [] };
-window.mesActivo = localStorage.getItem('h23_mes_activo') || window.getHoy().slice(0, 7);
+window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [], cajas: [] };
 window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null, promociones: null, cupones: null };
 window.carritoActual = [];
 window.cuponAplicado = null;
@@ -543,10 +598,6 @@ window.ingredientesRecetaTemp = [];
 window.fmt = (n) => '$' + Math.round(n).toLocaleString('es-AR');
 window.pct = (a, b) => b ? Math.round((a / b) * 100) : 0;
 const limpiarText = (txt) => txt ? txt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() : '';
-function nombreMes(mes) { const [y,m]=String(mes||'').split('-'); const nombres=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']; return y && nombres[parseInt(m,10)-1] ? `${nombres[parseInt(m,10)-1]} ${y}` : mes; }
-function siguienteMes(mes) { const [y,m]=String(mes).split('-').map(Number); if(!y||!m) return window.getHoy().slice(0,7); const d=new Date(y,m,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
-function valorStockActual() { return window.db.stock.reduce((sum,s)=> { const c=parseFloat(s.costoEstandar); return sum + (Number.isFinite(c) ? (parseFloat(s.cantidad)||0) * c : 0); },0); }
-window.setMesActivo = function(mes) { if(!/^\d{4}-\d{2}$/.test(mes)) return; window.mesActivo=mes; localStorage.setItem('h23_mes_activo',mes); window.render(); };
 
 function diffDias(d1, d2) {
     if (!d1 || !d2) return Infinity;
@@ -560,6 +611,7 @@ window.configurarMeta = function() { document.getElementById('modal-meta-input')
 window.cerrarModalMeta = function() { document.getElementById('modal-meta').classList.remove('open'); };
 window.guardarMeta = function() { const val = document.getElementById('modal-meta-input').value; if (val && !isNaN(val) && parseFloat(val) > 0) { localStorage.setItem('h23_meta', val); window.cerrarModalMeta(); window.render(); } else { window.toast('⚠ Ingresá un número válido'); } };
 document.addEventListener('keydown', e => { if (e.key === 'Escape') window.cerrarModalMeta(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') window.cerrarModalMillas(); });
 
 window.cargarDatosBase = async function() {
     if (!confirm('¿Restaurar el menú base? Esto agrega las recetas predeterminadas.')) return;
@@ -569,14 +621,10 @@ window.cargarDatosBase = async function() {
     try { for (const r of recetasBase) { await addDoc(collection(fsDb, 'recetas'), r); } window.toast('✓ Menú base restaurado'); } catch(e) { window.toast('⚠ Error'); }
 };
 
-['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas', 'cierresMensuales'].forEach(colName => {
+['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas'].forEach(colName => {
     onSnapshot(collection(fsDb, colName), (snapshot) => {
         window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-        if (colName === 'cierresMensuales' && window.db.cierresMensuales.length) {
-            const ultimoCierre = window.db.cierresMensuales.slice().sort((a,b)=>(b.mesCierre||'').localeCompare(a.mesCierre||''))[0];
-            if (ultimoCierre?.mesApertura) { window.mesActivo = ultimoCierre.mesApertura; localStorage.setItem('h23_mes_activo', window.mesActivo); }
-        }
         window.render();
         if (colName === 'recetas' || colName === 'extras') {
             const sel = document.getElementById('v-burger');
@@ -589,6 +637,113 @@ window.cargarDatosBase = async function() {
         }
     });
 });
+
+
+/* ===== HANGAR 23 · RENTABILIDAD REAL =====
+   Usa las mismas métricas/clases visuales del Dashboard original.
+   No modifica ventas, gastos, stock ni recetas.
+*/
+window.renderRentabilidad = function() {
+    const cont = document.getElementById('rentabilidad-metrics');
+    if (!cont) return;
+
+    const hoy = window.getHoy();
+    const periodo = document.getElementById('dash-period')?.value || 'month';
+    const desde = document.getElementById('dash-from')?.value;
+    const hasta = document.getElementById('dash-to')?.value;
+
+    const enPeriodo = fecha => {
+        if (!fecha) return false;
+        if (periodo === 'today') return fecha === hoy;
+        if (periodo === 'week') return diffDias(hoy, fecha) >= 0 && diffDias(hoy, fecha) <= 6;
+        if (periodo === 'month') return fecha.startsWith(hoy.slice(0, 7));
+        if (periodo === 'custom') return (!desde || fecha >= desde) && (!hasta || fecha <= hasta);
+        return true;
+    };
+
+    const ventas = (window.db?.ventas || []).filter(v => enPeriodo(v.fecha));
+    const gastos = (window.db?.gastos || []).filter(g => enPeriodo(g.fecha));
+
+    const ventasTotal = ventas.reduce((sum, v) => sum + (Number(v.total) || 0), 0);
+
+    // Costo de mercadería vendida: toma cada producto realmente vendido
+    // y usa el costo estándar que ya calcula el módulo de Recetas.
+    let costoVendido = 0;
+    ventas.forEach(v => {
+        (v.items || []).forEach(item => {
+            const receta = (window.db?.recetas || []).find(
+                r => limpiarText(r.nombre) === limpiarText(item.burger)
+            );
+            const cantidad = Number(item.qty) || 0;
+            if (receta && cantidad > 0) {
+                costoVendido += (window.costoReceta ? window.costoReceta(receta) : (Number(receta.costo) || 0)) * cantidad;
+            }
+        });
+    });
+
+    // Materia prima: las compras se consideran inventario, no gasto operativo.
+    // Los demás gastos sí forman parte del resultado operativo.
+    let gastosTotal = 0;
+    let gastosOperativos = 0;
+
+    gastos.forEach(g => {
+        const monto = Number(g.monto) || 0;
+        gastosTotal += monto;
+
+        const categoria = limpiarText(g.cat || g.categoria);
+        const esMateriaPrima =
+            categoria === 'materia prima' ||
+            categoria === 'materiaprima' ||
+            !!g.materiaPrimaId ||
+            !!g.ingredienteId;
+
+        if (!esMateriaPrima) gastosOperativos += monto;
+    });
+
+    const resultadoCaja = ventasTotal - gastosTotal;
+    const resultadoOperativo = ventasTotal - costoVendido - gastosOperativos;
+    const margen = ventasTotal > 0 ? (resultadoOperativo / ventasTotal) * 100 : 0;
+
+    const f = n => window.fmt(Math.round(n || 0));
+
+    cont.innerHTML = `
+      <div class="metric">
+        <div class="metric-label">Ventas del período</div>
+        <div class="metric-value green">${f(ventasTotal)}</div>
+        <div class="metric-sub">${ventas.length} pedido${ventas.length === 1 ? '' : 's'} registrados</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Costo mercadería vendida</div>
+        <div class="metric-value yellow">${f(costoVendido)}</div>
+        <div class="metric-sub">Costo estándar de las recetas vendidas</div>
+      </div>
+
+      <div class="metric" ondblclick="abrirDetalleGastosOperativos()" title="Doble clic para ver el detalle">
+        <div class="metric-label">Gastos operativos</div>
+        <div class="metric-value yellow">${f(gastosOperativos)}</div>
+        <div class="metric-sub">Doble clic para ver el detalle</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Resultado operativo</div>
+        <div class="metric-value ${resultadoOperativo >= 0 ? 'green' : 'red'}">${f(resultadoOperativo)}</div>
+        <div class="metric-sub">Ventas − costo − gastos operativos</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Margen operativo</div>
+        <div class="metric-value ${margen >= 0 ? 'yellow' : 'red'}">${margen.toFixed(1)}%</div>
+        <div class="metric-sub">Resultado operativo sobre ventas</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Resultado de caja</div>
+        <div class="metric-value ${resultadoCaja >= 0 ? 'green' : 'red'}">${f(resultadoCaja)}</div>
+        <div class="metric-sub">Ventas menos gastos registrados</div>
+      </div>
+    `;
+};
 
 window.showSection = function(id) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -603,22 +758,111 @@ window.toggleSidebar = () => { document.getElementById('sidebar').classList.togg
 window.closeSidebar = () => { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); };
 window.toast = (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
-function renderPeriodos() {
-  const activo=window.mesActivo||window.getHoy().slice(0,7); const cierre=window.db.cierresMensuales.find(c=>c.mesCierre===activo); const valor=valorStockActual();
-  document.getElementById('periodo-estado').innerHTML=`<div class="card-title">Mes activo: <span style="color:var(--accent)">${nombreMes(activo)}</span></div><div class="page-sub">Los nuevos gastos y ventas se imputan al mes según su fecha. El stock físico continúa siendo el mismo inventario.</div>`;
-  document.getElementById('periodo-metrics').innerHTML=`<div class="metric"><div class="metric-label">Stock inicial del próximo mes</div><div class="metric-value yellow">${window.fmt(valor)}</div><div class="metric-sub">Valor actual del inventario</div></div><div class="metric"><div class="metric-label">Ítems en stock</div><div class="metric-value">${window.db.stock.length}</div><div class="metric-sub">Se conservarán al abrir el siguiente mes</div></div><div class="metric"><div class="metric-label">Estado</div><div class="metric-value ${cierre?'green':'orange'}" style="font-size:20px">${cierre?'Cerrado':'Abierto'}</div><div class="metric-sub">${cierre?'Cierre registrado':'Listo para cerrar'}</div></div>`;
-  const btn=document.getElementById('btn-cerrar-abrir-mes'); if(btn){btn.disabled=!!cierre;btn.style.opacity=cierre?'0.55':'1';btn.textContent=cierre?`${nombreMes(activo)} ya está cerrado`:`Cerrar ${nombreMes(activo)} y abrir ${nombreMes(siguienteMes(activo))}`;}
-  document.getElementById('periodos-tabla').innerHTML=window.db.cierresMensuales.slice().sort((a,b)=>(b.mesCierre||'').localeCompare(a.mesCierre||'')).map(c=>`<tr><td>${nombreMes(c.mesCierre)}</td><td>${nombreMes(c.mesApertura)}</td><td>${c.fechaCierre||'—'}</td><td>${c.stockInicial?.length||0} ítems</td><td style="font-family:var(--font-mono);color:var(--accent)">${window.fmt(c.valorStockInicial||0)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Todavía no hay cierres mensuales.</td></tr>';
-}
-window.cerrarYAbrirMes=async function(){
-  const mesCierre=window.mesActivo||window.getHoy().slice(0,7), mesApertura=siguienteMes(mesCierre); if(window.db.cierresMensuales.some(c=>c.mesCierre===mesCierre)){window.toast('⚠ Este mes ya está cerrado');return;}
-  const stockInicial=window.db.stock.map(s=>({id:s.id,nombre:s.nombre,cantidad:parseFloat(s.cantidad)||0,unidad:s.unidad||'',minimo:parseFloat(s.minimo)||0,categoria:s.categoria||'',costoEstandar:Number.isFinite(parseFloat(s.costoEstandar))?parseFloat(s.costoEstandar):null}));
-  const valorStockInicial=stockInicial.reduce((sum,s)=>sum+(Number.isFinite(s.costoEstandar)?s.cantidad*s.costoEstandar:0),0);
-  if(!confirm(`Vas a cerrar ${nombreMes(mesCierre)} y abrir ${nombreMes(mesApertura)}.\n\nSe conservarán TODOS los datos históricos. El stock actual se guardará como stock inicial de ${nombreMes(mesApertura)} y NO se registrará como gasto.\n\n¿Continuar?`))return;
-  try{await addDoc(collection(fsDb,'cierresMensuales'),{mesCierre,mesApertura,fechaCierre:window.getHoy(),creadoEn:new Date().toISOString(),stockInicial,valorStockInicial});window.mesActivo=mesApertura;localStorage.setItem('h23_mes_activo',mesApertura);window.toast(`✓ ${nombreMes(mesCierre)} cerrado · ${nombreMes(mesApertura)} abierto`);window.render();}catch(e){console.error(e);window.toast('⚠ No se pudo cerrar el mes: '+(e.message||'error'));}
+
+window.abrirDetalleGastosOperativos = function() {
+    const modal = document.getElementById('modal-gastos-operativos');
+    const cont = document.getElementById('detalle-gastos-operativos');
+    const totalEl = document.getElementById('detalle-gastos-total');
+    const periodoEl = document.getElementById('detalle-gastos-periodo');
+    if (!modal || !cont || !totalEl) return;
+
+    const hoy = window.getHoy();
+    const periodo = document.getElementById('dash-period')?.value || 'month';
+    const desde = document.getElementById('dash-from')?.value;
+    const hasta = document.getElementById('dash-to')?.value;
+
+    const enPeriodo = fecha => {
+        if (!fecha) return false;
+        if (periodo === 'today') return fecha === hoy;
+        if (periodo === 'week') return diffDias(hoy, fecha) >= 0 && diffDias(hoy, fecha) <= 6;
+        if (periodo === 'month') return fecha.startsWith(hoy.slice(0, 7));
+        if (periodo === 'custom') return (!desde || fecha >= desde) && (!hasta || fecha <= hasta);
+        return true;
+    };
+
+    const gastosBase = (window.db?.gastos || [])
+        .filter(g => enPeriodo(g.fecha))
+        .filter(g => {
+            const categoria = limpiarText(g.cat || g.categoria);
+            return !(
+                categoria === 'materia prima' ||
+                categoria === 'materiaprima' ||
+                !!g.materiaPrimaId ||
+                !!g.ingredienteId
+            );
+        })
+        .sort((a,b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+
+    const money = n => window.fmt(Math.round(Number(n) || 0));
+    const normalizarBusqueda = valor => String(valor || '').toLowerCase().trim();
+    const categoriaVisible = valor => normalizarBusqueda(valor) === 'gas' ? 'Impuestos' : (valor || 'Sin categoría');
+
+    const buscarEl = document.getElementById('filtro-detalle-gastos');
+    const categoriaEl = document.getElementById('filtro-categoria-gastos');
+    const busqueda = normalizarBusqueda(buscarEl?.value);
+    const categoriaFiltro = normalizarBusqueda(categoriaEl?.value);
+
+    const gastos = gastosBase.filter(g => {
+        const texto = normalizarBusqueda([
+            g.fecha,
+            g.descripcion,
+            g.desc,
+            g.cat || g.categoria,
+            g.tipo
+        ].join(' '));
+        const categoria = normalizarBusqueda(g.cat || g.categoria);
+        const categoriaCoincide = !categoriaFiltro ||
+            categoria === categoriaFiltro ||
+            (categoriaFiltro === 'impuestos' && categoria === 'gas');
+        return (!busqueda || texto.includes(busqueda)) && categoriaCoincide;
+    });
+
+    const total = gastos.reduce((sum,g) => sum + (Number(g.monto) || 0), 0);
+
+    periodoEl.textContent =
+        periodo === 'custom'
+          ? `Desde ${desde || '—'} hasta ${hasta || '—'}`
+          : periodo === 'today'
+          ? 'Hoy'
+          : periodo === 'week'
+          ? 'Últimos 7 días'
+          : periodo === 'month'
+          ? 'Mes actual'
+          : 'Período seleccionado';
+
+    if (!gastos.length) {
+        cont.innerHTML = '<div class="empty">No hay gastos que coincidan con los filtros seleccionados.</div>';
+    } else {
+        cont.innerHTML = gastos.map(g => `
+          <div style="display:grid;grid-template-columns:105px 1fr 120px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+            <span style="font:11px var(--font-mono);color:var(--muted);">${g.fecha || '—'}</span>
+            <div>
+              <div style="font-size:13px;font-weight:600;">${g.descripcion || g.desc || 'Sin descripción'}</div>
+              <div style="font:10px var(--font-mono);color:var(--muted);margin-top:3px;">${categoriaVisible(g.cat || g.categoria)}${g.tipo ? ' · ' + g.tipo : ''}</div>
+            </div>
+            <div style="text-align:right;font:600 14px var(--font-mono);color:var(--accent);">${money(g.monto)}</div>
+          </div>
+        `).join('');
+    }
+
+    totalEl.textContent = money(total);
+    modal.classList.add('open');
 };
 
-window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); renderPeriodos(); };
+window.actualizarFiltrosGastosOperativos = function() {
+    window.abrirDetalleGastosOperativos();
+};
+
+window.cerrarDetalleGastosOperativos = function() {
+    const modal = document.getElementById('modal-gastos-operativos');
+    if (modal) modal.classList.remove('open');
+};
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') window.cerrarDetalleGastosOperativos();
+});
+
+window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); renderRentabilidad(); };
 
 // --- LOGICA DE UI INTELIGENTE PARA RECETAS Y EXTRAS ---
 window.renderIngredientesReceta = function() {
@@ -809,7 +1053,7 @@ function renderDash() {
     const ventas = window.db.ventas.filter(venta => enPeriodo(venta.fecha) && coincide(venta));
     const gastos = window.db.gastos.filter(gasto => enPeriodo(gasto.fecha));
     const ventasHoy = window.db.ventas.filter(venta => venta.fecha === hoy).reduce((sum, venta) => sum + (venta.total || 0), 0);
-    const ventasMes = window.db.ventas.filter(venta => venta.fecha?.startsWith(window.mesActivo || hoy.slice(0, 7))).reduce((sum, venta) => sum + (venta.total || 0), 0);
+    const ventasMes = window.db.ventas.filter(venta => venta.fecha?.startsWith(hoy.slice(0, 7))).reduce((sum, venta) => sum + (venta.total || 0), 0);
     const facturacion = ventas.reduce((sum, venta) => sum + (venta.total || 0), 0);
     const egresos = gastos.reduce((sum, gasto) => sum + (gasto.monto || 0), 0);
     const pedidos = ventas.length;
@@ -997,37 +1241,81 @@ function renderCupones() {
     document.getElementById('cupones-tabla').innerHTML = lista.map(c => { const e = estadoCupon(c); const beneficio = c.tipo === 'porcentaje' ? `${c.valor}% OFF` : `${window.fmt(c.valor)} OFF`; return `<tr><td><strong style="font-family:var(--font-mono);color:var(--accent)">${c.codigo}</strong></td><td>${beneficio}</td><td>${c.inicio || '—'} / ${c.fin || '—'}</td><td>${c.usado || 0} / ${c.max || 1}</td><td><span class="badge ${e === 'Disponible' ? 'badge-ok' : 'badge-warn'}">${e}</span></td><td><button class="btn btn-sm" onclick="editarCupon('${c.id}')">✎</button><button class="btn btn-sm" onclick="alternarCupon('${c.id}')">${c.activo ? 'Pausar' : 'Activar'}</button><button class="btn btn-sm btn-danger" onclick="eliminar('cupones','${c.id}')">✕</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="empty">Todavía no hay cupones.</td></tr>';
 }
 
-function filtroReporte() { const periodo=document.getElementById('rpt-period')?.value||'month', desde=document.getElementById('rpt-from')?.value, hasta=document.getElementById('rpt-to')?.value, hoy=window.getHoy(); return fecha => { if(!fecha)return false; if(periodo==='today')return fecha===hoy; if(periodo==='week')return diffDias(hoy,fecha)>=0&&diffDias(hoy,fecha)<=6; if(periodo==='month')return fecha.startsWith(window.mesActivo || hoy.slice(0,7)); if(periodo==='year')return fecha.startsWith((window.mesActivo || hoy.slice(0,7)).slice(0,4)); if(periodo==='custom')return (!desde||fecha>=desde)&&(!hasta||fecha<=hasta); return true; }; }
+function filtroReporte() { const periodo=document.getElementById('rpt-period')?.value||'month', desde=document.getElementById('rpt-from')?.value, hasta=document.getElementById('rpt-to')?.value, hoy=window.getHoy(); return fecha => { if(!fecha)return false; if(periodo==='today')return fecha===hoy; if(periodo==='week')return diffDias(hoy,fecha)>=0&&diffDias(hoy,fecha)<=6; if(periodo==='month')return fecha.startsWith(hoy.slice(0,7)); if(periodo==='year')return fecha.startsWith(hoy.slice(0,4)); if(periodo==='custom')return (!desde||fecha>=desde)&&(!hasta||fecha<=hasta); return true; }; }
 function renderReportes() { const incluye=filtroReporte(), ventas=window.db.ventas.filter(v=>incluye(v.fecha)), gastos=window.db.gastos.filter(g=>incluye(g.fecha)), total=ventas.reduce((s,v)=>s+(v.total||0),0), egresos=gastos.reduce((s,g)=>s+(g.monto||0),0), productos={}, clientes={}; ventas.forEach(v=>{clientes[v.cliente]=(clientes[v.cliente]||0)+(v.total||0); (v.items||[]).forEach(i=>productos[i.burger]=(productos[i.burger]||0)+(i.qty||0));}); const rankingP=Object.entries(productos).sort((a,b)=>b[1]-a[1]), rankingC=Object.entries(clientes).sort((a,b)=>b[1]-a[1]); document.getElementById('reportes-metrics').innerHTML=`<div class="metric"><div class="metric-label">Ventas</div><div class="metric-value green">${window.fmt(total)}</div></div><div class="metric"><div class="metric-label">Pedidos</div><div class="metric-value yellow">${ventas.length}</div></div><div class="metric"><div class="metric-label">Gastos</div><div class="metric-value red">${window.fmt(egresos)}</div></div><div class="metric"><div class="metric-label">Resultado</div><div class="metric-value ${total-egresos>=0?'green':'red'}">${window.fmt(total-egresos)}</div></div>`; const listado=(lista,formatter)=>lista.slice(0,5).map(([n,v],i)=>`<div class="ranking-item"><span class="ranking-num">${i+1}</span><div class="ranking-bar-wrap"><div class="ranking-name">${n}</div></div><span class="ranking-count">${formatter(v)}</span></div>`).join('')||'<div class="empty">Sin datos en el período.</div>'; document.getElementById('reportes-productos').innerHTML=listado(rankingP,v=>v+' ud.'); document.getElementById('reportes-clientes').innerHTML=listado(rankingC,window.fmt); }
 function renderCaja() { const cajas=window.db.cajas.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')), abierta=cajas.find(c=>c.estado==='abierta'), hoy=window.getHoy(); const balance=abierta?calcularCaja(abierta):null; document.getElementById('caja-estado').innerHTML=abierta?`<div class="card-title">Caja abierta · ${abierta.fecha}</div><div class="metrics" style="margin:0"><div class="metric"><div class="metric-label">Fondo inicial</div><div class="metric-value">${window.fmt(abierta.inicial)}</div></div><div class="metric"><div class="metric-label">Ventas del día</div><div class="metric-value green">${window.fmt(balance.ventas)}</div></div><div class="metric"><div class="metric-label">Egresos del día</div><div class="metric-value red">${window.fmt(balance.gastos)}</div></div><div class="metric"><div class="metric-label">Efectivo esperado</div><div class="metric-value yellow">${window.fmt(balance.esperado)}</div></div></div>`:`<div class="card-title">No hay caja abierta</div><div class="page-sub">Abrí la caja para controlar el turno de hoy.</div>`; document.getElementById('caja-tabla').innerHTML=cajas.filter(c=>c.estado==='cerrada').map(c=>`<tr><td>${c.fecha}</td><td>${window.fmt(c.inicial)}</td><td>${window.fmt(c.ventas)}</td><td>${window.fmt(c.gastos)}</td><td>${window.fmt(c.esperado)}</td><td>${window.fmt(c.final)}</td><td class="${c.diferencia>=0?'green':'red'}">${window.fmt(c.diferencia)}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">Sin cierres registrados.</td></tr>'; }
 function calcularCaja(caja) { const ventas=window.db.ventas.filter(v=>v.fecha===caja.fecha).reduce((s,v)=>s+(v.total||0),0), gastos=window.db.gastos.filter(g=>g.fecha===caja.fecha).reduce((s,g)=>s+(g.monto||0),0); return {ventas,gastos,esperado:(caja.inicial||0)+ventas-gastos}; }
+
+const MILLAS_POR_1000 = 100;
+const MILLAS_PRIMER_CANJE = 4500;
+const MILLAS_VENCIMIENTO_DIAS = 90;
+
+function sumarDiasFecha(fecha, dias) {
+    const d = new Date(fecha + 'T12:00:00');
+    d.setDate(d.getDate() + dias);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function calcularMillasCliente(nombre, referencia = window.getHoy()) {
+    const ventas = window.db.ventas.filter(v => (v.cliente || '') === nombre && v.fecha && Number(v.total) > 0);
+    const lotes = ventas.map(v => {
+        const ganadas = Math.floor((Number(v.total) || 0) / 1000) * MILLAS_POR_1000;
+        return { fecha: v.fecha, ganadas, vence: sumarDiasFecha(v.fecha, MILLAS_VENCIMIENTO_DIAS), total: Number(v.total) || 0 };
+    }).filter(l => l.ganadas > 0);
+    const activos = lotes.filter(l => l.vence >= referencia).sort((a,b) => a.fecha.localeCompare(b.fecha));
+    const vencidas = lotes.filter(l => l.vence < referencia);
+    const disponibles = activos.reduce((s,l) => s + l.ganadas, 0);
+    const proxima = activos.slice().sort((a,b) => a.vence.localeCompare(b.vence))[0] || null;
+    const proximas30 = activos.filter(l => diffDias(l.vence, referencia) >= 0 && diffDias(l.vence, referencia) <= 30).reduce((s,l)=>s+l.ganadas,0);
+    return { lotes, activos, vencidas, disponibles, proxima, proximas30 };
+}
+
+window.abrirDetalleMillas = function(nombre) {
+    const info = calcularMillasCliente(nombre);
+    document.getElementById('modal-millas-cliente').textContent = nombre;
+    const filas = info.lotes.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(l => {
+        const vencida = l.vence < window.getHoy();
+        return `<tr><td>${l.fecha}</td><td>${window.fmt(l.total)}</td><td>${l.ganadas.toLocaleString('es-AR')}</td><td>${l.vence}</td><td><span class="badge ${vencida?'badge-warn':'badge-ok'}">${vencida?'Vencidas':'Activas'}</span></td></tr>`;
+    }).join('') || '<tr><td colspan="5" class="empty">Sin movimientos de millas.</td></tr>';
+    document.getElementById('modal-millas-contenido').innerHTML = `
+        <div class="metrics" style="margin:0 0 14px"><div class="metric"><div class="metric-label">Millas disponibles</div><div class="metric-value yellow">${info.disponibles.toLocaleString('es-AR')}</div></div><div class="metric"><div class="metric-label">Faltan para canje</div><div class="metric-value">${Math.max(0,MILLAS_PRIMER_CANJE-info.disponibles).toLocaleString('es-AR')}</div></div><div class="metric"><div class="metric-label">Próximas a vencer</div><div class="metric-value orange">${info.proximas30.toLocaleString('es-AR')}</div></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Compra</th><th>Pagado</th><th>Millas</th><th>Vencimiento</th><th>Estado</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+    document.getElementById('modal-millas').classList.add('open');
+};
+window.cerrarModalMillas = function(){ const m=document.getElementById('modal-millas'); if(m)m.classList.remove('open'); };
 
 function renderClientes() {
     const mapa = {};
     window.db.ventas.forEach(v => {
         if (!mapa[v.cliente]) mapa[v.cliente] = { pedidos: 0, compras: 0, total: 0, fav: {}, pagos: {}, ultimo: '' };
-        const qtyTotal = (v.items || []).reduce((sum, item) => sum + item.qty, 0);
-        mapa[v.cliente].pedidos += qtyTotal; mapa[v.cliente].compras += 1; mapa[v.cliente].total += v.total; mapa[v.cliente].pagos[v.pago] = (mapa[v.cliente].pagos[v.pago] || 0) + 1;
+        const qtyTotal = (v.items || []).reduce((sum, item) => sum + (item.qty || 0), 0);
+        mapa[v.cliente].pedidos += qtyTotal; mapa[v.cliente].compras += 1; mapa[v.cliente].total += (v.total || 0); mapa[v.cliente].pagos[v.pago] = (mapa[v.cliente].pagos[v.pago] || 0) + 1;
         if (v.fecha > mapa[v.cliente].ultimo) mapa[v.cliente].ultimo = v.fecha;
-        (v.items || []).forEach(item => { mapa[v.cliente].fav[item.burger] = (mapa[v.cliente].fav[item.burger] || 0) + item.qty; });
+        (v.items || []).forEach(item => { mapa[v.cliente].fav[item.burger] = (mapa[v.cliente].fav[item.burger] || 0) + (item.qty || 0); });
     });
     const lista = Object.entries(mapa).sort((a, b) => b[1].total - a[1].total);
     const totalPedidos = lista.reduce((a, [, c]) => a + c.pedidos, 0);
-    const ticketProm = totalPedidos ? Math.round(lista.reduce((a, [, c]) => a + c.total, 0) / totalPedidos) : 0;
+    const ticketProm = totalPedidos ? Math.round(lista.reduce((a, [, c]) => a + c.total, 0) / lista.reduce((a, [, c]) => a + c.compras, 0)) : 0;
+    const infoMillas = lista.map(([nombre]) => [nombre, calcularMillasCliente(nombre)]);
+    const totalMillas = infoMillas.reduce((s,[,i])=>s+i.disponibles,0);
+    const clientesCanje = infoMillas.filter(([,i])=>i.disponibles >= MILLAS_PRIMER_CANJE).length;
+    const porVencer = infoMillas.reduce((s,[,i])=>s+i.proximas30,0);
 
-    document.getElementById('clientes-metrics').innerHTML = `<div class="metric"><div class="metric-label">Clientes únicos</div><div class="metric-value yellow">${lista.length}</div></div><div class="metric"><div class="metric-label">Gasto promedio</div><div class="metric-value green">${window.fmt(ticketProm)}</div></div><div class="metric"><div class="metric-label">Mejor cliente</div><div class="metric-value orange" style="font-size:18px">${lista[0] ? lista[0][0] : '—'}</div></div>`;
+    document.getElementById('clientes-metrics').innerHTML = `<div class="metric"><div class="metric-label">Clientes únicos</div><div class="metric-value yellow">${lista.length}</div></div><div class="metric"><div class="metric-label">Ticket promedio</div><div class="metric-value green">${window.fmt(ticketProm)}</div></div><div class="metric"><div class="metric-label">Mejor cliente</div><div class="metric-value orange" style="font-size:18px">${lista[0] ? lista[0][0] : '—'}</div></div><div class="metric"><div class="metric-label">Clientes con canje</div><div class="metric-value yellow">${clientesCanje}</div></div>`;
     document.getElementById('clientes-tabla').innerHTML = lista.map(([nombre, c]) => {
         const fav = Object.entries(c.fav).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'; const pagoFav = Object.entries(c.pagos).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
         const dias = diffDias(window.getHoy(), c.ultimo); const clase = dias > 60 ? 'Inactivo' : c.total >= (lista[0]?.[1].total || 0) * .65 || c.compras >= 5 ? 'VIP' : c.compras >= 2 ? 'Frecuente' : 'Nuevo'; const estilo = clase === 'VIP' ? 'badge-accent' : clase === 'Frecuente' ? 'badge-ok' : clase === 'Inactivo' ? 'badge-warn' : 'badge-blue';
-        return `<tr><td><strong>${nombre}</strong></td><td style="font-family:var(--font-mono)">${c.compras}</td><td>${window.fmt(c.total / c.compras)}</td><td>${fav}</td><td><span class="badge badge-blue">${pagoFav}</span></td><td><span class="badge ${estilo}">${clase}</span></td><td style="font-family:var(--font-mono);color:var(--accent)">${window.fmt(c.total)}</td><td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${c.ultimo}</td></tr>`;
-    }).join('') || `<tr><td colspan="8" class="empty">Sin clientes</td></tr>`;
+        const m = calcularMillasCliente(nombre);
+        return `<tr><td><strong>${nombre}</strong></td><td style="font-family:var(--font-mono)">${c.compras}</td><td>${window.fmt(c.total / c.compras)}</td><td>${fav}</td><td><span class="badge badge-blue">${pagoFav}</span></td><td><span class="badge ${estilo}">${clase}</span></td><td style="font-family:var(--font-mono);color:var(--accent)">${window.fmt(c.total)}</td><td><button class="millas-link" onclick="abrirDetalleMillas('${String(nombre).replace(/'/g,"\\'")}')">${m.disponibles.toLocaleString('es-AR')} ✈</button>${m.proxima ? `<div style="font-size:9px;color:var(--muted);margin-top:3px">Vence ${m.proxima.vence}</div>` : ''}</td><td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${c.ultimo}</td></tr>`;
+    }).join('') || `<tr><td colspan="9" class="empty">Sin clientes</td></tr>`;
+
+    document.getElementById('millas-metrics').innerHTML = `<div class="millas-stat"><div class="millas-stat-label">Millas activas</div><div class="millas-stat-value">${totalMillas.toLocaleString('es-AR')}</div></div><div class="millas-stat"><div class="millas-stat-label">Clientes con canje</div><div class="millas-stat-value">${clientesCanje}</div></div><div class="millas-stat"><div class="millas-stat-label">Primer canje</div><div class="millas-stat-value">${MILLAS_PRIMER_CANJE.toLocaleString('es-AR')}</div></div><div class="millas-stat"><div class="millas-stat-label">Vencen en 30 días</div><div class="millas-stat-value">${porVencer.toLocaleString('es-AR')}</div></div>`;
 }
 
 function renderGastos() {
-    const mes=window.mesActivo||window.getHoy().slice(0,7); const gastosMes=window.db.gastos.filter(g=>(g.fecha||'').startsWith(mes)); const ventasMes=window.db.ventas.filter(v=>(v.fecha||'').startsWith(mes));
-    const total=gastosMes.reduce((a,g)=>a+(g.monto||0),0), fijos=gastosMes.filter(g=>g.tipo==='Fijo').reduce((a,g)=>a+(g.monto||0),0), vars=gastosMes.filter(g=>g.tipo==='Variable').reduce((a,g)=>a+(g.monto||0),0), totalV=ventasMes.reduce((a,v)=>a+(v.total||0),0);
-    document.getElementById('gastos-metrics').innerHTML=`<div class="metric"><div class="metric-label">Total gastos · ${nombreMes(mes)}</div><div class="metric-value red">${window.fmt(total)}</div></div><div class="metric"><div class="metric-label">Fijos</div><div class="metric-value">${window.fmt(fijos)}</div></div><div class="metric"><div class="metric-label">Variables</div><div class="metric-value orange">${window.fmt(vars)}</div></div><div class="metric"><div class="metric-label">% sobre ventas</div><div class="metric-value ${totalV?(window.pct(total,totalV)<60?'green':'red'):'red'}">${totalV?window.pct(total,totalV):0}%</div></div>`;
-    document.getElementById('gastos-tabla').innerHTML=gastosMes.slice().reverse().map(g=>`<tr><td style="font-family:var(--font-mono);font-size:11px">${g.fecha}</td><td><span class="tag">${g.cat}</span></td><td>${g.desc}</td><td><span class="badge ${g.tipo==='Fijo'?'badge-ok':'badge-warn'}">${g.tipo}</span></td><td style="font-family:var(--font-mono);color:var(--danger)">${window.fmt(g.monto)}</td><td><button class="btn btn-sm" onclick="editarGasto('${g.id}')" style="background:var(--surface2);margin-right:4px">✎</button><button class="btn btn-sm btn-danger" onclick="eliminar('gastos','${g.id}')">✕</button></td></tr>`).join('')||`<tr><td colspan="6" class="empty">Sin gastos en ${nombreMes(mes)}</td></tr>`;
+    const total = window.db.gastos.reduce((a, g) => a + g.monto, 0); const fijos = window.db.gastos.filter(g => g.tipo === 'Fijo').reduce((a, g) => a + g.monto, 0); const vars = window.db.gastos.filter(g => g.tipo === 'Variable').reduce((a, g) => a + g.monto, 0); const totalV = window.db.ventas.reduce((a, v) => a + v.total, 0);
+    document.getElementById('gastos-metrics').innerHTML = `<div class="metric"><div class="metric-label">Total gastos</div><div class="metric-value red">${window.fmt(total)}</div></div><div class="metric"><div class="metric-label">Fijos</div><div class="metric-value">${window.fmt(fijos)}</div></div><div class="metric"><div class="metric-label">Variables</div><div class="metric-value orange">${window.fmt(vars)}</div></div><div class="metric"><div class="metric-label">% sobre ventas</div><div class="metric-value ${totalV ? window.pct(total, totalV) < 60 ? 'green' : 'red' : 'red'}">${totalV ? window.pct(total, totalV) : 0}%</div></div>`;
+    document.getElementById('gastos-tabla').innerHTML = window.db.gastos.slice().reverse().map(g => `<tr><td style="font-family:var(--font-mono);font-size:11px">${g.fecha}</td><td><span class="tag">${(String(g.cat || '').toLowerCase() === 'gas') ? 'Impuestos' : g.cat}</span></td><td>${g.desc}</td><td><span class="badge ${g.tipo === 'Fijo' ? 'badge-ok' : 'badge-warn'}">${g.tipo}</span></td><td style="font-family:var(--font-mono);color:var(--danger)">${window.fmt(g.monto)}</td><td><button class="btn btn-sm" onclick="editarGasto('${g.id}')" style="background:var(--surface2);margin-right:4px">✎</button><button class="btn btn-sm btn-danger" onclick="eliminar('gastos','${g.id}')">✕</button></td></tr>`).join('') || `<tr><td colspan="6" class="empty">Sin gastos</td></tr>`;
 }
 
 window.actualizarPrecioItem = function() {
@@ -1304,36 +1592,7 @@ window.guardarGasto = async function() {
 
 window.eliminar = async function(tabla, id) {
     if (!confirm('¿Eliminar este registro?')) return;
-    try {
-        if (tabla === 'ventas') {
-            const vb = window.db.ventas.find(v => v.id === id);
-            if (vb) await window.actualizarStockPorVentaAsync(vb.items, 1);
-        }
-
-        if (tabla === 'gastos') {
-            const gb = window.db.gastos.find(g => g.id === id);
-
-            if (gb && gb.materiaPrimaId) {
-                // Si la materia prima todavía existe en Stock, revertimos
-                // la cantidad que esta compra había agregado.
-                // Si ya fue eliminada de Stock, simplemente eliminamos
-                // el gasto sin bloquear la operación.
-                const existeMateriaPrima = window.db.stock.some(
-                    s => s.id === gb.materiaPrimaId
-                );
-
-                if (existeMateriaPrima) {
-                    await window.actualizarStockPorCompra(gb, -1);
-                }
-            }
-        }
-
-        await deleteDoc(doc(fsDb, tabla, id));
-        window.toast('✓ Eliminado');
-    } catch(e) {
-        console.error(e);
-        window.toast('⚠ Error: ' + (e.message || 'no se pudo eliminar'));
-    }
+    try { if (tabla === 'ventas') { const vb = window.db.ventas.find(v => v.id === id); if (vb) await window.actualizarStockPorVentaAsync(vb.items, 1); } if (tabla === 'gastos') { const gb = window.db.gastos.find(g => g.id === id); if (gb) await window.actualizarStockPorCompra(gb, -1); } await deleteDoc(doc(fsDb, tabla, id)); window.toast('✓ Eliminado'); } catch(e) { window.toast('⚠ Error'); }
 };
 
 window.editarVenta = function(id) { const v = window.db.ventas.find(x => x.id === id); if (!v) return; document.getElementById('v-fecha').value = v.fecha; document.getElementById('v-cliente').value = v.cliente; document.getElementById('v-pago').value = v.pago; document.getElementById('v-notas').value = v.notas || ''; window.carritoActual = JSON.parse(JSON.stringify(v.items || [])); window.renderCarrito(); document.getElementById('v-precio-total').value = v.total; window.editando.ventas = id; const sel = document.getElementById('v-burger'); if (sel && window.carritoActual.length > 0) { const opt = [...sel.options].find(o => o.value === window.carritoActual[0].burger); if (opt) sel.value = opt.value; window.actualizarPrecioItem(); } document.getElementById('btn-ventas-submit').textContent = '✓ Actualizar pedido'; document.getElementById('btn-ventas-cancel').style.display = 'inline-flex'; document.getElementById('ventas').scrollIntoView({ behavior: 'smooth' }); };
@@ -1387,7 +1646,7 @@ window.editarExtra = function(id) {
     document.getElementById('btn-extras-cancel').style.display = 'inline-flex';
 };
 
-window.editarGasto = function(id) { const g = window.db.gastos.find(x => x.id === id); if (!g) return; document.getElementById('g-fecha').value = g.fecha; document.getElementById('g-cat').value = g.cat; document.getElementById('g-tipo').value = g.tipo; document.getElementById('g-monto').value = g.monto; document.getElementById('g-desc').value = g.desc; document.getElementById('g-cantidad').value = g.cantidad || ''; document.getElementById('g-unidad').value = g.unidad || 'kg'; window.refrescarSelectorMateriasPrimas(); document.getElementById('g-materia-prima').value = g.materiaPrimaId || ''; window.actualizarVisibilidadMateriaPrima(); window.editando.gastos = id; document.getElementById('btn-gastos-submit').textContent = '✓ Actualizar'; document.getElementById('btn-gastos-cancel').style.display = 'inline-flex'; document.getElementById('gastos').scrollIntoView({ behavior: 'smooth' }); };
+window.editarGasto = function(id) { const g = window.db.gastos.find(x => x.id === id); if (!g) return; document.getElementById('g-fecha').value = g.fecha; document.getElementById('g-cat').value = (String(g.cat || '').toLowerCase() === 'gas') ? 'Impuestos' : g.cat; document.getElementById('g-tipo').value = g.tipo; document.getElementById('g-monto').value = g.monto; document.getElementById('g-desc').value = g.desc; document.getElementById('g-cantidad').value = g.cantidad || ''; document.getElementById('g-unidad').value = g.unidad || 'kg'; window.refrescarSelectorMateriasPrimas(); document.getElementById('g-materia-prima').value = g.materiaPrimaId || ''; window.actualizarVisibilidadMateriaPrima(); window.editando.gastos = id; document.getElementById('btn-gastos-submit').textContent = '✓ Actualizar'; document.getElementById('btn-gastos-cancel').style.display = 'inline-flex'; document.getElementById('gastos').scrollIntoView({ behavior: 'smooth' }); };
 
 window.cancelarEdicion = function(sec) {
     window.editando[sec] = null;
@@ -1443,5 +1702,36 @@ reportesHasta?.addEventListener('change', () => window.render());
 document.getElementById('v-fecha').value = window.getHoy(); document.getElementById('s-fecha').value = window.getHoy(); document.getElementById('g-fecha').value = window.getHoy();
 
 </script>
+
+<div id="modal-gastos-operativos" class="modal-overlay" onclick="if(event.target===this) cerrarDetalleGastosOperativos()">
+  <div class="modal" style="width:760px;max-width:94vw;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+      <div>
+        <div class="modal-title">Gastos operativos</div>
+        <div id="detalle-gastos-periodo" class="modal-sub">Detalle del período seleccionado</div>
+      </div>
+      <button class="btn btn-sm" onclick="cerrarDetalleGastosOperativos()">✕</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 190px;gap:10px;margin-top:1rem;">
+      <input id="filtro-detalle-gastos" class="form-control" type="search" placeholder="Buscar por descripción, categoría, tipo o fecha…" oninput="actualizarFiltrosGastosOperativos()">
+      <select id="filtro-categoria-gastos" class="form-control" onchange="actualizarFiltrosGastosOperativos()">
+        <option value="">Todas las categorías</option>
+        <option value="impuestos">Impuestos</option>
+        <option value="personal">Personal</option>
+        <option value="marketing">Marketing</option>
+        <option value="otros">Otros</option>
+      </select>
+    </div>
+
+    <div id="detalle-gastos-operativos" style="margin-top:1rem;max-height:55vh;overflow:auto;"></div>
+
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+      <span style="font:11px var(--font-mono);color:var(--muted);text-transform:uppercase;">Total gastos operativos</span>
+      <strong id="detalle-gastos-total" style="font:24px var(--font-head);color:var(--accent);">$0</strong>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
