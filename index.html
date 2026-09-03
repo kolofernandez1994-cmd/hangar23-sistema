@@ -487,7 +487,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <button class="btn" id="btn-stock-cancel" style="display:none" onclick="cancelarEdicion('stock')">✕ Cancelar</button>
         </div>
       </div>
-      <div class="card"><div class="card-title"><span class="icon">▣</span> Inventario actual</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Ingrediente</th><th>Cat</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Costo</th><th>Acciones</th></tr></thead><tbody id="stock-tabla"></tbody></table></div></div>
+      <div class="card"><div class="card-title" style="justify-content:space-between"><span><span class="icon">▣</span> Inventario actual</span><button class="btn btn-sm btn-danger" onclick="resetearStock()">↺ Resetear stock</button></div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Ingrediente</th><th>Cat</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Costo</th><th>Acciones</th></tr></thead><tbody id="stock-tabla"></tbody></table></div></div>
       <div class="card"><div class="card-title"><span class="icon">◈</span> Capacidad de fabricación</div><div class="page-sub" style="margin:-12px 0 16px">Con el stock actual podés preparar:</div><div class="receta-grid" id="stock-capacidad"></div></div>
     </div>
 
@@ -498,7 +498,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Nombre</label><input type="text" id="r-nombre"></div>
           <div class="form-group"><label class="form-label">Tipo</label><select id="r-tipo"><option>Hamburguesa</option><option>Combo</option><option>Promo</option><option>Vegetariana</option><option>Bebida</option></select></div>
           <div class="form-group"><label class="form-label">Precio de venta ($)</label><input type="number" id="r-precio"></div>
-          <div class="form-group"><label class="form-label">Costo estimado ($)</label><input type="number" id="r-costo"></div>
+          <div class="form-group"><label class="form-label">Costo estimado ($)</label><input type="number" id="r-costo" readonly><div style="font-size:10px;color:var(--muted);margin-top:4px">Se calcula automáticamente con los ingredientes.</div></div><div class="form-group"><label class="form-label">Margen de ganancia (%)</label><input type="number" id="r-margen" min="0" max="99.99" step="0.1" placeholder="Ej: 60"><div style="font-size:10px;color:var(--muted);margin-top:4px">Al modificarlo, calcula el precio de venta.</div></div>
         </div>
         <div class="form-group" style="margin-bottom:14px"><label class="form-label">Descripción</label><input type="text" id="r-desc"></div>
         
@@ -623,7 +623,7 @@ window.cargarDatosBase = async function() {
 
 ['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas'].forEach(colName => {
     onSnapshot(collection(fsDb, colName), (snapshot) => {
-        window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        window.db[colName] = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
         if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
         window.render();
         if (colName === 'recetas' || colName === 'extras') {
@@ -872,12 +872,12 @@ window.renderIngredientesReceta = function() {
     // Si la lista está vacía, no mostramos nada, el botón de "añadir" hace el trabajo
     container.innerHTML = window.ingredientesRecetaTemp.map((ing, idx) => `
         <div class="ing-row">
-            <select style="flex:2; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].nombre = this.value">
+            <select style="flex:2; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].nombre = this.value; window.actualizarPrecioDesdeMargen()">
                 <option value="">Seleccione ingrediente de stock...</option>
                 ${window.db.stock.map(s => `<option value="${s.nombre}" ${s.nombre === ing.nombre ? 'selected' : ''}>${s.nombre}</option>`).join('')}
             </select>
-            <input type="number" placeholder="Cant" value="${ing.cant || ''}" style="flex:1; outline:none;" oninput="window.ingredientesRecetaTemp[${idx}].cant = this.value">
-            <select style="flex:1; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].unidad = this.value">
+            <input type="number" placeholder="Cant" value="${ing.cant || ''}" style="flex:1; outline:none;" oninput="window.ingredientesRecetaTemp[${idx}].cant = this.value; window.actualizarPrecioDesdeMargen()">
+            <select style="flex:1; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].unidad = this.value; window.actualizarPrecioDesdeMargen()">
                 ${['u','g','kg','ml','l','paq'].map(u => `<option value="${u}" ${ing.unidad === u ? 'selected' : ''}>${u}</option>`).join('')}
             </select>
             <button class="btn btn-sm btn-danger" style="padding:4px 8px; border-radius:4px" onclick="removerFilaIngrediente(${idx})">✕</button>
@@ -885,14 +885,63 @@ window.renderIngredientesReceta = function() {
     `).join('');
 };
 
+window.actualizarCostoRecetaFormulario = function() {
+    const costoEl = document.getElementById('r-costo');
+    if (!costoEl) return 0;
+
+    // Calcula en tiempo real los ingredientes que ya están completos.
+    // No bloquea el cálculo porque exista otra fila todavía incompleta.
+    let total = 0;
+    let hayIngredienteValido = false;
+
+    (window.ingredientesRecetaTemp || []).forEach(ing => {
+        const nombre = (ing.nombre || '').trim();
+        const cantidad = parseFloat(ing.cant);
+        if (!nombre || !Number.isFinite(cantidad) || cantidad <= 0) return;
+
+        const stock = window.db.stock.find(s => limpiarText(s.nombre) === limpiarText(nombre));
+        if (!stock) return;
+
+        const costo = costoEstandarIngrediente(stock);
+        if (costo === null) return;
+
+        const cantidadStock = convertirCantidad(
+            cantidad,
+            ing.unidad || stock.unidad,
+            stock.unidad
+        );
+        if (cantidadStock === null || !Number.isFinite(cantidadStock)) return;
+
+        total += cantidadStock * costo;
+        hayIngredienteValido = true;
+    });
+
+    const costoCalculado = hayIngredienteValido ? Math.round(total) : 0;
+    costoEl.value = costoCalculado > 0 ? costoCalculado : '';
+    return costoCalculado;
+};
+
+window.actualizarPrecioDesdeMargen = function() {
+    const costo = window.actualizarCostoRecetaFormulario();
+    const margenEl = document.getElementById('r-margen');
+    const precioEl = document.getElementById('r-precio');
+    if (!margenEl || !precioEl) return;
+    const margen = parseFloat(margenEl.value);
+    if (costo > 0 && Number.isFinite(margen) && margen >= 0 && margen < 100) {
+        precioEl.value = Math.round(costo / (1 - margen / 100));
+    }
+};
+
 window.agregarFilaIngrediente = function() {
     window.ingredientesRecetaTemp.push({nombre: '', cant: '', unidad: 'g'});
     window.renderIngredientesReceta();
+    window.actualizarPrecioDesdeMargen();
 };
 
 window.removerFilaIngrediente = function(idx) {
     window.ingredientesRecetaTemp.splice(idx, 1);
     window.renderIngredientesReceta();
+    window.actualizarPrecioDesdeMargen();
 };
 
 window.renderSelectorExtra = function() {
@@ -1198,7 +1247,7 @@ function renderRecetas() {
             <span class="badge ${colTipo[r.tipo] || 'badge-blue'}">${r.tipo}</span>
             <div>
               <button class="btn btn-sm" onclick="editarReceta('${r.id}')" style="background:var(--surface2);margin-right:4px">✎</button>
-              <button class="btn btn-sm btn-danger" onclick="eliminar('recetas','${r.id}')">✕</button>
+              <button class="btn btn-sm btn-danger" onclick="eliminarReceta('${r.id}')">✕</button>
             </div>
           </div>
           <div class="receta-nombre">${r.nombre}</div>
@@ -1473,11 +1522,15 @@ window.guardarReceta = async function() {
         .map(i => `${i.nombre}:${i.cant}:${i.unidad}`)
         .join(', ');
 
+    const costoCalculado = window.actualizarCostoRecetaFormulario();
+    const margenIngresado = parseFloat(document.getElementById('r-margen').value);
+    const precioIngresado = parseFloat(document.getElementById('r-precio').value) || 0;
     const data = {
         nombre: document.getElementById('r-nombre').value.trim(),
         tipo: document.getElementById('r-tipo').value,
-        precio: parseFloat(document.getElementById('r-precio').value) || 0,
-        costo: parseFloat(document.getElementById('r-costo').value) || 0,
+        precio: precioIngresado,
+        costo: costoCalculado || 0,
+        margenObjetivo: Number.isFinite(margenIngresado) ? margenIngresado : null,
         desc: document.getElementById('r-desc').value.trim(),
         ing: ingText
     };
@@ -1535,6 +1588,27 @@ window.aplicarCupon = function() { const codigo=document.getElementById('v-cupon
 window.abrirCaja = async function() { if(window.db.cajas.some(c=>c.estado==='abierta')) { window.toast('⚠ Ya hay una caja abierta'); return; } const inicial=parseFloat(document.getElementById('caja-inicial').value)||0; try { await addDoc(collection(fsDb,'cajas'),{fecha:window.getHoy(),inicial,estado:'abierta'}); document.getElementById('caja-inicial').value=''; window.toast('✓ Caja abierta'); } catch(e) { window.toast('⚠ No se pudo abrir la caja'); } };
 window.cerrarCaja = async function() { const caja=window.db.cajas.find(c=>c.estado==='abierta'); const final=parseFloat(document.getElementById('caja-final').value); if(!caja) { window.toast('⚠ No hay una caja abierta'); return; } if(isNaN(final)) { window.toast('⚠ Ingresá el efectivo contado'); return; } const datos=calcularCaja(caja); try { await updateDoc(doc(fsDb,'cajas',caja.id),{...datos,final,diferencia:final-datos.esperado,estado:'cerrada',cerradaEn:new Date().toISOString()}); document.getElementById('caja-final').value=''; window.toast('✓ Caja cerrada'); } catch(e) { window.toast('⚠ No se pudo cerrar la caja'); } };
 
+window.resetearStock = async function() {
+    const items = [...(window.db.stock || [])];
+    if (!items.length) { window.toast('⚠ No hay ingredientes cargados en Stock'); return; }
+    const ok = confirm(
+        'ATENCIÓN: vas a poner en 0 la cantidad actual de TODO el stock.\\n\\n' +
+        'No se eliminarán ingredientes, costos, mínimos, recetas, ventas ni gastos.\\n' +
+        'Solo se cambiará la cantidad disponible de cada ingrediente a 0.\\n\\n' +
+        '¿Querés continuar?'
+    );
+    if (!ok) return;
+    try {
+        for (const item of items) {
+            await updateDoc(doc(fsDb, 'stock', item.id), { cantidad: 0 });
+        }
+        window.toast('✓ Stock reseteado a 0');
+    } catch(e) {
+        console.error(e);
+        window.toast('⚠ No se pudo resetear todo el stock');
+    }
+};
+
 window.actualizarStockPorCompra = async function(gasto, factor) {
     if (limpiarText(gasto.cat) !== 'materia prima') return;
     if (!gasto.materiaPrimaId || !gasto.cantidad || !gasto.unidad) return;
@@ -1590,6 +1664,20 @@ window.guardarGasto = async function() {
     } catch(e) { console.error(e); window.toast('⚠ Error: ' + (e.message || 'no se pudo guardar')); }
 };
 
+window.eliminarReceta = async function(id) {
+    if (!id) { window.toast('⚠ Receta sin identificador'); return; }
+    const receta = window.db.recetas.find(r => r.id === id);
+    if (!receta) { window.toast('⚠ No se encontró la receta'); return; }
+    if (!confirm(`¿Eliminar la receta \"${receta.nombre || ''}\"?`)) return;
+    try {
+        await deleteDoc(doc(fsDb, 'recetas', id));
+        window.toast('✓ Receta eliminada');
+    } catch(e) {
+        console.error('Error eliminando receta:', e);
+        window.toast('⚠ No se pudo eliminar la receta: ' + (e.message || 'error desconocido'));
+    }
+};
+
 window.eliminar = async function(tabla, id) {
     if (!confirm('¿Eliminar este registro?')) return;
     try { if (tabla === 'ventas') { const vb = window.db.ventas.find(v => v.id === id); if (vb) await window.actualizarStockPorVentaAsync(vb.items, 1); } if (tabla === 'gastos') { const gb = window.db.gastos.find(g => g.id === id); if (gb) await window.actualizarStockPorCompra(gb, -1); } await deleteDoc(doc(fsDb, tabla, id)); window.toast('✓ Eliminado'); } catch(e) { window.toast('⚠ Error'); }
@@ -1605,6 +1693,9 @@ window.editarReceta = function(id) {
     document.getElementById('r-tipo').value = i.tipo;
     document.getElementById('r-precio').value = i.precio;
     document.getElementById('r-costo').value = i.costo || '';
+    const costoEditado = window.costoReceta(i);
+    const margenEditado = costoEditado && i.precio ? ((i.precio - costoEditado) / i.precio) * 100 : (Number.isFinite(i.margenObjetivo) ? i.margenObjetivo : '');
+    document.getElementById('r-margen').value = margenEditado === '' ? '' : Math.round(margenEditado * 10) / 10;
     document.getElementById('r-desc').value = i.desc || '';
     
     // Parsea el string de DB hacia el array visual
@@ -1618,6 +1709,7 @@ window.editarReceta = function(id) {
         });
     }
     window.renderIngredientesReceta();
+    window.actualizarCostoRecetaFormulario();
 
     window.editando.recetas = id;
     document.getElementById('btn-recetas-submit').textContent = '✓ Actualizar';
@@ -1655,7 +1747,7 @@ window.cancelarEdicion = function(sec) {
     if (sec === 'ventas') { document.getElementById('v-cliente').value = ''; document.getElementById('v-notas').value = ''; document.getElementById('v-fecha').value = hoy; document.getElementById('v-cupon').value = ''; window.cuponAplicado = null; window.carritoActual = []; window.renderCarrito(); document.getElementById('v-qty').value = '1'; document.querySelectorAll('#v-extras input').forEach(i => i.checked = false); window.actualizarPrecioItem(); document.getElementById('btn-ventas-submit').textContent = '✓ Registrar pedido'; } 
     else if (sec === 'stock') { document.getElementById('s-fecha').value = hoy; ['s-nombre', 's-cantidad', 's-costo-estandar', 's-minimo'].forEach(id => document.getElementById(id).value = ''); document.getElementById('btn-stock-submit').textContent = '✓ Agregar'; } 
     else if (sec === 'recetas') { 
-        ['r-nombre', 'r-precio', 'r-costo', 'r-desc'].forEach(id => document.getElementById(id).value = ''); 
+        ['r-nombre', 'r-precio', 'r-costo', 'r-margen', 'r-desc'].forEach(id => document.getElementById(id).value = ''); 
         window.ingredientesRecetaTemp = [];
         window.renderIngredientesReceta();
         document.getElementById('btn-recetas-submit').textContent = '✓ Guardar Receta'; 
@@ -1699,6 +1791,7 @@ reportesPeriodo?.addEventListener('change', () => { const personalizado = report
 reportesDesde?.addEventListener('change', () => window.render());
 reportesHasta?.addEventListener('change', () => window.render());
 
+document.getElementById('r-margen')?.addEventListener('input', window.actualizarPrecioDesdeMargen);
 document.getElementById('v-fecha').value = window.getHoy(); document.getElementById('s-fecha').value = window.getHoy(); document.getElementById('g-fecha').value = window.getHoy();
 
 </script>
