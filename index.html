@@ -449,7 +449,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Nombre</label><input type="text" id="r-nombre"></div>
           <div class="form-group"><label class="form-label">Tipo</label><select id="r-tipo"><option>Hamburguesa</option><option>Combo</option><option>Promo</option><option>Vegetariana</option><option>Bebida</option></select></div>
           <div class="form-group"><label class="form-label">Precio de venta ($)</label><input type="number" id="r-precio"></div>
-          <div class="form-group"><label class="form-label">Costo estimado ($)</label><input type="number" id="r-costo"></div>
+          <div class="form-group"><label class="form-label">Costo estimado ($)</label><input type="number" id="r-costo" readonly><div style="font-size:10px;color:var(--muted);margin-top:4px">Se calcula automáticamente con los ingredientes y sus costos de Stock.</div></div>
         </div>
         <div class="form-group" style="margin-bottom:14px"><label class="form-label">Descripción</label><input type="text" id="r-desc"></div>
         
@@ -726,12 +726,12 @@ window.renderIngredientesReceta = function() {
     // Si la lista está vacía, no mostramos nada, el botón de "añadir" hace el trabajo
     container.innerHTML = window.ingredientesRecetaTemp.map((ing, idx) => `
         <div class="ing-row">
-            <select style="flex:2; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].nombre = this.value">
+            <select style="flex:2; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].nombre = this.value; window.actualizarCostoRecetaFormulario()">
                 <option value="">Seleccione ingrediente de stock...</option>
                 ${window.db.stock.map(s => `<option value="${s.nombre}" ${s.nombre === ing.nombre ? 'selected' : ''}>${s.nombre}</option>`).join('')}
             </select>
-            <input type="number" placeholder="Cant" value="${ing.cant || ''}" style="flex:1; outline:none;" oninput="window.ingredientesRecetaTemp[${idx}].cant = this.value">
-            <select style="flex:1; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].unidad = this.value">
+            <input type="number" placeholder="Cant" value="${ing.cant || ''}" style="flex:1; outline:none;" oninput="window.ingredientesRecetaTemp[${idx}].cant = this.value; window.actualizarCostoRecetaFormulario()">
+            <select style="flex:1; outline:none;" onchange="window.ingredientesRecetaTemp[${idx}].unidad = this.value; window.actualizarCostoRecetaFormulario()">
                 ${['u','g','kg','ml','l','paq'].map(u => `<option value="${u}" ${ing.unidad === u ? 'selected' : ''}>${u}</option>`).join('')}
             </select>
             <button class="btn btn-sm btn-danger" style="padding:4px 8px; border-radius:4px" onclick="removerFilaIngrediente(${idx})">✕</button>
@@ -739,14 +739,60 @@ window.renderIngredientesReceta = function() {
     `).join('');
 };
 
+function convertirCantidadReceta(cantidad, unidadOrigen, unidadStock) {
+    const c = parseFloat(cantidad);
+    if (!Number.isFinite(c)) return null;
+    const o = limpiarText(unidadOrigen || '');
+    const d = limpiarText(unidadStock || '');
+    if (o === d || !o || !d) return o === d ? c : null;
+    if (o === 'g' && d === 'kg') return c / 1000;
+    if (o === 'kg' && d === 'g') return c * 1000;
+    if ((o === 'ml' || o === 'cc') && d === 'l') return c / 1000;
+    if (o === 'l' && (d === 'ml' || d === 'cc')) return c * 1000;
+    return null;
+}
+
+function costoEstandarIngredienteReceta(stock) {
+    if (!stock) return null;
+    const costo = parseFloat(stock.costo);
+    return Number.isFinite(costo) && costo >= 0 ? costo : null;
+}
+
+window.actualizarCostoRecetaFormulario = function() {
+    const costoEl = document.getElementById('r-costo');
+    if (!costoEl) return 0;
+    let total = 0;
+    let hayIngredienteValido = false;
+
+    (window.ingredientesRecetaTemp || []).forEach(ing => {
+        const nombre = (ing.nombre || '').trim();
+        const cantidad = parseFloat(ing.cant);
+        if (!nombre || !Number.isFinite(cantidad) || cantidad <= 0) return;
+        const stock = window.db.stock.find(s => limpiarText(s.nombre) === limpiarText(nombre));
+        if (!stock) return;
+        const costo = costoEstandarIngredienteReceta(stock);
+        if (costo === null) return;
+        const cantidadStock = convertirCantidadReceta(cantidad, ing.unidad || stock.unidad, stock.unidad);
+        if (cantidadStock === null) return;
+        total += cantidadStock * costo;
+        hayIngredienteValido = true;
+    });
+
+    const calculado = hayIngredienteValido ? Math.round(total) : 0;
+    costoEl.value = calculado > 0 ? calculado : '';
+    return calculado;
+};
+
 window.agregarFilaIngrediente = function() {
     window.ingredientesRecetaTemp.push({nombre: '', cant: '', unidad: 'g'});
     window.renderIngredientesReceta();
+    window.actualizarCostoRecetaFormulario();
 };
 
 window.removerFilaIngrediente = function(idx) {
     window.ingredientesRecetaTemp.splice(idx, 1);
     window.renderIngredientesReceta();
+    window.actualizarCostoRecetaFormulario();
 };
 
 window.renderSelectorExtra = function() {
@@ -1254,7 +1300,7 @@ window.guardarReceta = async function() {
         nombre: document.getElementById('r-nombre').value.trim(),
         tipo: document.getElementById('r-tipo').value,
         precio: parseFloat(document.getElementById('r-precio').value) || 0,
-        costo: parseFloat(document.getElementById('r-costo').value) || 0,
+        costo: window.actualizarCostoRecetaFormulario(),
         desc: document.getElementById('r-desc').value.trim(),
         ing: ingText
     };
@@ -1393,6 +1439,7 @@ window.editarReceta = function(id) {
         });
     }
     window.renderIngredientesReceta();
+    window.actualizarCostoRecetaFormulario();
 
     window.editando.recetas = id;
     document.getElementById('btn-recetas-submit').textContent = '✓ Actualizar';
