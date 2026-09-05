@@ -226,6 +226,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
     <nav class="nav">
       <div class="nav-section">General</div>
       <div class="nav-item active" onclick="showSection('dashboard')" data-s="dashboard"><span class="nav-icon">◈</span> Dashboard</div>
+      <div class="nav-item" onclick="showSection('rentabilidad')" data-s="rentabilidad"><span class="nav-icon">↗</span> Rentabilidad real</div>
       <div class="nav-section">Operaciones</div>
       <div class="nav-item" onclick="showSection('ventas')" data-s="ventas"><span class="nav-icon">◎</span> Ventas</div>
       <div class="nav-item" onclick="showSection('promociones')" data-s="promociones"><span class="nav-icon">★</span> Promociones</div>
@@ -304,6 +305,15 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="chart-wrap"><canvas id="chartBurgers" role="img" aria-label="Gráfico de ventas por variedad"></canvas></div>
         </div>
       </div>
+    </div>
+
+    <div id="rentabilidad" class="section">
+      <div class="page-header">
+        <div class="page-title">Rentabilidad real del período</div>
+        <div class="page-sub">Resultado económico calculado sobre las ventas y los costos reales del período seleccionado.</div>
+      </div>
+
+      <div class="metrics" id="rentabilidad-metrics"></div>
     </div>
 
     <div id="ventas" class="section">
@@ -493,6 +503,13 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Monto ($)</label><input type="number" id="g-monto"></div>
         </div>
         <div class="form-group" style="margin-bottom:12px"><label class="form-label">Desc</label><input type="text" id="g-desc"></div>
+        <div id="g-mp-fields" style="display:none;margin-bottom:12px">
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Ingrediente de stock</label><select id="g-mp-stock"><option value="">Seleccioná un ingrediente...</option></select></div>
+            <div class="form-group"><label class="form-label">Cantidad comprada</label><input type="number" id="g-mp-cantidad" min="0" step="any" placeholder="Ej. 15"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px">Al registrar una compra de materia prima, la cantidad se suma automáticamente al stock del ingrediente seleccionado.</div>
+        </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" id="btn-gastos-submit" onclick="guardarGasto()">✓ Registrar</button>
           <button class="btn" id="btn-gastos-cancel" style="display:none" onclick="cancelarEdicion('gastos')">✕ Cancelar</button>
@@ -596,7 +613,110 @@ window.toggleSidebar = () => { document.getElementById('sidebar').classList.togg
 window.closeSidebar = () => { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); };
 window.toast = (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
-window.render = function() { renderDash(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); };
+window.renderRentabilidad = function() {
+    const cont = document.getElementById('rentabilidad-metrics');
+    if (!cont) return;
+
+    const hoy = window.getHoy();
+    const periodo = document.getElementById('dash-period')?.value || 'month';
+    const desde = document.getElementById('dash-from')?.value;
+    const hasta = document.getElementById('dash-to')?.value;
+
+    const enPeriodo = fecha => {
+        if (!fecha) return false;
+        if (periodo === 'today') return fecha === hoy;
+        if (periodo === 'week') return diffDias(hoy, fecha) >= 0 && diffDias(hoy, fecha) <= 6;
+        if (periodo === 'month') return fecha.startsWith(hoy.slice(0, 7));
+        if (periodo === 'custom') return (!desde || fecha >= desde) && (!hasta || fecha <= hasta);
+        return true;
+    };
+
+    const ventas = (window.db?.ventas || []).filter(v => enPeriodo(v.fecha));
+    const gastos = (window.db?.gastos || []).filter(g => enPeriodo(g.fecha));
+
+    const ventasTotal = ventas.reduce((sum, v) => sum + (Number(v.total) || 0), 0);
+
+    // Costo de mercadería vendida: toma cada producto realmente vendido
+    // y usa el costo estándar que ya calcula el módulo de Recetas.
+    let costoVendido = 0;
+    ventas.forEach(v => {
+        (v.items || []).forEach(item => {
+            const receta = (window.db?.recetas || []).find(
+                r => limpiarText(r.nombre) === limpiarText(item.burger)
+            );
+            const cantidad = Number(item.qty) || 0;
+            if (receta && cantidad > 0) {
+                costoVendido += (window.costoReceta ? window.costoReceta(receta) : (Number(receta.costo) || 0)) * cantidad;
+            }
+        });
+    });
+
+    // Materia prima: las compras se consideran inventario, no gasto operativo.
+    // Los demás gastos sí forman parte del resultado operativo.
+    let gastosTotal = 0;
+    let gastosOperativos = 0;
+
+    gastos.forEach(g => {
+        const monto = Number(g.monto) || 0;
+        gastosTotal += monto;
+
+        const categoria = limpiarText(g.cat || g.categoria);
+        const esMateriaPrima =
+            categoria === 'materia prima' ||
+            categoria === 'materiaprima' ||
+            !!g.materiaPrimaId ||
+            !!g.ingredienteId;
+
+        if (!esMateriaPrima) gastosOperativos += monto;
+    });
+
+    const resultadoCaja = ventasTotal - gastosTotal;
+    const resultadoOperativo = ventasTotal - costoVendido - gastosOperativos;
+    const margen = ventasTotal > 0 ? (resultadoOperativo / ventasTotal) * 100 : 0;
+
+    const f = n => window.fmt(Math.round(n || 0));
+
+    cont.innerHTML = `
+      <div class="metric">
+        <div class="metric-label">Ventas del período</div>
+        <div class="metric-value green">${f(ventasTotal)}</div>
+        <div class="metric-sub">${ventas.length} pedido${ventas.length === 1 ? '' : 's'} registrados</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Costo mercadería vendida</div>
+        <div class="metric-value yellow">${f(costoVendido)}</div>
+        <div class="metric-sub">Costo estándar de las recetas vendidas</div>
+      </div>
+
+      <div class="metric" ondblclick="abrirDetalleGastosOperativos()" title="Doble clic para ver el detalle">
+        <div class="metric-label">Gastos operativos</div>
+        <div class="metric-value yellow">${f(gastosOperativos)}</div>
+        <div class="metric-sub">Doble clic para ver el detalle</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Resultado operativo</div>
+        <div class="metric-value ${resultadoOperativo >= 0 ? 'green' : 'red'}">${f(resultadoOperativo)}</div>
+        <div class="metric-sub">Ventas − costo − gastos operativos</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Margen operativo</div>
+        <div class="metric-value ${margen >= 0 ? 'yellow' : 'red'}">${margen.toFixed(1)}%</div>
+        <div class="metric-sub">Resultado operativo sobre ventas</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Resultado de caja</div>
+        <div class="metric-value ${resultadoCaja >= 0 ? 'green' : 'red'}">${f(resultadoCaja)}</div>
+        <div class="metric-sub">Ventas menos gastos registrados</div>
+      </div>
+    `;
+};
+
+
+window.render = function() { renderDash(); renderRentabilidad(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); };
 
 // --- LOGICA DE UI INTELIGENTE PARA RECETAS Y EXTRAS ---
 window.renderIngredientesReceta = function() {
@@ -1192,10 +1312,57 @@ window.aplicarCupon = function() { const codigo=document.getElementById('v-cupon
 window.abrirCaja = async function() { if(window.db.cajas.some(c=>c.estado==='abierta')) { window.toast('⚠ Ya hay una caja abierta'); return; } const inicial=parseFloat(document.getElementById('caja-inicial').value)||0; try { await addDoc(collection(fsDb,'cajas'),{fecha:window.getHoy(),inicial,estado:'abierta'}); document.getElementById('caja-inicial').value=''; window.toast('✓ Caja abierta'); } catch(e) { window.toast('⚠ No se pudo abrir la caja'); } };
 window.cerrarCaja = async function() { const caja=window.db.cajas.find(c=>c.estado==='abierta'); const final=parseFloat(document.getElementById('caja-final').value); if(!caja) { window.toast('⚠ No hay una caja abierta'); return; } if(isNaN(final)) { window.toast('⚠ Ingresá el efectivo contado'); return; } const datos=calcularCaja(caja); try { await updateDoc(doc(fsDb,'cajas',caja.id),{...datos,final,diferencia:final-datos.esperado,estado:'cerrada',cerradaEn:new Date().toISOString()}); document.getElementById('caja-final').value=''; window.toast('✓ Caja cerrada'); } catch(e) { window.toast('⚠ No se pudo cerrar la caja'); } };
 
+window.actualizarCamposMateriaPrima = function() {
+    const cat = document.getElementById('g-cat')?.value;
+    const box = document.getElementById('g-mp-fields');
+    const sel = document.getElementById('g-mp-stock');
+    if (!box || !sel) return;
+    const esMP = limpiarText(cat) === 'materia prima';
+    box.style.display = esMP ? 'block' : 'none';
+    if (esMP) {
+        const actual = sel.value;
+        sel.innerHTML = '<option value="">Seleccioná un ingrediente...</option>' +
+            (window.db.stock || []).map(s => `<option value="${s.id}">${s.nombre} (${s.unidad})</option>`).join('');
+        if (actual) sel.value = actual;
+    }
+};
+
+document.getElementById('g-cat')?.addEventListener('change', window.actualizarCamposMateriaPrima);
+
 window.guardarGasto = async function() {
-    const data = { fecha: document.getElementById('g-fecha').value || window.getHoy(), cat: document.getElementById('g-cat').value, desc: document.getElementById('g-desc').value.trim(), tipo: document.getElementById('g-tipo').value, monto: parseFloat(document.getElementById('g-monto').value) || 0 };
+    const cat = document.getElementById('g-cat').value;
+    const esMP = limpiarText(cat) === 'materia prima';
+    const stockId = document.getElementById('g-mp-stock')?.value || '';
+    const cantidadMP = parseFloat(document.getElementById('g-mp-cantidad')?.value) || 0;
+    const data = { fecha: document.getElementById('g-fecha').value || window.getHoy(), cat, desc: document.getElementById('g-desc').value.trim(), tipo: document.getElementById('g-tipo').value, monto: parseFloat(document.getElementById('g-monto').value) || 0 };
     if (!data.desc || !data.monto) { window.toast('⚠ Completá info'); return; }
-    try { if (window.editando.gastos) { await updateDoc(doc(fsDb, 'gastos', window.editando.gastos), data); } else { await addDoc(collection(fsDb, 'gastos'), data); } window.toast('✓ Guardado'); window.cancelarEdicion('gastos'); } catch(e) { window.toast('⚠ Error'); }
+    if (esMP && (!stockId || cantidadMP <= 0)) { window.toast('⚠ Seleccioná el ingrediente y cargá la cantidad comprada'); return; }
+    try {
+        if (window.editando.gastos) {
+            const anterior = window.db.gastos.find(g => g.id === window.editando.gastos);
+            if (anterior?.cat && limpiarText(anterior.cat) === 'materia prima' && anterior.stockId && Number(anterior.cantidadStock) > 0) {
+                const stockAnterior = window.db.stock.find(s => s.id === anterior.stockId);
+                if (stockAnterior) await updateDoc(doc(fsDb, 'stock', stockAnterior.id), { cantidad: Math.max(0, (Number(stockAnterior.cantidad) || 0) - Number(anterior.cantidadStock)) });
+            }
+            if (esMP) { data.stockId = stockId; data.cantidadStock = cantidadMP; }
+            await updateDoc(doc(fsDb, 'gastos', window.editando.gastos), data);
+            if (esMP) {
+                const stock = window.db.stock.find(s => s.id === stockId);
+                if (!stock) throw new Error('Ingrediente de stock no encontrado');
+                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100, fecha: data.fecha });
+            }
+        } else {
+            if (esMP) {
+                const stock = window.db.stock.find(s => s.id === stockId);
+                if (!stock) throw new Error('Ingrediente de stock no encontrado');
+                data.stockId = stock.id;
+                data.cantidadStock = cantidadMP;
+                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100, fecha: data.fecha });
+            }
+            await addDoc(collection(fsDb, 'gastos'), data);
+        }
+        window.toast('✓ Gasto guardado y stock actualizado'); window.cancelarEdicion('gastos');
+    } catch(e) { console.error(e); window.toast('⚠ No se pudo guardar el gasto'); }
 };
 
 window.eliminar = async function(tabla, id) {
@@ -1254,7 +1421,7 @@ window.editarExtra = function(id) {
     document.getElementById('btn-extras-cancel').style.display = 'inline-flex';
 };
 
-window.editarGasto = function(id) { const g = window.db.gastos.find(x => x.id === id); if (!g) return; document.getElementById('g-fecha').value = g.fecha; document.getElementById('g-cat').value = g.cat; document.getElementById('g-tipo').value = g.tipo; document.getElementById('g-monto').value = g.monto; document.getElementById('g-desc').value = g.desc; window.editando.gastos = id; document.getElementById('btn-gastos-submit').textContent = '✓ Actualizar'; document.getElementById('btn-gastos-cancel').style.display = 'inline-flex'; document.getElementById('gastos').scrollIntoView({ behavior: 'smooth' }); };
+window.editarGasto = function(id) { const g = window.db.gastos.find(x => x.id === id); if (!g) return; document.getElementById('g-fecha').value = g.fecha; document.getElementById('g-cat').value = g.cat; document.getElementById('g-tipo').value = g.tipo; document.getElementById('g-monto').value = g.monto; document.getElementById('g-desc').value = g.desc; window.actualizarCamposMateriaPrima(); if (g.stockId) document.getElementById('g-mp-stock').value = g.stockId; if (g.cantidadStock) document.getElementById('g-mp-cantidad').value = g.cantidadStock; window.editando.gastos = id; document.getElementById('btn-gastos-submit').textContent = '✓ Actualizar'; document.getElementById('btn-gastos-cancel').style.display = 'inline-flex'; document.getElementById('gastos').scrollIntoView({ behavior: 'smooth' }); };
 
 window.cancelarEdicion = function(sec) {
     window.editando[sec] = null;
@@ -1276,7 +1443,7 @@ window.cancelarEdicion = function(sec) {
         window.actualizarFormularioPromo(); document.getElementById('btn-promos-submit').textContent = '✓ Guardar promoción';
     } else if (sec === 'cupones') {
         ['c-codigo','c-valor','c-inicio','c-fin'].forEach(id => document.getElementById(id).value = ''); document.getElementById('c-tipo').value='porcentaje'; document.getElementById('c-max').value='1'; document.getElementById('btn-cupones-submit').textContent='✓ Guardar cupón';
-    } else if (sec === 'gastos') { document.getElementById('g-desc').value = ''; document.getElementById('g-monto').value = ''; document.getElementById('g-fecha').value = hoy; document.getElementById('btn-gastos-submit').textContent = '✓ Registrar'; }
+    } else if (sec === 'gastos') { document.getElementById('g-desc').value = ''; document.getElementById('g-monto').value = ''; document.getElementById('g-fecha').value = hoy; if (document.getElementById('g-mp-stock')) document.getElementById('g-mp-stock').value = ''; if (document.getElementById('g-mp-cantidad')) document.getElementById('g-mp-cantidad').value = ''; window.actualizarCamposMateriaPrima(); document.getElementById('btn-gastos-submit').textContent = '✓ Registrar'; }
 };
 
 window.imprimirComanda = function(id) { const v = window.db.ventas.find(x => x.id === id); if (!v) return; const htmlItems = (v.items || []).map(i => `<div style="margin-bottom:12px;border-bottom:1px dotted #888;padding-bottom:8px"><div style="font-size:16px"><strong>${i.qty} x ${i.burger}</strong></div>${i.extras && i.extras.length ? `<div style="font-size:13px;margin-top:4px;font-weight:bold">+ EXTRAS: ${i.extras.join(', ')}</div>` : ''}</div>`).join(''); document.getElementById('comanda-print').innerHTML = `<div style="text-align:center;margin-bottom:15px"><div style="font-family:'Bebas Neue',sans-serif;font-size:42px;margin:0;line-height:1">HANGAR 23</div><div style="font-size:14px;margin-top:4px">COMANDA</div></div><div style="border-top:2px dashed #000;border-bottom:2px dashed #000;padding:8px 0;margin-bottom:15px;font-size:14px"><div><strong>ID:</strong> ${v.id.slice(-5).toUpperCase()}</div><div><strong>CLIENTE:</strong> ${v.cliente.toUpperCase()}</div></div><div style="margin-bottom:15px">${htmlItems}</div><div style="border:2px solid #000;padding:8px;margin-bottom:15px"><strong style="font-size:14px">📝 NOTAS:</strong><div style="font-size:15px;font-weight:bold;margin-top:4px">${v.notas ? v.notas.toUpperCase() : 'NINGUNA'}</div></div><div style="text-align:center;font-size:12px;margin-top:20px">--- FIN DE TICKET ---</div>`; setTimeout(() => window.print(), 250); };
