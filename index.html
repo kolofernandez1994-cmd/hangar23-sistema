@@ -227,6 +227,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-section">General</div>
       <div class="nav-item active" onclick="showSection('dashboard')" data-s="dashboard"><span class="nav-icon">◈</span> Dashboard</div>
       <div class="nav-item" onclick="showSection('rentabilidad')" data-s="rentabilidad"><span class="nav-icon">↗</span> Rentabilidad real</div>
+      <div class="nav-item" onclick="showSection('objetivos')" data-s="objetivos"><span class="nav-icon">🎯</span> Objetivos</div>
       <div class="nav-section">Operaciones</div>
       <div class="nav-item" onclick="showSection('ventas')" data-s="ventas"><span class="nav-icon">◎</span> Ventas</div>
       <div class="nav-item" onclick="showSection('promociones')" data-s="promociones"><span class="nav-icon">★</span> Promociones</div>
@@ -319,6 +320,63 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
 
       <div class="metrics" id="rentabilidad-metrics"></div>
+    </div>
+
+
+    <div id="objetivos" class="section">
+      <div class="page-header">
+        <div class="page-title">Objetivos y comportamiento</div>
+        <div class="page-sub">Entendé cuánto necesitás vender y qué días generan más ventas.</div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <div>
+            <div class="card-title"><span class="icon">🎯</span> Base de cálculo</div>
+            <div class="page-sub" style="margin-top:4px">Usa el mismo período seleccionado en el Dashboard.</div>
+          </div>
+          <div style="font-family:var(--font-mono);color:var(--accent)" id="objetivos-periodo-label">—</div>
+        </div>
+      </div>
+
+      <div class="metrics" id="objetivos-situacion"></div>
+
+      <div class="grid-2" style="margin-top:12px">
+        <div class="card">
+          <div class="dash-section-head"><div class="card-title"><span class="icon">📊</span> Evolución de ventas</div><span class="mini-insight">Histórico mensual</span></div>
+          <div class="chart-wrap" style="height:260px"><canvas id="chartObjetivosVentas" aria-label="Evolución histórica de ventas"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="dash-section-head"><div class="card-title"><span class="icon">📈</span> Rentabilidad real</div><span class="mini-insight">Histórico mensual</span></div>
+          <div class="chart-wrap" style="height:260px"><canvas id="chartObjetivosRentabilidad" aria-label="Evolución histórica de rentabilidad real"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="dash-section-head"><div class="card-title"><span class="icon">🎯</span> Tu objetivo</div><span class="mini-insight" id="objetivo-ayuda">Definí una meta y el sistema calcula las ventas necesarias.</span></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" title="Qué porcentaje de tus ventas querés conservar como ganancia real después de costos y gastos operativos.">Rentabilidad deseada ⓘ</label>
+            <input type="number" id="obj-rentabilidad" min="0" max="99" step="0.1" value="50" oninput="window.renderObjetivos()">
+          </div>
+          <div class="form-group">
+            <label class="form-label" title="Ganancia neta en pesos que querés obtener durante el período.">Ganancia deseada ($) ⓘ</label>
+            <input type="number" id="obj-ganancia" min="0" step="1000" value="1000000" oninput="window.renderObjetivos()">
+          </div>
+        </div>
+        <div class="metrics" id="objetivos-calculo" style="margin-top:4px"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="dash-section-head"><div class="card-title"><span class="icon">📅</span> Comportamiento por día</div><span class="mini-insight">Promedio y récord histórico</span></div>
+        <div class="chart-wrap" style="height:260px"><canvas id="chartObjetivosDias" aria-label="Ventas promedio por día de la semana"></canvas></div>
+        <div id="objetivos-dias-detalle" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="dash-section-head"><div class="card-title"><span class="icon">🔎</span> Lectura rápida</div><span class="mini-insight">Interpretación automática</span></div>
+        <div id="objetivos-insights"></div>
+      </div>
     </div>
 
     <div id="ventas" class="section">
@@ -619,6 +677,120 @@ window.toggleSidebar = () => { document.getElementById('sidebar').classList.togg
 window.closeSidebar = () => { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); };
 window.toast = (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
+window.renderObjetivos = function() {
+    const situacion = document.getElementById('objetivos-situacion');
+    if (!situacion) return;
+    const hoy = window.getHoy();
+    const periodo = document.getElementById('dash-period')?.value || 'month';
+    const desde = document.getElementById('dash-from')?.value;
+    const hasta = document.getElementById('dash-to')?.value;
+    const nombrePeriodo = {today:'Hoy',week:'Últimos 7 días',month:'Este mes',all:'Todo el historial',custom:'Rango personalizado'}[periodo] || 'Período seleccionado';
+    const enPeriodo = fecha => {
+        if (!fecha) return false;
+        if (periodo === 'today') return fecha === hoy;
+        if (periodo === 'week') return diffDias(hoy, fecha) >= 0 && diffDias(hoy, fecha) <= 6;
+        if (periodo === 'month') return fecha.startsWith(hoy.slice(0,7));
+        if (periodo === 'custom') return (!desde || fecha >= desde) && (!hasta || fecha <= hasta);
+        return true;
+    };
+    const ventas = (window.db?.ventas || []).filter(v => enPeriodo(v.fecha));
+    const gastos = (window.db?.gastos || []).filter(g => enPeriodo(g.fecha));
+    const totalVentas = ventas.reduce((s,v)=>s+(Number(v.total)||0),0);
+    let cogs = 0;
+    ventas.forEach(v => (v.items||[]).forEach(item => {
+        const r = (window.db?.recetas||[]).find(x => limpiarText(x.nombre) === limpiarText(item.burger));
+        if (r) cogs += (window.costoReceta ? window.costoReceta(r) : (Number(r.costo)||0)) * (Number(item.qty)||0);
+    }));
+    let gastosVariables = 0, gastosFijos = 0, gastosMixtos = 0, gastosOperativos = 0;
+    gastos.forEach(g => {
+        const cat = limpiarText(g.cat || g.categoria);
+        const mp = cat === 'materia prima' || cat === 'materiaprima' || !!g.materiaPrimaId || !!g.ingredienteId;
+        if (mp) return;
+        const monto = Number(g.monto)||0;
+        gastosOperativos += monto;
+        const tipo = limpiarText(g.tipo);
+        if (tipo === 'fijo') gastosFijos += monto;
+        else if (tipo === 'mixto') gastosMixtos += monto;
+        else gastosVariables += monto;
+    });
+    // Para proyección: COGS + gastos variables forman el costo variable observado.
+    // Los mixtos se conservan como gasto histórico y se tratan de forma conservadora como fijos.
+    const costosVariables = cogs + gastosVariables;
+    const margenContribucion = totalVentas > 0 ? Math.max(0, (totalVentas - costosVariables) / totalVentas) : 0;
+    const fijosProyeccion = gastosFijos + gastosMixtos;
+    const resultadoReal = totalVentas - cogs - gastosOperativos;
+    const rentabilidadReal = totalVentas > 0 ? resultadoReal / totalVentas * 100 : 0;
+    const fmt = n => window.fmt(Math.round(n||0));
+    const esc = v => String(v ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    document.getElementById('objetivos-periodo-label').textContent = nombrePeriodo;
+    const tip = 'title="Indicador calculado con los datos reales del período seleccionado."';
+    situacion.innerHTML = `
+      <div class="metric" ${tip}><div class="metric-label">Ventas</div><div class="metric-value green">${fmt(totalVentas)}</div><div class="metric-sub">${ventas.length} pedidos</div></div>
+      <div class="metric" title="Porcentaje de cada venta que queda después de los costos variables, antes de gastos fijos."><div class="metric-label">Margen de contribución</div><div class="metric-value yellow">${(margenContribucion*100).toFixed(1)}%</div><div class="metric-sub">Ventas − costos variables</div></div>
+      <div class="metric" title="Gastos que no dependen directamente del volumen de ventas. Los mixtos se toman de forma conservadora para la proyección."><div class="metric-label">Gastos fijos proyectados</div><div class="metric-value">${fmt(fijosProyeccion)}</div><div class="metric-sub">Fijos + mixtos</div></div>
+      <div class="metric" title="Ganancia real del período después del costo de productos y gastos operativos."><div class="metric-label">Resultado real</div><div class="metric-value ${resultadoReal>=0?'green':'red'}">${fmt(resultadoReal)}</div><div class="metric-sub">Después de costos y gastos</div></div>
+      <div class="metric" title="Porcentaje de las ventas que termina como resultado real."><div class="metric-label">Rentabilidad real</div><div class="metric-value ${rentabilidadReal>=0?'yellow':'red'}">${rentabilidadReal.toFixed(1)}%</div><div class="metric-sub">Resultado real / ventas</div></div>`;
+
+    const targetMargin = parseFloat(document.getElementById('obj-rentabilidad')?.value);
+    const targetProfit = parseFloat(document.getElementById('obj-ganancia')?.value);
+    const calc = document.getElementById('objetivos-calculo');
+    const salesForMargin = margenContribucion > targetMargin/100 ? fijosProyeccion/(margenContribucion-targetMargin/100) : null;
+    const salesForProfit = margenContribucion > 0 ? (fijosProyeccion + Math.max(0,targetProfit||0))/margenContribucion : null;
+    const puntoEquilibrio = margenContribucion > 0 ? fijosProyeccion/margenContribucion : null;
+    const falta = salesForMargin === null ? null : Math.max(0,salesForMargin-totalVentas);
+    calc.innerHTML = `
+      <div class="metric" title="Ventas necesarias para que el resultado real represente el porcentaje de rentabilidad que elegiste."><div class="metric-label">Ventas para ${(Number.isFinite(targetMargin)?targetMargin:0).toFixed(1)}% real</div><div class="metric-value yellow">${salesForMargin===null?'No alcanzable':fmt(salesForMargin)}</div><div class="metric-sub">${salesForMargin===null?'El objetivo supera el margen de contribución':'Te faltan '+fmt(falta)}</div></div>
+      <div class="metric" title="Ventas necesarias para cubrir gastos fijos y alcanzar la ganancia en pesos indicada."><div class="metric-label">Ventas para ganar ${fmt(targetProfit||0)}</div><div class="metric-value green">${salesForProfit===null?'Sin datos':fmt(salesForProfit)}</div><div class="metric-sub">Ganancia objetivo</div></div>
+      <div class="metric" title="Nivel de ventas en el que se cubren los costos variables y gastos fijos, sin ganancia ni pérdida."><div class="metric-label">Punto de equilibrio</div><div class="metric-value">${puntoEquilibrio===null?'Sin datos':fmt(puntoEquilibrio)}</div><div class="metric-sub">Resultado real = $0</div></div>`;
+
+    // Histórico mensual: usa todos los datos disponibles y no modifica Firebase.
+    const meses = {};
+    (window.db?.ventas||[]).forEach(v=>{ if(!v.fecha) return; const k=v.fecha.slice(0,7); (meses[k] ||= {ventas:0,pedidos:0}); meses[k].ventas += Number(v.total)||0; meses[k].pedidos++; });
+    (window.db?.gastos||[]).forEach(g=>{ if(!g.fecha) return; const k=g.fecha.slice(0,7); (meses[k] ||= {ventas:0,pedidos:0}); });
+    const keys = Object.keys(meses).sort().slice(-6);
+    const histVentas = keys.map(k=>meses[k].ventas);
+    const histRent = keys.map(k=>{
+        const vs=(window.db?.ventas||[]).filter(v=>v.fecha?.startsWith(k));
+        const gs=(window.db?.gastos||[]).filter(g=>g.fecha?.startsWith(k));
+        const vt=vs.reduce((s,v)=>s+(Number(v.total)||0),0); let cv=0;
+        vs.forEach(v=>(v.items||[]).forEach(item=>{const r=(window.db?.recetas||[]).find(x=>limpiarText(x.nombre)===limpiarText(item.burger)); if(r) cv+=(window.costoReceta?window.costoReceta(r):(Number(r.costo)||0))*(Number(item.qty)||0);}));
+        let go=0; gs.forEach(g=>{const cat=limpiarText(g.cat||g.categoria); const mp=cat==='materia prima'||cat==='materiaprima'||!!g.materiaPrimaId||!!g.ingredienteId; if(!mp) go+=Number(g.monto)||0;});
+        return vt>0 ? ((vt-cv-go)/vt)*100 : 0;
+    });
+    const monthLabel = k => { const [y,m]=k.split('-'); return new Date(Number(y),Number(m)-1,1).toLocaleDateString('es-AR',{month:'short'}).replace('.',''); };
+    if(window._objVentasChart) window._objVentasChart.destroy();
+    if(window._objRentChart) window._objRentChart.destroy();
+    const cv=document.getElementById('chartObjetivosVentas');
+    const cr=document.getElementById('chartObjetivosRentabilidad');
+    if(cv && window.Chart && keys.length) window._objVentasChart=new Chart(cv,{type:'bar',data:{labels:keys.map(monthLabel),datasets:[{label:'Ventas',data:histVentas,backgroundColor:'#ffdb59',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)}}},scales:{y:{beginAtZero:true,ticks:{color:'#888',callback:v=>fmt(v)},grid:{color:'#2a2a2a'}},x:{ticks:{color:'#aaa'},grid:{display:false}}}}});
+    if(cr && window.Chart && keys.length) window._objRentChart=new Chart(cr,{type:'line',data:{labels:keys.map(monthLabel),datasets:[{label:'Rentabilidad real',data:histRent,borderColor:'#ffdb59',backgroundColor:'#ffdb59',tension:.25,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${Number(c.raw||0).toFixed(1)}%`}}},scales:{y:{ticks:{color:'#888',callback:v=>`${v}%`},grid:{color:'#2a2a2a'}},x:{ticks:{color:'#aaa'},grid:{display:false}}}}});
+
+    // Análisis por día de semana: todas las ventas históricas.
+    const nombres=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const porDia=nombres.map(nombre=>({nombre,dias:{},ventas:0,pedidos:0}));
+    (window.db?.ventas||[]).forEach(v=>{if(!v.fecha)return; const d=new Date(v.fecha+'T12:00:00').getDay(); porDia[d].ventas+=Number(v.total)||0; porDia[d].pedidos++; porDia[d].dias[v.fecha]=(porDia[d].dias[v.fecha]||0)+(Number(v.total)||0);});
+    const activos=porDia.filter(x=>x.pedidos>0);
+    const diasProm=activos.map(x=>({nombre:x.nombre, promedio:x.ventas/x.pedidos*1, pedidos:x.pedidos}));
+    // Promedio por jornada abierta: agrupa primero por fecha para no confundir cantidad de pedidos con cantidad de jornadas.
+    const jornadas=porDia.map(x=>{const vals=Object.values(x.dias);return {...x,promedio:vals.length?x.ventas/vals.length:0,mejor:vals.length?Math.max(...vals):0,fechaMejor:vals.length?Object.entries(x.dias).sort((a,b)=>b[1]-a[1])[0][0]:null,jornadas:vals.length};});
+    const diaOrden=['Jueves','Viernes','Sábado','Domingo'];
+    const jornadasActivas=jornadas.filter(x=>diaOrden.includes(x.nombre));
+    const chartDays=jornadasActivas;
+    const labels=chartDays.map(x=>x.nombre.replace('Miércoles','Mié.'));
+    const dayData=chartDays.map(x=>x.promedio);
+    if(window._objDiasChart) window._objDiasChart.destroy();
+    const cd=document.getElementById('chartObjetivosDias');
+    if(cd && window.Chart && chartDays.length) window._objDiasChart=new Chart(cd,{type:'bar',data:{labels,datasets:[{label:'Promedio por jornada',data:dayData,backgroundColor:'#ffdb59',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${fmt(c.raw)} promedio`}}},scales:{y:{beginAtZero:true,ticks:{color:'#888',callback:v=>fmt(v)},grid:{color:'#2a2a2a'}},x:{ticks:{color:'#aaa'},grid:{display:false}}}}});
+    const maxProm=Math.max(...chartDays.map(x=>x.promedio),0);
+    document.getElementById('objetivos-dias-detalle').innerHTML=chartDays.map(x=>`<div class="matrix-item"><strong>${x.nombre}${x.promedio===maxProm&&maxProm>0?' 🏆':''}</strong><span>Promedio ${fmt(x.promedio)} · Mejor ${x.mejor?fmt(x.mejor):'—'}${x.fechaMejor?' · '+x.fechaMejor.split('-').reverse().join('/'):''} · ${x.jornadas} jornada${x.jornadas===1?'':'s'}</span></div>`).join('') || '<div class="empty">Todavía no hay suficientes ventas para comparar días.</div>';
+
+    const insights=[];
+    if(chartDays.length){ const best=[...chartDays].sort((a,b)=>b.promedio-a.promedio)[0], worst=[...chartDays].sort((a,b)=>a.promedio-b.promedio)[0]; insights.push(`<div class="alert alert-ok">📅 <strong>${esc(best.nombre)}</strong> es actualmente el día con mayor venta promedio por jornada (${fmt(best.promedio)}).</div>`); if(worst.nombre!==best.nombre) insights.push(`<div class="alert alert-warn">🔎 <strong>${esc(worst.nombre)}</strong> tiene el menor promedio entre los días con registros (${fmt(worst.promedio)}).</div>`); }
+    if(salesForMargin!==null) insights.push(`<div class="alert ${totalVentas>=salesForMargin?'alert-ok':'alert-warn'}">🎯 ${totalVentas>=salesForMargin?'Ya superaste':'Necesitás vender'} ${fmt(salesForMargin)} para alcanzar una rentabilidad real del ${(Number.isFinite(targetMargin)?targetMargin:0).toFixed(1)}%.</div>`);
+    if(!insights.length) insights.push('<div class="empty">Necesitamos ventas registradas para generar una lectura.</div>');
+    document.getElementById('objetivos-insights').innerHTML=insights.join('');
+};
+
 window.renderRentabilidad = function() {
     const cont = document.getElementById('rentabilidad-metrics');
     if (!cont) return;
@@ -729,7 +901,7 @@ window.renderRentabilidad = function() {
 };
 
 
-window.render = function() { renderDash(); renderRentabilidad(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); };
+window.render = function() { renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); };
 
 // --- LOGICA DE UI INTELIGENTE PARA RECETAS Y EXTRAS ---
 window.renderIngredientesReceta = function() {
