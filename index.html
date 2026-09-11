@@ -512,7 +512,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Nombre</label><input type="text" id="r-nombre"></div>
           <div class="form-group"><label class="form-label">Tipo</label><select id="r-tipo"><option>Hamburguesa</option><option>Combo</option><option>Promo</option><option>Vegetariana</option><option>Bebida</option></select></div>
           <div class="form-group"><label class="form-label">Precio de venta ($)</label><input type="number" id="r-precio"></div>
-          <div class="form-group"><label class="form-label">Costo estimado ($)</label><input type="number" id="r-costo" readonly><div style="font-size:10px;color:var(--muted);margin-top:4px">Se calcula automáticamente con los ingredientes y sus costos de Stock.</div></div>
+          <div class="form-group"><label class="form-label">Costo estimado ($)</label><input type="number" id="r-costo" readonly><div style="font-size:10px;color:var(--muted);margin-top:4px">Se calcula automáticamente con los ingredientes y sus costos de Stock.</div><div id="r-costo-avisos" style="margin-top:6px"></div></div>
           <div class="form-group"><label class="form-label">Margen de ganancia (%)</label><input type="number" id="r-margen" min="0" max="99.99" step="0.1" placeholder="Ej: 60"><div style="font-size:10px;color:var(--muted);margin-top:4px">Al modificarlo, calcula el precio de venta.</div></div>
         </div>
         <div class="form-group" style="margin-bottom:14px"><label class="form-label">Descripción</label><input type="text" id="r-desc"></div>
@@ -627,6 +627,21 @@ window.fmt = (n) => '$' + Math.round(n).toLocaleString('es-AR');
 window.pct = (a, b) => b ? Math.round((a / b) * 100) : 0;
 const limpiarText = (txt) => txt ? txt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() : '';
 
+// Costo promedio ponderado: al sumar una compra nueva a un stock existente, el costo
+// resultante es el promedio entre lo que ya tenías y lo que compraste, en vez de
+// reemplazar todo por el precio de la última compra (que distorsiona el margen
+// cuando el precio de un insumo sube o baja).
+function costoPromedioPonderado(cantidadAnterior, costoAnterior, cantidadNueva, costoNuevo) {
+    const cantAnt = Number(cantidadAnterior) || 0;
+    const costAnt = Number(costoAnterior) || 0;
+    const cantNueva = Number(cantidadNueva) || 0;
+    const costNuevo = Number(costoNuevo) || 0;
+    const cantidadTotal = cantAnt + cantNueva;
+    if (cantidadTotal <= 0) return costNuevo;
+    if (costNuevo <= 0) return costAnt; // no se informó costo nuevo: no hay nada que promediar
+    return Math.round(((cantAnt * costAnt + cantNueva * costNuevo) / cantidadTotal) * 100) / 100;
+}
+
 function diffDias(d1, d2) {
     if (!d1 || !d2) return Infinity;
     const f1 = new Date(d1 + 'T12:00:00');
@@ -698,8 +713,11 @@ window.renderObjetivos = function() {
     const totalVentas = ventas.reduce((s,v)=>s+(Number(v.total)||0),0);
     let cogs = 0;
     ventas.forEach(v => (v.items||[]).forEach(item => {
+        const cantidadItem = Number(item.qty)||0;
+        if (cantidadItem <= 0) return;
+        if (item.costoUnitario !== undefined && item.costoUnitario !== null) { cogs += (Number(item.costoUnitario)||0) * cantidadItem; return; }
         const r = (window.db?.recetas||[]).find(x => limpiarText(x.nombre) === limpiarText(item.burger));
-        if (r) cogs += (window.costoReceta ? window.costoReceta(r) : (Number(r.costo)||0)) * (Number(item.qty)||0);
+        if (r) cogs += (Number(r.costo)||0) * cantidadItem;
     }));
     let gastosVariables = 0, gastosFijos = 0, gastosMixtos = 0, gastosOperativos = 0;
     gastos.forEach(g => {
@@ -753,7 +771,7 @@ window.renderObjetivos = function() {
         const vs=(window.db?.ventas||[]).filter(v=>v.fecha?.startsWith(k));
         const gs=(window.db?.gastos||[]).filter(g=>g.fecha?.startsWith(k));
         const vt=vs.reduce((s,v)=>s+(Number(v.total)||0),0); let cv=0;
-        vs.forEach(v=>(v.items||[]).forEach(item=>{const r=(window.db?.recetas||[]).find(x=>limpiarText(x.nombre)===limpiarText(item.burger)); if(r) cv+=(window.costoReceta?window.costoReceta(r):(Number(r.costo)||0))*(Number(item.qty)||0);}));
+        vs.forEach(v=>(v.items||[]).forEach(item=>{const qtyItem=Number(item.qty)||0; if(qtyItem<=0)return; if(item.costoUnitario!==undefined&&item.costoUnitario!==null){cv+=(Number(item.costoUnitario)||0)*qtyItem;return;} const r=(window.db?.recetas||[]).find(x=>limpiarText(x.nombre)===limpiarText(item.burger)); if(r) cv+=(Number(r.costo)||0)*qtyItem;}));
         let go=0; gs.forEach(g=>{const cat=limpiarText(g.cat||g.categoria); const mp=cat==='materia prima'||cat==='materiaprima'||!!g.materiaPrimaId||!!g.ingredienteId; if(!mp) go+=Number(g.monto)||0;});
         return vt>0 ? ((vt-cv-go)/vt)*100 : 0;
     });
@@ -814,17 +832,24 @@ window.renderRentabilidad = function() {
 
     const ventasTotal = ventas.reduce((sum, v) => sum + (Number(v.total) || 0), 0);
 
-    // Costo de mercadería vendida: toma cada producto realmente vendido
-    // y usa el costo estándar que ya calcula el módulo de Recetas.
+    // Costo de mercadería vendida: toma cada producto realmente vendido.
+    // Prioriza el costo guardado en la propia venta (costoUnitario, capturado al momento
+    // de vender) para que la rentabilidad histórica no cambie si después suben los insumos.
+    // Si la venta es anterior a este cambio y no tiene costoUnitario, cae al costo actual de la receta.
     let costoVendido = 0;
     ventas.forEach(v => {
         (v.items || []).forEach(item => {
+            const cantidad = Number(item.qty) || 0;
+            if (cantidad <= 0) return;
+            if (item.costoUnitario !== undefined && item.costoUnitario !== null) {
+                costoVendido += (Number(item.costoUnitario) || 0) * cantidad;
+                return;
+            }
             const receta = (window.db?.recetas || []).find(
                 r => limpiarText(r.nombre) === limpiarText(item.burger)
             );
-            const cantidad = Number(item.qty) || 0;
-            if (receta && cantidad > 0) {
-                costoVendido += (window.costoReceta ? window.costoReceta(receta) : (Number(receta.costo) || 0)) * cantidad;
+            if (receta) {
+                costoVendido += (Number(receta.costo) || 0) * cantidad;
             }
         });
     });
@@ -948,23 +973,30 @@ window.actualizarCostoRecetaFormulario = function() {
     if (!costoEl) return 0;
     let total = 0;
     let hayIngredienteValido = false;
+    const avisos = [];
 
     (window.ingredientesRecetaTemp || []).forEach(ing => {
         const nombre = (ing.nombre || '').trim();
         const cantidad = parseFloat(ing.cant);
         if (!nombre || !Number.isFinite(cantidad) || cantidad <= 0) return;
         const stock = window.db.stock.find(s => limpiarText(s.nombre) === limpiarText(nombre));
-        if (!stock) return;
+        if (!stock) { avisos.push(`"${nombre}" no está en Stock`); return; }
         const costo = costoEstandarIngredienteReceta(stock);
-        if (costo === null) return;
+        if (costo === null) { avisos.push(`"${nombre}" no tiene costo cargado en Stock`); return; }
         const cantidadStock = convertirCantidadReceta(cantidad, ing.unidad || stock.unidad, stock.unidad);
-        if (cantidadStock === null) return;
+        if (cantidadStock === null) { avisos.push(`"${nombre}": no se pudo convertir ${ing.unidad || '?'} a ${stock.unidad} (revisá la unidad)`); return; }
         total += cantidadStock * costo;
         hayIngredienteValido = true;
     });
 
     const calculado = hayIngredienteValido ? Math.round(total) : 0;
     costoEl.value = calculado > 0 ? calculado : '';
+    const avisosEl = document.getElementById('r-costo-avisos');
+    if (avisosEl) {
+        avisosEl.innerHTML = avisos.length
+            ? `<div class="alert alert-warn" style="margin-bottom:0;font-size:11px">⚠ El costo NO incluye: ${avisos.join(' · ')}. El costo real de esta receta es más alto que el que se muestra.</div>`
+            : '';
+    }
     return calculado;
 };
 
@@ -1171,12 +1203,32 @@ function renderDash() {
     const vip = Object.entries(clientes).sort((a, b) => b[1] - a[1])[0];
     const masVendido = ranking[0];
     const criticos = window.db.stock.filter(item => item.cantidad <= item.minimo);
-    const ganancias = facturacion - egresos;
+    // Resultado de caja: ventas menos TODOS los gastos del período, incluidas las compras de
+    // materia prima (que en realidad son inventario, no costo de lo vendido). Sirve para saber
+    // cuánto efectivo movió el negocio, pero NO es la rentabilidad real — por eso se calcula
+    // también el resultado real con el mismo criterio que el módulo Rentabilidad.
+    const resultadoCajaPeriodo = facturacion - egresos;
+    let costoVendidoPeriodo = 0;
+    ventas.forEach(venta => (venta.items || []).forEach(item => {
+        const cantidadItem = Number(item.qty) || 0;
+        if (cantidadItem <= 0) return;
+        if (item.costoUnitario !== undefined && item.costoUnitario !== null) { costoVendidoPeriodo += (Number(item.costoUnitario) || 0) * cantidadItem; return; }
+        const recetaItem = (window.db?.recetas || []).find(r => limpiarText(r.nombre) === limpiarText(item.burger));
+        if (recetaItem) costoVendidoPeriodo += (Number(recetaItem.costo) || 0) * cantidadItem;
+    }));
+    let gastosOperativosPeriodo = 0;
+    gastos.forEach(gasto => {
+        const categoriaGasto = limpiarText(gasto.cat || gasto.categoria);
+        const esMateriaPrimaGasto = categoriaGasto === 'materia prima' || categoriaGasto === 'materiaprima' || !!gasto.materiaPrimaId || !!gasto.ingredienteId;
+        if (!esMateriaPrimaGasto) gastosOperativosPeriodo += Number(gasto.monto) || 0;
+    });
+    const resultadoRealPeriodo = facturacion - costoVendidoPeriodo - gastosOperativosPeriodo;
     document.getElementById('dash-metrics').innerHTML = `
       <div class="metric"><div class="metric-label">Ventas hoy</div><div class="metric-value yellow">${window.fmt(ventasHoy)}</div><div class="metric-sub">Facturación diaria</div></div>
       <div class="metric"><div class="metric-label">Ventas del período</div><div class="metric-value green">${window.fmt(facturacion)}</div><div class="metric-sub">${pedidos} pedido${pedidos === 1 ? '' : 's'}</div></div>
       <div class="metric"><div class="metric-label">Ticket promedio</div><div class="metric-value blue">${window.fmt(ticket)}</div><div class="metric-sub">Por pedido</div></div>
-      <div class="metric"><div class="metric-label">Ganancia estimada</div><div class="metric-value ${ganancias >= 0 ? 'green' : 'red'}">${window.fmt(ganancias)}</div><div class="metric-sub">Ventas menos gastos</div></div>
+      <div class="metric" title="Ventas menos TODOS los gastos del período, incluidas las compras de materia prima. Es un indicador de efectivo, no de rentabilidad."><div class="metric-label">Resultado de caja</div><div class="metric-value ${resultadoCajaPeriodo >= 0 ? 'green' : 'red'}">${window.fmt(resultadoCajaPeriodo)}</div><div class="metric-sub">Ventas − todos los gastos (incl. compras)</div></div>
+      <div class="metric" title="Ventas menos el costo de lo efectivamente vendido y los gastos operativos (excluye compras de materia prima). Este es el que refleja la rentabilidad real."><div class="metric-label">Resultado real</div><div class="metric-value ${resultadoRealPeriodo >= 0 ? 'green' : 'red'}">${window.fmt(resultadoRealPeriodo)}</div><div class="metric-sub">Ventas − costo vendido − gastos operativos</div></div>
       <div class="metric"><div class="metric-label">Cliente VIP</div><div class="metric-value orange" style="font-size:20px">${vip ? esc(vip[0]) : '—'}</div><div class="metric-sub">${vip ? window.fmt(vip[1]) + ' en compras' : 'Sin registros'}</div></div>
       <div class="metric"><div class="metric-label">Producto líder</div><div class="metric-value yellow" style="font-size:20px">${masVendido ? esc(masVendido[0]) : '—'}</div><div class="metric-sub">${masVendido ? masVendido[1] + ' unidades' : 'Sin ventas'}</div></div>
       <div class="metric"><div class="metric-label">Stock crítico</div><div class="metric-value ${criticos.length ? 'red' : 'green'}">${criticos.length}</div><div class="metric-sub">Requiere reposición</div></div>`;
@@ -1387,7 +1439,9 @@ window.agregarAlCarrito = function() {
     const qty = parseInt(document.getElementById('v-qty').value) || 1;
     const extras = [...document.querySelectorAll('#v-extras input:checked')].map(i => i.value);
     const subtotal = parseFloat(document.getElementById('v-item-precio').value) || 0;
-    window.carritoActual.push({ burger, qty, extras, subtotal });
+    const recetaSeleccionada = window.db.recetas.find(r => r.nombre === burger);
+    const costoUnitario = recetaSeleccionada ? (Number(recetaSeleccionada.costo) || 0) : 0;
+    window.carritoActual.push({ burger, qty, extras, subtotal, costoUnitario });
     document.getElementById('v-qty').value = 1; document.querySelectorAll('#v-extras input').forEach(i => i.checked = false);
     window.actualizarPrecioItem(); window.renderCarrito();
 };
@@ -1492,7 +1546,10 @@ window.guardarStock = async function() {
         if (window.editando.stock) { await updateDoc(doc(fsDb, 'stock', window.editando.stock), data); window.toast('✓ Actualizado'); } 
         else {
             const ex = window.db.stock.find(s => s.nombre.toLowerCase() === data.nombre.toLowerCase());
-            if (ex) { await updateDoc(doc(fsDb, 'stock', ex.id), { cantidad: Math.round((ex.cantidad + data.cantidad) * 100) / 100, fecha: data.fecha, ...(data.costo ? { costo: data.costo } : {}) }); } 
+            if (ex) {
+                const nuevoCosto = costoPromedioPonderado(ex.cantidad, ex.costo, data.cantidad, data.costo);
+                await updateDoc(doc(fsDb, 'stock', ex.id), { cantidad: Math.round((ex.cantidad + data.cantidad) * 100) / 100, fecha: data.fecha, costo: nuevoCosto });
+            } 
             else { await addDoc(collection(fsDb, 'stock'), data); }
             window.toast('✓ Guardado');
         }
@@ -1615,7 +1672,9 @@ window.guardarGasto = async function() {
                 if (!stock) throw new Error('Ingrediente de stock no encontrado');
                 data.stockId = stock.id;
                 data.cantidadStock = cantidadMP;
-                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100, fecha: data.fecha });
+                const costoUnitarioCompra = cantidadMP > 0 ? (data.monto / cantidadMP) : 0;
+                const nuevoCosto = costoPromedioPonderado(stock.cantidad, stock.costo, cantidadMP, costoUnitarioCompra);
+                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100, costo: nuevoCosto, fecha: data.fecha });
             }
             await addDoc(collection(fsDb, 'gastos'), data);
         }
@@ -1695,6 +1754,7 @@ window.cancelarEdicion = function(sec) {
         ['r-nombre', 'r-precio', 'r-costo', 'r-margen', 'r-desc'].forEach(id => document.getElementById(id).value = ''); 
         window.ingredientesRecetaTemp = [];
         window.renderIngredientesReceta();
+        const avisosEl = document.getElementById('r-costo-avisos'); if (avisosEl) avisosEl.innerHTML = '';
         document.getElementById('btn-recetas-submit').textContent = '✓ Guardar Receta'; 
     } else if (sec === 'extras') { 
         ['e-nombre', 'e-precio', 'e-ing-nom', 'e-ing-cant'].forEach(id => document.getElementById(id).value = ''); 
