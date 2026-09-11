@@ -282,14 +282,22 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div id="dash-alertas"></div>
         </div>
         <div class="card">
-          <div class="dash-section-head"><div class="card-title"><span class="icon">★</span> Ingeniería del menú</div><span class="mini-insight">Período seleccionado</span></div>
-          <div style="display:flex;gap:10px;flex-direction:column">
+          <div class="dash-section-head"><div class="card-title"><span class="icon">★</span> Ingeniería del menú</div><span class="mini-insight">Popularidad × margen — período seleccionado</span></div>
+          <div class="grid-2" style="gap:10px">
             <div>
-              <div style="font-size:11px;text-transform:uppercase;color:var(--success);letter-spacing:1px;margin-bottom:4px">Más vendida (cantidad mensual)</div>
+              <div style="font-size:11px;text-transform:uppercase;color:var(--success);letter-spacing:1px;margin-bottom:4px">⭐ Estrellas (vende mucho, deja margen)</div>
               <div id="matrix-estrellas" style="background:var(--surface2);padding:8px 12px;border-radius:8px"></div>
             </div>
             <div>
-              <div style="font-size:11px;text-transform:uppercase;color:var(--danger);letter-spacing:1px;margin-bottom:4px">Menos vendida (cantidad mensual)</div>
+              <div style="font-size:11px;text-transform:uppercase;color:var(--accent);letter-spacing:1px;margin-bottom:4px">🐴 Caballos de batalla (vende mucho, poco margen)</div>
+              <div id="matrix-vacas" style="background:var(--surface2);padding:8px 12px;border-radius:8px"></div>
+            </div>
+            <div>
+              <div style="font-size:11px;text-transform:uppercase;color:var(--warning);letter-spacing:1px;margin-bottom:4px">🧩 Incógnitas (vende poco, deja margen)</div>
+              <div id="matrix-incognitas" style="background:var(--surface2);padding:8px 12px;border-radius:8px"></div>
+            </div>
+            <div>
+              <div style="font-size:11px;text-transform:uppercase;color:var(--danger);letter-spacing:1px;margin-bottom:4px">🐶 Perros (vende poco, poco margen)</div>
               <div id="matrix-perros" style="background:var(--surface2);padding:8px 12px;border-radius:8px"></div>
             </div>
           </div>
@@ -501,6 +509,21 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <button class="btn" id="btn-stock-cancel" style="display:none" onclick="cancelarEdicion('stock')">✕ Cancelar</button>
         </div>
       </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">⚠</span> Registrar merma</div>
+        <div class="page-sub" style="margin:-8px 0 12px">Para vencimientos, roturas o errores de preparación — descuenta del stock sin registrarlo como venta ni como gasto.</div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Ingrediente</label><select id="m-ingrediente"><option value="">Seleccionar...</option></select></div>
+          <div class="form-group"><label class="form-label">Cantidad perdida</label><input type="number" id="m-cantidad" placeholder="0" step="0.01"></div>
+          <div class="form-group"><label class="form-label">Motivo</label><select id="m-motivo"><option>Vencimiento</option><option>Rotura o derrame</option><option>Error de preparación</option><option>Otro</option></select></div>
+        </div>
+        <button class="btn btn-danger" onclick="registrarMerma()">✓ Registrar merma</button>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">📜</span> Movimientos recientes</div>
+        <div class="page-sub" style="margin:-8px 0 12px">Compras, ediciones y mermas de stock. Solo se puede deshacer el último movimiento activo de cada ingrediente.</div>
+        <div id="stock-movimientos"></div>
+      </div>
       <div class="card"><div class="card-title"><span class="icon">▣</span> Inventario actual</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Ingrediente</th><th>Cat</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Costo</th><th>Acciones</th></tr></thead><tbody id="stock-tabla"></tbody></table></div></div>
       <div class="card"><div class="card-title"><span class="icon">◈</span> Capacidad de fabricación</div><div class="page-sub" style="margin:-12px 0 16px">Con el stock actual podés preparar:</div><div class="receta-grid" id="stock-capacidad"></div></div>
     </div>
@@ -615,7 +638,7 @@ const fsDb = getFirestore(app);
 
 window.getHoy = function() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
-window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [], cajas: [] };
+window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [], cajas: [], clientes: [], movimientos_stock: [] };
 window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null, promociones: null, cupones: null };
 window.carritoActual = [];
 window.cuponAplicado = null;
@@ -642,6 +665,99 @@ function costoPromedioPonderado(cantidadAnterior, costoAnterior, cantidadNueva, 
     return Math.round(((cantAnt * costAnt + cantNueva * costNuevo) / cantidadTotal) * 100) / 100;
 }
 
+// Historial de movimientos de stock: registra el estado ANTERIOR de un ingrediente antes de
+// cada compra, edición o merma, para poder deshacer un movimiento con "↩ Deshacer" y para
+// tener trazabilidad de por qué cambió una cantidad o un costo.
+async function registrarMovimientoStock(stockAntes, cantidadNueva, costoNuevo, tipo, motivo) {
+    try {
+        await addDoc(collection(fsDb, 'movimientos_stock'), {
+            stockId: stockAntes.id,
+            nombre: stockAntes.nombre,
+            unidad: stockAntes.unidad || '',
+            tipo,
+            motivo: motivo || '',
+            fecha: window.getHoy(),
+            cantidadAnterior: Number(stockAntes.cantidad) || 0,
+            costoAnterior: Number(stockAntes.costo) || 0,
+            cantidadNueva: Number(cantidadNueva) || 0,
+            costoNuevo: Number(costoNuevo) || 0,
+            revertido: false,
+            creadoEn: Date.now()
+        });
+    } catch(e) { console.error('No se pudo registrar el movimiento de stock', e); }
+}
+
+window.deshacerMovimientoStock = async function(movId) {
+    const mov = window.db.movimientos_stock.find(m => m.id === movId);
+    if (!mov) { window.toast('⚠ Movimiento no encontrado'); return; }
+    const activos = window.db.movimientos_stock.filter(m => m.stockId === mov.stockId && !m.revertido).sort((a,b) => (b.creadoEn||0) - (a.creadoEn||0));
+    if (!activos.length || activos[0].id !== mov.id) { window.toast('⚠ Solo se puede deshacer el último movimiento activo de este ingrediente'); return; }
+    if (!confirm(`¿Deshacer este movimiento de "${mov.nombre}"? Va a volver a ${mov.cantidadAnterior} ${mov.unidad} a $${mov.costoAnterior}.`)) return;
+    try {
+        await updateDoc(doc(fsDb, 'stock', mov.stockId), { cantidad: mov.cantidadAnterior, costo: mov.costoAnterior });
+        await updateDoc(doc(fsDb, 'movimientos_stock', mov.id), { revertido: true });
+        window.toast('✓ Movimiento deshecho');
+    } catch(e) { console.error(e); window.toast('⚠ No se pudo deshacer'); }
+};
+
+window.registrarMerma = async function() {
+    const stockId = document.getElementById('m-ingrediente')?.value || '';
+    const cantidad = parseFloat(document.getElementById('m-cantidad')?.value) || 0;
+    const motivo = document.getElementById('m-motivo')?.value || 'Otro';
+    if (!stockId || cantidad <= 0) { window.toast('⚠ Elegí un ingrediente y una cantidad'); return; }
+    const stock = window.db.stock.find(s => s.id === stockId);
+    if (!stock) { window.toast('⚠ Ingrediente no encontrado'); return; }
+    const nuevaCantidad = Math.round(Math.max(0, (Number(stock.cantidad) || 0) - cantidad) * 100) / 100;
+    try {
+        await registrarMovimientoStock(stock, nuevaCantidad, stock.costo, 'merma', motivo);
+        await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: nuevaCantidad });
+        window.toast('✓ Merma registrada');
+        document.getElementById('m-cantidad').value = '';
+    } catch(e) { console.error(e); window.toast('⚠ No se pudo registrar la merma'); }
+};
+
+function renderMovimientosStock() {
+    const sel = document.getElementById('m-ingrediente');
+    if (sel) { const actual = sel.value; sel.innerHTML = '<option value="">Seleccionar...</option>' + window.db.stock.map(s => `<option value="${s.id}">${s.nombre} (${s.cantidad} ${s.unidad})</option>`).join(''); if (actual) sel.value = actual; }
+    const cont = document.getElementById('stock-movimientos');
+    if (!cont) return;
+    const etiquetas = { compra: '🛒 Compra', edicion: '✎ Edición', edicion_compra: '✎ Compra editada', merma: '⚠ Merma' };
+    const activosPorStock = {};
+    window.db.movimientos_stock.forEach(m => { if (!m.revertido && !activosPorStock[m.stockId]) activosPorStock[m.stockId] = m.id; });
+    const recientes = window.db.movimientos_stock.slice(0, 20);
+    cont.innerHTML = recientes.length ? recientes.map(m => {
+        const esUltimoActivo = !m.revertido && activosPorStock[m.stockId] === m.id;
+        const cambioCant = `${m.cantidadAnterior} → ${m.cantidadNueva} ${m.unidad}`;
+        const cambioCosto = m.costoAnterior !== m.costoNuevo ? ` · costo ${window.fmt(m.costoAnterior)} → ${window.fmt(m.costoNuevo)}` : '';
+        return `<div class="matrix-item" style="opacity:${m.revertido ? 0.5 : 1}">
+            <strong>${etiquetas[m.tipo] || m.tipo} — ${m.nombre}</strong>
+            <span>${cambioCant}${cambioCosto}${m.motivo ? ' · ' + m.motivo : ''}${m.revertido ? ' · (deshecho)' : ''}</span>
+            ${esUltimoActivo ? `<button class="btn btn-sm btn-danger" style="margin-top:6px" onclick="deshacerMovimientoStock('${m.id}')">↩ Deshacer</button>` : ''}
+        </div>`;
+    }).join('') : '<div class="empty" style="padding:4px">Todavía no hay movimientos registrados</div>';
+}
+
+// Clientes con ID propio: antes cada venta guardaba el nombre del cliente como texto libre,
+// así que "Juan" y "juan " contaban como dos clientes distintos en las estadísticas de
+// recurrencia. Ahora cada venta nueva queda asociada a un cliente con ID fijo (buscado por
+// nombre normalizado, o creado si no existe), y todo lo que agrupa por cliente usa ese ID.
+async function obtenerOCrearCliente(nombreInput) {
+    const nombre = (nombreInput || '').trim();
+    if (!nombre) return null;
+    const norm = limpiarText(nombre);
+    const existente = window.db.clientes.find(c => limpiarText(c.nombre) === norm);
+    if (existente) return existente.id;
+    try {
+        const ref = await addDoc(collection(fsDb, 'clientes'), { nombre, creadoEn: Date.now() });
+        return ref.id;
+    } catch(e) { console.error('No se pudo crear el cliente', e); return null; }
+}
+function claveCliente(venta) { return venta.clienteId || ('n_' + limpiarText(venta.cliente || '')); }
+function nombreCliente(venta) {
+    if (venta.clienteId) { const c = window.db.clientes.find(x => x.id === venta.clienteId); if (c) return c.nombre; }
+    return venta.cliente || '(Sin nombre)';
+}
+
 function diffDias(d1, d2) {
     if (!d1 || !d2) return Infinity;
     const f1 = new Date(d1 + 'T12:00:00');
@@ -663,10 +779,11 @@ window.cargarDatosBase = async function() {
     try { for (const r of recetasBase) { await addDoc(collection(fsDb, 'recetas'), r); } window.toast('✓ Menú base restaurado'); } catch(e) { window.toast('⚠ Error'); }
 };
 
-['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas'].forEach(colName => {
+['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas', 'clientes', 'movimientos_stock'].forEach(colName => {
     onSnapshot(collection(fsDb, colName), (snapshot) => {
         window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+        if (colName === 'movimientos_stock') window.db[colName].sort((a, b) => (b.creadoEn || 0) - (a.creadoEn || 0));
         window.render();
         if (colName === 'recetas' || colName === 'extras') {
             const sel = document.getElementById('v-burger');
@@ -926,7 +1043,7 @@ window.renderRentabilidad = function() {
 };
 
 
-window.render = function() { renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); };
+window.render = function() { renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderMovimientosStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); };
 
 // --- LOGICA DE UI INTELIGENTE PARA RECETAS Y EXTRAS ---
 window.renderIngredientesReceta = function() {
@@ -1194,13 +1311,17 @@ function renderDash() {
     document.getElementById('meta-info').textContent = `${window.fmt(ventasMes)} vendidos este mes · faltan ${window.fmt(Math.max(0, meta - ventasMes))} (${metaPct}%)`;
 
     const productos = {};
-    const clientes = {};
+    const clientesMap = {};
     ventas.forEach(venta => {
-        if (venta.cliente) clientes[venta.cliente] = (clientes[venta.cliente] || 0) + (venta.total || 0);
+        if (venta.cliente) {
+            const clave = claveCliente(venta);
+            if (!clientesMap[clave]) clientesMap[clave] = { nombre: nombreCliente(venta), total: 0 };
+            clientesMap[clave].total += (venta.total || 0);
+        }
         (venta.items || []).forEach(item => productos[item.burger] = (productos[item.burger] || 0) + (item.qty || 0));
     });
     const ranking = Object.entries(productos).sort((a, b) => b[1] - a[1]);
-    const vip = Object.entries(clientes).sort((a, b) => b[1] - a[1])[0];
+    const vip = Object.values(clientesMap).sort((a, b) => b.total - a.total)[0];
     const masVendido = ranking[0];
     const criticos = window.db.stock.filter(item => item.cantidad <= item.minimo);
     // Resultado de caja: ventas menos TODOS los gastos del período, incluidas las compras de
@@ -1229,15 +1350,26 @@ function renderDash() {
       <div class="metric"><div class="metric-label">Ticket promedio</div><div class="metric-value blue">${window.fmt(ticket)}</div><div class="metric-sub">Por pedido</div></div>
       <div class="metric" title="Ventas menos TODOS los gastos del período, incluidas las compras de materia prima. Es un indicador de efectivo, no de rentabilidad."><div class="metric-label">Resultado de caja</div><div class="metric-value ${resultadoCajaPeriodo >= 0 ? 'green' : 'red'}">${window.fmt(resultadoCajaPeriodo)}</div><div class="metric-sub">Ventas − todos los gastos (incl. compras)</div></div>
       <div class="metric" title="Ventas menos el costo de lo efectivamente vendido y los gastos operativos (excluye compras de materia prima). Este es el que refleja la rentabilidad real."><div class="metric-label">Resultado real</div><div class="metric-value ${resultadoRealPeriodo >= 0 ? 'green' : 'red'}">${window.fmt(resultadoRealPeriodo)}</div><div class="metric-sub">Ventas − costo vendido − gastos operativos</div></div>
-      <div class="metric"><div class="metric-label">Cliente VIP</div><div class="metric-value orange" style="font-size:20px">${vip ? esc(vip[0]) : '—'}</div><div class="metric-sub">${vip ? window.fmt(vip[1]) + ' en compras' : 'Sin registros'}</div></div>
+      <div class="metric"><div class="metric-label">Cliente VIP</div><div class="metric-value orange" style="font-size:20px">${vip ? esc(vip.nombre) : '—'}</div><div class="metric-sub">${vip ? window.fmt(vip.total) + ' en compras' : 'Sin registros'}</div></div>
       <div class="metric"><div class="metric-label">Producto líder</div><div class="metric-value yellow" style="font-size:20px">${masVendido ? esc(masVendido[0]) : '—'}</div><div class="metric-sub">${masVendido ? masVendido[1] + ' unidades' : 'Sin ventas'}</div></div>
       <div class="metric"><div class="metric-label">Stock crítico</div><div class="metric-value ${criticos.length ? 'red' : 'green'}">${criticos.length}</div><div class="metric-sub">Requiere reposición</div></div>`;
 
     const menuStats = window.db.recetas.map(receta => ({ nombre: receta.nombre, sold: productos[receta.nombre] || 0, margin: (receta.precio || 0) - (receta.costo || 0) }));
-    const estrellas = menuStats.filter(item => item.sold).sort((a,b) => b.sold - a.sold).slice(0,3);
-    const perros = [...menuStats].sort((a,b) => a.sold - b.sold).slice(0,3);
-    const matriz = items => items.length ? items.map(item => `<div class="matrix-item"><strong>${esc(item.nombre)}</strong><span>${item.sold} ud. · ${window.fmt(item.margin)}/ud</span></div>`).join('') : '<div class="empty" style="padding:4px">Sin datos en este período</div>';
+    // Ingeniería de menú clásica (Kasavana & Smith): cruza popularidad (unidades vendidas)
+    // con margen por unidad, usando el promedio del período como línea de corte en cada eje.
+    // Antes esto solo ordenaba por unidades vendidas y mostraba el margen como dato suelto,
+    // sin usarlo para clasificar — un producto podía ser "el más vendido" y perder plata igual.
+    const conVentas = menuStats.filter(item => item.sold > 0);
+    const promedioSold = conVentas.length ? conVentas.reduce((s, i) => s + i.sold, 0) / conVentas.length : 0;
+    const promedioMargin = conVentas.length ? conVentas.reduce((s, i) => s + i.margin, 0) / conVentas.length : 0;
+    const estrellas = conVentas.filter(i => i.sold >= promedioSold && i.margin >= promedioMargin).sort((a,b) => b.sold - a.sold);
+    const vacas = conVentas.filter(i => i.sold >= promedioSold && i.margin < promedioMargin).sort((a,b) => b.sold - a.sold);
+    const incognitas = conVentas.filter(i => i.sold < promedioSold && i.margin >= promedioMargin).sort((a,b) => b.margin - a.margin);
+    const perros = menuStats.filter(i => i.sold === 0 || (i.sold < promedioSold && i.margin < promedioMargin)).sort((a,b) => a.sold - b.sold);
+    const matriz = items => items.length ? items.slice(0,4).map(item => `<div class="matrix-item"><strong>${esc(item.nombre)}</strong><span>${item.sold} ud. · ${window.fmt(item.margin)}/ud</span></div>`).join('') : '<div class="empty" style="padding:4px">Sin datos en este período</div>';
     document.getElementById('matrix-estrellas').innerHTML = matriz(estrellas);
+    document.getElementById('matrix-vacas').innerHTML = matriz(vacas);
+    document.getElementById('matrix-incognitas').innerHTML = matriz(incognitas);
     document.getElementById('matrix-perros').innerHTML = matriz(perros);
 
     const alertas = criticos.map(item => `<div class="alert alert-danger">⚠ <strong>${esc(item.nombre)}</strong>: ${item.cantidad} ${esc(item.unidad)} disponibles (mínimo: ${item.minimo})</div>`);
@@ -1379,28 +1511,29 @@ function renderCupones() {
 }
 
 function filtroReporte() { const periodo=document.getElementById('rpt-period')?.value||'month', desde=document.getElementById('rpt-from')?.value, hasta=document.getElementById('rpt-to')?.value, hoy=window.getHoy(); return fecha => { if(!fecha)return false; if(periodo==='today')return fecha===hoy; if(periodo==='week')return diffDias(hoy,fecha)>=0&&diffDias(hoy,fecha)<=6; if(periodo==='month')return fecha.startsWith(hoy.slice(0,7)); if(periodo==='year')return fecha.startsWith(hoy.slice(0,4)); if(periodo==='custom')return (!desde||fecha>=desde)&&(!hasta||fecha<=hasta); return true; }; }
-function renderReportes() { const incluye=filtroReporte(), ventas=window.db.ventas.filter(v=>incluye(v.fecha)), gastos=window.db.gastos.filter(g=>incluye(g.fecha)), total=ventas.reduce((s,v)=>s+(v.total||0),0), egresos=gastos.reduce((s,g)=>s+(g.monto||0),0), productos={}, clientes={}; ventas.forEach(v=>{clientes[v.cliente]=(clientes[v.cliente]||0)+(v.total||0); (v.items||[]).forEach(i=>productos[i.burger]=(productos[i.burger]||0)+(i.qty||0));}); const rankingP=Object.entries(productos).sort((a,b)=>b[1]-a[1]), rankingC=Object.entries(clientes).sort((a,b)=>b[1]-a[1]); document.getElementById('reportes-metrics').innerHTML=`<div class="metric"><div class="metric-label">Ventas</div><div class="metric-value green">${window.fmt(total)}</div></div><div class="metric"><div class="metric-label">Pedidos</div><div class="metric-value yellow">${ventas.length}</div></div><div class="metric"><div class="metric-label">Gastos</div><div class="metric-value red">${window.fmt(egresos)}</div></div><div class="metric"><div class="metric-label">Resultado</div><div class="metric-value ${total-egresos>=0?'green':'red'}">${window.fmt(total-egresos)}</div></div>`; const listado=(lista,formatter)=>lista.slice(0,5).map(([n,v],i)=>`<div class="ranking-item"><span class="ranking-num">${i+1}</span><div class="ranking-bar-wrap"><div class="ranking-name">${n}</div></div><span class="ranking-count">${formatter(v)}</span></div>`).join('')||'<div class="empty">Sin datos en el período.</div>'; document.getElementById('reportes-productos').innerHTML=listado(rankingP,v=>v+' ud.'); document.getElementById('reportes-clientes').innerHTML=listado(rankingC,window.fmt); }
+function renderReportes() { const incluye=filtroReporte(), ventas=window.db.ventas.filter(v=>incluye(v.fecha)), gastos=window.db.gastos.filter(g=>incluye(g.fecha)), total=ventas.reduce((s,v)=>s+(v.total||0),0), egresos=gastos.reduce((s,g)=>s+(g.monto||0),0), productos={}, clientesMap={}; ventas.forEach(v=>{if(v.cliente){const clave=claveCliente(v); if(!clientesMap[clave]) clientesMap[clave]={nombre:nombreCliente(v), total:0}; clientesMap[clave].total+=(v.total||0);} (v.items||[]).forEach(i=>productos[i.burger]=(productos[i.burger]||0)+(i.qty||0));}); const rankingP=Object.entries(productos).sort((a,b)=>b[1]-a[1]), rankingC=Object.values(clientesMap).sort((a,b)=>b.total-a.total).map(c=>[c.nombre,c.total]); document.getElementById('reportes-metrics').innerHTML=`<div class="metric"><div class="metric-label">Ventas</div><div class="metric-value green">${window.fmt(total)}</div></div><div class="metric"><div class="metric-label">Pedidos</div><div class="metric-value yellow">${ventas.length}</div></div><div class="metric"><div class="metric-label">Gastos</div><div class="metric-value red">${window.fmt(egresos)}</div></div><div class="metric"><div class="metric-label">Resultado</div><div class="metric-value ${total-egresos>=0?'green':'red'}">${window.fmt(total-egresos)}</div></div>`; const listado=(lista,formatter)=>lista.slice(0,5).map(([n,v],i)=>`<div class="ranking-item"><span class="ranking-num">${i+1}</span><div class="ranking-bar-wrap"><div class="ranking-name">${n}</div></div><span class="ranking-count">${formatter(v)}</span></div>`).join('')||'<div class="empty">Sin datos en el período.</div>'; document.getElementById('reportes-productos').innerHTML=listado(rankingP,v=>v+' ud.'); document.getElementById('reportes-clientes').innerHTML=listado(rankingC,window.fmt); }
 function renderCaja() { const cajas=window.db.cajas.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')), abierta=cajas.find(c=>c.estado==='abierta'), hoy=window.getHoy(); const balance=abierta?calcularCaja(abierta):null; document.getElementById('caja-estado').innerHTML=abierta?`<div class="card-title">Caja abierta · ${abierta.fecha}</div><div class="metrics" style="margin:0"><div class="metric"><div class="metric-label">Fondo inicial</div><div class="metric-value">${window.fmt(abierta.inicial)}</div></div><div class="metric"><div class="metric-label">Ventas del día</div><div class="metric-value green">${window.fmt(balance.ventas)}</div></div><div class="metric"><div class="metric-label">Egresos del día</div><div class="metric-value red">${window.fmt(balance.gastos)}</div></div><div class="metric"><div class="metric-label">Efectivo esperado</div><div class="metric-value yellow">${window.fmt(balance.esperado)}</div></div></div>`:`<div class="card-title">No hay caja abierta</div><div class="page-sub">Abrí la caja para controlar el turno de hoy.</div>`; document.getElementById('caja-tabla').innerHTML=cajas.filter(c=>c.estado==='cerrada').map(c=>`<tr><td>${c.fecha}</td><td>${window.fmt(c.inicial)}</td><td>${window.fmt(c.ventas)}</td><td>${window.fmt(c.gastos)}</td><td>${window.fmt(c.esperado)}</td><td>${window.fmt(c.final)}</td><td class="${c.diferencia>=0?'green':'red'}">${window.fmt(c.diferencia)}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">Sin cierres registrados.</td></tr>'; }
 function calcularCaja(caja) { const ventas=window.db.ventas.filter(v=>v.fecha===caja.fecha).reduce((s,v)=>s+(v.total||0),0), gastos=window.db.gastos.filter(g=>g.fecha===caja.fecha).reduce((s,g)=>s+(g.monto||0),0); return {ventas,gastos,esperado:(caja.inicial||0)+ventas-gastos}; }
 
 function renderClientes() {
     const mapa = {};
     window.db.ventas.forEach(v => {
-        if (!mapa[v.cliente]) mapa[v.cliente] = { pedidos: 0, compras: 0, total: 0, fav: {}, pagos: {}, ultimo: '' };
+        const clave = claveCliente(v);
+        if (!mapa[clave]) mapa[clave] = { nombre: nombreCliente(v), pedidos: 0, compras: 0, total: 0, fav: {}, pagos: {}, ultimo: '' };
         const qtyTotal = (v.items || []).reduce((sum, item) => sum + item.qty, 0);
-        mapa[v.cliente].pedidos += qtyTotal; mapa[v.cliente].compras += 1; mapa[v.cliente].total += v.total; mapa[v.cliente].pagos[v.pago] = (mapa[v.cliente].pagos[v.pago] || 0) + 1;
-        if (v.fecha > mapa[v.cliente].ultimo) mapa[v.cliente].ultimo = v.fecha;
-        (v.items || []).forEach(item => { mapa[v.cliente].fav[item.burger] = (mapa[v.cliente].fav[item.burger] || 0) + item.qty; });
+        mapa[clave].pedidos += qtyTotal; mapa[clave].compras += 1; mapa[clave].total += v.total; mapa[clave].pagos[v.pago] = (mapa[clave].pagos[v.pago] || 0) + 1;
+        if (v.fecha > mapa[clave].ultimo) mapa[clave].ultimo = v.fecha;
+        (v.items || []).forEach(item => { mapa[clave].fav[item.burger] = (mapa[clave].fav[item.burger] || 0) + item.qty; });
     });
-    const lista = Object.entries(mapa).sort((a, b) => b[1].total - a[1].total);
-    const totalPedidos = lista.reduce((a, [, c]) => a + c.pedidos, 0);
-    const ticketProm = totalPedidos ? Math.round(lista.reduce((a, [, c]) => a + c.total, 0) / totalPedidos) : 0;
+    const lista = Object.values(mapa).sort((a, b) => b.total - a.total);
+    const totalPedidos = lista.reduce((a, c) => a + c.pedidos, 0);
+    const ticketProm = totalPedidos ? Math.round(lista.reduce((a, c) => a + c.total, 0) / totalPedidos) : 0;
 
-    document.getElementById('clientes-metrics').innerHTML = `<div class="metric"><div class="metric-label">Clientes únicos</div><div class="metric-value yellow">${lista.length}</div></div><div class="metric"><div class="metric-label">Gasto promedio</div><div class="metric-value green">${window.fmt(ticketProm)}</div></div><div class="metric"><div class="metric-label">Mejor cliente</div><div class="metric-value orange" style="font-size:18px">${lista[0] ? lista[0][0] : '—'}</div></div>`;
-    document.getElementById('clientes-tabla').innerHTML = lista.map(([nombre, c]) => {
+    document.getElementById('clientes-metrics').innerHTML = `<div class="metric"><div class="metric-label">Clientes únicos</div><div class="metric-value yellow">${lista.length}</div></div><div class="metric"><div class="metric-label">Gasto promedio</div><div class="metric-value green">${window.fmt(ticketProm)}</div></div><div class="metric"><div class="metric-label">Mejor cliente</div><div class="metric-value orange" style="font-size:18px">${lista[0] ? lista[0].nombre : '—'}</div></div>`;
+    document.getElementById('clientes-tabla').innerHTML = lista.map(c => {
         const fav = Object.entries(c.fav).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'; const pagoFav = Object.entries(c.pagos).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
-        const dias = diffDias(window.getHoy(), c.ultimo); const clase = dias > 60 ? 'Inactivo' : c.total >= (lista[0]?.[1].total || 0) * .65 || c.compras >= 5 ? 'VIP' : c.compras >= 2 ? 'Frecuente' : 'Nuevo'; const estilo = clase === 'VIP' ? 'badge-accent' : clase === 'Frecuente' ? 'badge-ok' : clase === 'Inactivo' ? 'badge-warn' : 'badge-blue';
-        return `<tr><td><strong>${nombre}</strong></td><td style="font-family:var(--font-mono)">${c.compras}</td><td>${window.fmt(c.total / c.compras)}</td><td>${fav}</td><td><span class="badge badge-blue">${pagoFav}</span></td><td><span class="badge ${estilo}">${clase}</span></td><td style="font-family:var(--font-mono);color:var(--accent)">${window.fmt(c.total)}</td><td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${c.ultimo}</td></tr>`;
+        const dias = diffDias(window.getHoy(), c.ultimo); const clase = dias > 60 ? 'Inactivo' : c.total >= (lista[0]?.total || 0) * .65 || c.compras >= 5 ? 'VIP' : c.compras >= 2 ? 'Frecuente' : 'Nuevo'; const estilo = clase === 'VIP' ? 'badge-accent' : clase === 'Frecuente' ? 'badge-ok' : clase === 'Inactivo' ? 'badge-warn' : 'badge-blue';
+        return `<tr><td><strong>${c.nombre}</strong></td><td style="font-family:var(--font-mono)">${c.compras}</td><td>${window.fmt(c.total / c.compras)}</td><td>${fav}</td><td><span class="badge badge-blue">${pagoFav}</span></td><td><span class="badge ${estilo}">${clase}</span></td><td style="font-family:var(--font-mono);color:var(--accent)">${window.fmt(c.total)}</td><td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${c.ultimo}</td></tr>`;
     }).join('') || `<tr><td colspan="8" class="empty">Sin clientes</td></tr>`;
 }
 
@@ -1521,7 +1654,8 @@ window.guardarVenta = async function() {
     const notas = document.getElementById('v-notas').value;
     const total = parseFloat(document.getElementById('v-precio-total').value) || 0;
     if (!cliente || window.carritoActual.length === 0) { window.toast('⚠ Agregá un cliente y productos al carrito'); return; }
-    const data = { fecha, cliente, items: [...window.carritoActual], total, pago, notas, cupon: window.cuponAplicado ? { codigo: window.cuponAplicado.codigo, descuento: window.cuponAplicado.descuento || 0 } : null };
+    const clienteId = await obtenerOCrearCliente(cliente);
+    const data = { fecha, cliente, clienteId, items: [...window.carritoActual], total, pago, notas, cupon: window.cuponAplicado ? { codigo: window.cuponAplicado.codigo, descuento: window.cuponAplicado.descuento || 0 } : null };
     try {
         if (window.editando.ventas) {
             const ventaBorrada = window.db.ventas.find(v => v.id === window.editando.ventas);
@@ -1543,12 +1677,18 @@ window.guardarStock = async function() {
     const data = { fecha: document.getElementById('s-fecha').value || window.getHoy(), nombre: document.getElementById('s-nombre').value.trim(), cantidad: parseFloat(document.getElementById('s-cantidad').value) || 0, unidad: document.getElementById('s-unidad').value, minimo: parseFloat(document.getElementById('s-minimo').value) || 0, categoria: document.getElementById('s-cat').value, costo: parseFloat(document.getElementById('s-costo').value) || 0 };
     if (!data.nombre || !data.cantidad) { window.toast('⚠ Completá nombre y cantidad'); return; }
     try {
-        if (window.editando.stock) { await updateDoc(doc(fsDb, 'stock', window.editando.stock), data); window.toast('✓ Actualizado'); } 
+        if (window.editando.stock) {
+            const stockAntes = window.db.stock.find(s => s.id === window.editando.stock);
+            if (stockAntes) await registrarMovimientoStock(stockAntes, data.cantidad, data.costo, 'edicion', 'Edición manual del ingrediente');
+            await updateDoc(doc(fsDb, 'stock', window.editando.stock), data); window.toast('✓ Actualizado');
+        } 
         else {
             const ex = window.db.stock.find(s => s.nombre.toLowerCase() === data.nombre.toLowerCase());
             if (ex) {
                 const nuevoCosto = costoPromedioPonderado(ex.cantidad, ex.costo, data.cantidad, data.costo);
-                await updateDoc(doc(fsDb, 'stock', ex.id), { cantidad: Math.round((ex.cantidad + data.cantidad) * 100) / 100, fecha: data.fecha, costo: nuevoCosto });
+                const cantidadFinal = Math.round((ex.cantidad + data.cantidad) * 100) / 100;
+                await registrarMovimientoStock(ex, cantidadFinal, nuevoCosto, 'compra', '');
+                await updateDoc(doc(fsDb, 'stock', ex.id), { cantidad: cantidadFinal, fecha: data.fecha, costo: nuevoCosto });
             } 
             else { await addDoc(collection(fsDb, 'stock'), data); }
             window.toast('✓ Guardado');
@@ -1657,14 +1797,20 @@ window.guardarGasto = async function() {
             const anterior = window.db.gastos.find(g => g.id === window.editando.gastos);
             if (anterior?.cat && limpiarText(anterior.cat) === 'materia prima' && anterior.stockId && Number(anterior.cantidadStock) > 0) {
                 const stockAnterior = window.db.stock.find(s => s.id === anterior.stockId);
-                if (stockAnterior) await updateDoc(doc(fsDb, 'stock', stockAnterior.id), { cantidad: Math.max(0, (Number(stockAnterior.cantidad) || 0) - Number(anterior.cantidadStock)) });
+                if (stockAnterior) {
+                    const cantidadRevertida = Math.max(0, (Number(stockAnterior.cantidad) || 0) - Number(anterior.cantidadStock));
+                    await registrarMovimientoStock(stockAnterior, cantidadRevertida, stockAnterior.costo, 'edicion_compra', 'Edición de gasto: se quitó la compra anterior');
+                    await updateDoc(doc(fsDb, 'stock', stockAnterior.id), { cantidad: cantidadRevertida });
+                }
             }
             if (esMP) { data.stockId = stockId; data.cantidadStock = cantidadMP; }
             await updateDoc(doc(fsDb, 'gastos', window.editando.gastos), data);
             if (esMP) {
                 const stock = window.db.stock.find(s => s.id === stockId);
                 if (!stock) throw new Error('Ingrediente de stock no encontrado');
-                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100, fecha: data.fecha });
+                const cantidadFinal = Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100;
+                await registrarMovimientoStock(stock, cantidadFinal, stock.costo, 'edicion_compra', 'Edición de gasto: se sumó la compra actualizada');
+                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: cantidadFinal, fecha: data.fecha });
             }
         } else {
             if (esMP) {
@@ -1674,7 +1820,9 @@ window.guardarGasto = async function() {
                 data.cantidadStock = cantidadMP;
                 const costoUnitarioCompra = cantidadMP > 0 ? (data.monto / cantidadMP) : 0;
                 const nuevoCosto = costoPromedioPonderado(stock.cantidad, stock.costo, cantidadMP, costoUnitarioCompra);
-                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100, costo: nuevoCosto, fecha: data.fecha });
+                const cantidadFinal = Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100;
+                await registrarMovimientoStock(stock, cantidadFinal, nuevoCosto, 'compra', 'Compra registrada desde Gastos');
+                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: cantidadFinal, costo: nuevoCosto, fecha: data.fecha });
             }
             await addDoc(collection(fsDb, 'gastos'), data);
         }
