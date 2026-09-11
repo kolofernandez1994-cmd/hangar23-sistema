@@ -38,8 +38,19 @@
   </style>
 </head>
 <body>
-<div class="app">
-  <header class="topbar"><div class="logo">HANGAR23</div><div class="today">Hoy<b id="top-total">$0</b></div></header>
+<div class="overlay open" id="login-overlay" style="z-index:9999">
+  <div class="sheet">
+    <div class="sheet-title">🍔 HANGAR23</div>
+    <label class="label" for="login-usuario">Usuario</label>
+    <input class="field" id="login-usuario" autocomplete="username" placeholder="Usuario">
+    <label class="label" for="login-password">Contraseña</label>
+    <input class="field" type="password" id="login-password" autocomplete="current-password" placeholder="Contraseña">
+    <div id="login-error" style="color:#ff4444;font-size:12px;min-height:16px;margin-top:6px"></div>
+    <button class="primary" id="btn-login" type="button" style="margin-top:10px">Ingresar</button>
+  </div>
+</div>
+<div class="app" id="app-shell" style="display:none">
+  <header class="topbar"><div class="logo">HANGAR23</div><div class="today" style="display:flex;align-items:center;gap:10px">Hoy<b id="top-total">$0</b><button id="btn-logout" type="button" style="background:none;border:none;color:var(--muted);font-size:18px">⎋</button></div></header>
   <main>
     <section class="view active" id="view-pedir"><div class="chips" id="chips"></div><div class="products" id="products"></div></section>
     <section class="view" id="view-pedidos"><div id="orders"></div></section>
@@ -81,15 +92,41 @@
 <script type="module">
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {getFirestore,collection,onSnapshot,addDoc,updateDoc,deleteDoc,doc} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,setPersistence,browserLocalPersistence} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 const firebaseConfig={apiKey:'AIzaSyDYvEr5rbVjhYLX5sbqYh4pK9bDSOH1cyk',authDomain:'hangar23-v706.firebaseapp.com',projectId:'hangar23-v706',storageBucket:'hangar23-v706.firebasestorage.app',messagingSenderId:'1073514334115',appId:'1:1073514334115:web:22de1feb1e94127857bc16'};
-const dbx=getFirestore(initializeApp(firebaseConfig));
+const fbApp=initializeApp(firebaseConfig);
+const dbx=getFirestore(fbApp);
+const authx=getAuth(fbApp);
+const DOMINIO_LOGIN_INTERNO='hangar23-interno.com';
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=n=>'$'+Math.round(Number(n)||0).toLocaleString('es-AR'); const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}; const normal=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
 const fechaLarga=f=>{if(!f)return'';const[y,m,d]=f.split('-');return`${d}/${m}/${y}`};
 const state={recetas:[],extras:[],stock:[],ventas:[],filter:'Todos',cart:[],pay:'Efectivo',entrega:'Retira en local',product:null,qty:1,selected:new Set(),lastId:null};
 function toast(text){const e=$('#toast');e.textContent=text;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2200)}
 function render(){renderChips();renderProducts();renderOrders();renderSummary();renderCartBar()}
-for(const name of ['recetas','extras','stock','ventas'])onSnapshot(collection(dbx,name),snap=>{state[name]=snap.docs.map(d=>({id:d.id,...d.data()}));if(name==='ventas')state.ventas.sort((a,b)=>(a.creadoEn||0)-(b.creadoEn||0));render()});
+let suscripcionesActivasMovil=false, desuscribirColeccionesMovil=[];
+function iniciarSuscripcionesMovil(){for(const name of ['recetas','extras','stock','ventas']){const unsub=onSnapshot(collection(dbx,name),snap=>{state[name]=snap.docs.map(d=>({id:d.id,...d.data()}));if(name==='ventas')state.ventas.sort((a,b)=>(a.creadoEn||0)-(b.creadoEn||0));render()});desuscribirColeccionesMovil.push(unsub)}}
+$('#btn-login').onclick=async()=>{
+  const usuario=($('#login-usuario').value||'').trim().toLowerCase(), password=$('#login-password').value||'', errEl=$('#login-error');
+  errEl.textContent='';
+  if(!usuario||!password){errEl.textContent='Completá usuario y contraseña.';return}
+  const btn=$('#btn-login'); btn.disabled=true; btn.textContent='Ingresando...';
+  try{ await setPersistence(authx,browserLocalPersistence); await signInWithEmailAndPassword(authx,`${usuario}@${DOMINIO_LOGIN_INTERNO}`,password); }
+  catch(e){ errEl.textContent='Usuario o contraseña incorrectos.'; }
+  finally{ btn.disabled=false; btn.textContent='Ingresar'; }
+};
+$('#login-password').addEventListener('keydown',e=>{if(e.key==='Enter')$('#btn-login').click()});
+$('#btn-logout').onclick=async()=>{ if(!confirm('¿Cerrar sesión?'))return; try{ await signOut(authx); }catch(e){ console.error(e); } };
+onAuthStateChanged(authx,user=>{
+  const loginOverlay=$('#login-overlay'), appShell=$('#app-shell');
+  if(user){
+    loginOverlay.classList.remove('open'); appShell.style.display='';
+    if(!suscripcionesActivasMovil){ iniciarSuscripcionesMovil(); suscripcionesActivasMovil=true; }
+  } else {
+    appShell.style.display='none'; loginOverlay.classList.add('open'); $('#login-password').value='';
+    if(suscripcionesActivasMovil){ desuscribirColeccionesMovil.forEach(fn=>fn()); desuscribirColeccionesMovil=[]; suscripcionesActivasMovil=false; }
+  }
+});
 function renderChips(){const types=['Todos',...new Set(state.recetas.map(x=>x.tipo).filter(Boolean))];$('#chips').innerHTML=types.map(t=>`<button class="chip ${t===state.filter?'active':''}" data-type="${esc(t)}" type="button">${esc(t)}</button>`).join('');$('#chips').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.filter=b.dataset.type;renderChips();renderProducts()})}
 function renderProducts(){const a=state.recetas.filter(x=>state.filter==='Todos'||x.tipo===state.filter);$('#products').innerHTML=a.length?a.map(x=>`<button class="product" data-id="${x.id}" type="button"><span><span class="type">${esc(x.tipo)}</span><span class="product-name">${esc(x.nombre)}</span></span><span class="price">${fmt(x.precio)}</span></button>`).join(''):'<div class="empty" style="grid-column:1/-1"><span class="emoji">🍔</span>Todavía no cargaste productos.<br>Agregalos desde la web en la compu.</div>';$('#products').querySelectorAll('button').forEach(b=>b.onclick=()=>openProduct(b.dataset.id))}
 function openProduct(id){state.product=state.recetas.find(x=>x.id===id);if(!state.product)return;state.qty=1;state.selected=new Set();$('#sheet-name').textContent=state.product.nombre;$('#sheet-desc').textContent=state.product.desc||'';$('#extra-label').style.display=state.extras.length?'block':'none';$('#extras').innerHTML=state.extras.map(e=>`<button class="extra" data-id="${e.id}" type="button">${esc(e.nombre)} <em>+${fmt(e.precio)}</em></button>`).join('');$('#extras').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.selected.has(b.dataset.id)?state.selected.delete(b.dataset.id):state.selected.add(b.dataset.id);b.classList.toggle('on',state.selected.has(b.dataset.id));updateSheet()});updateSheet();$('#product-sheet').classList.add('open')}
