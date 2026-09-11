@@ -198,6 +198,18 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 </head>
 <body>
 
+<div class="modal-overlay" id="login-overlay" style="display:flex">
+  <div class="modal">
+    <div class="modal-title">🍔 HANGAR23</div>
+    <div class="form-group"><label class="form-label">Usuario</label><input type="text" id="login-usuario" autocomplete="username" placeholder="Usuario" onkeydown="if(event.key==='Enter') document.getElementById('login-password').focus()"></div>
+    <div class="form-group"><label class="form-label">Contraseña</label><input type="password" id="login-password" autocomplete="current-password" placeholder="Contraseña" onkeydown="if(event.key==='Enter') iniciarSesion()"></div>
+    <div id="login-error" style="color:var(--danger);font-size:12px;min-height:16px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="btn-login" style="width:100%" onclick="iniciarSesion()">Ingresar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-meta">
   <div class="modal">
     <div class="modal-title">Objetivo de ventas</div>
@@ -217,7 +229,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 <div class="toast" id="toast"></div>
 <div id="comanda-print"></div>
 
-<div class="app">
+<div class="app" id="app-shell" style="display:none">
   <aside class="sidebar" id="sidebar">
     <div class="logo">
       <div class="logo-title">HANGAR23</div>
@@ -240,7 +252,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
       <div class="nav-item" onclick="showSection('caja')" data-s="caja"><span class="nav-icon">▤</span> Caja</div>
     </nav>
-    <div class="sidebar-footer">v5.0 · Creador de Recetas Inteligente</div>
+    <div class="sidebar-footer">v5.0 · Creador de Recetas Inteligente<br><span id="login-usuario-actual" style="color:var(--muted)"></span> <button class="btn btn-sm" style="margin-top:6px;width:100%" onclick="cerrarSesion()">⎋ Cerrar sesión</button></div>
   </aside>
 
   <main class="main">
@@ -623,6 +635,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDYvEr5rbVjhYLX5sbqYh4pK9bDSOH1cyk",
@@ -635,6 +648,55 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const fsDb = getFirestore(app);
+const fsAuth = getAuth(app);
+// Los usuarios se crean en Firebase con un email "de mentira" (usuario@hangar23-interno.com)
+// porque el login por email/contraseña de Firebase necesita ese formato, pero en la pantalla
+// de acceso el negocio solo ve "Usuario" y "Contraseña" — el dominio interno es invisible.
+const DOMINIO_LOGIN_INTERNO = 'hangar23-interno.com';
+
+window.iniciarSesion = async function() {
+    const usuario = (document.getElementById('login-usuario').value || '').trim().toLowerCase();
+    const password = document.getElementById('login-password').value || '';
+    const errorEl = document.getElementById('login-error');
+    errorEl.textContent = '';
+    if (!usuario || !password) { errorEl.textContent = 'Completá usuario y contraseña.'; return; }
+    const btn = document.getElementById('btn-login');
+    btn.disabled = true; btn.textContent = 'Ingresando...';
+    try {
+        await setPersistence(fsAuth, browserLocalPersistence);
+        await signInWithEmailAndPassword(fsAuth, `${usuario}@${DOMINIO_LOGIN_INTERNO}`, password);
+    } catch(e) {
+        errorEl.textContent = 'Usuario o contraseña incorrectos.';
+    } finally {
+        btn.disabled = false; btn.textContent = 'Ingresar';
+    }
+};
+
+window.cerrarSesion = async function() {
+    if (!confirm('¿Cerrar sesión?')) return;
+    try { await signOut(fsAuth); } catch(e) { console.error(e); }
+};
+
+let suscripcionesActivas = false;
+let desuscribirColecciones = [];
+
+onAuthStateChanged(fsAuth, (user) => {
+    const loginOverlay = document.getElementById('login-overlay');
+    const appShell = document.getElementById('app-shell');
+    if (user) {
+        loginOverlay.style.display = 'none';
+        appShell.style.display = '';
+        const nombreUsuario = (user.email || '').split('@')[0];
+        const etiqueta = document.getElementById('login-usuario-actual');
+        if (etiqueta) etiqueta.textContent = `👤 ${nombreUsuario}`;
+        if (!suscripcionesActivas) { iniciarSuscripcionesFirestore(); suscripcionesActivas = true; }
+    } else {
+        appShell.style.display = 'none';
+        loginOverlay.style.display = 'flex';
+        document.getElementById('login-password').value = '';
+        if (suscripcionesActivas) { desuscribirColecciones.forEach(fn => fn()); desuscribirColecciones = []; suscripcionesActivas = false; }
+    }
+});
 
 window.getHoy = function() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -779,22 +841,25 @@ window.cargarDatosBase = async function() {
     try { for (const r of recetasBase) { await addDoc(collection(fsDb, 'recetas'), r); } window.toast('✓ Menú base restaurado'); } catch(e) { window.toast('⚠ Error'); }
 };
 
-['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas', 'clientes', 'movimientos_stock'].forEach(colName => {
-    onSnapshot(collection(fsDb, colName), (snapshot) => {
-        window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-        if (colName === 'movimientos_stock') window.db[colName].sort((a, b) => (b.creadoEn || 0) - (a.creadoEn || 0));
-        window.render();
-        if (colName === 'recetas' || colName === 'extras') {
-            const sel = document.getElementById('v-burger');
-            if (sel && !window.editando.ventas) window.refrescarSelectoresVentas();
-        }
-        if (colName === 'stock') {
-            window.renderIngredientesReceta();
-            window.renderSelectorExtra();
-        }
+function iniciarSuscripcionesFirestore() {
+    ['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas', 'clientes', 'movimientos_stock'].forEach(colName => {
+        const unsub = onSnapshot(collection(fsDb, colName), (snapshot) => {
+            window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+            if (colName === 'movimientos_stock') window.db[colName].sort((a, b) => (b.creadoEn || 0) - (a.creadoEn || 0));
+            window.render();
+            if (colName === 'recetas' || colName === 'extras') {
+                const sel = document.getElementById('v-burger');
+                if (sel && !window.editando.ventas) window.refrescarSelectoresVentas();
+            }
+            if (colName === 'stock') {
+                window.renderIngredientesReceta();
+                window.renderSelectorExtra();
+            }
+        });
+        desuscribirColecciones.push(unsub);
     });
-});
+}
 
 window.showSection = function(id) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
