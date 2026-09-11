@@ -855,6 +855,7 @@ function iniciarSuscripcionesFirestore() {
             if (colName === 'stock') {
                 window.renderIngredientesReceta();
                 window.renderSelectorExtra();
+                window.actualizarCamposMateriaPrima();
             }
         });
         desuscribirColecciones.push(unsub);
@@ -1848,6 +1849,7 @@ window.actualizarCamposMateriaPrima = function() {
 };
 
 document.getElementById('g-cat')?.addEventListener('change', window.actualizarCamposMateriaPrima);
+window.actualizarCamposMateriaPrima();
 
 window.guardarGasto = async function() {
     const cat = document.getElementById('g-cat').value;
