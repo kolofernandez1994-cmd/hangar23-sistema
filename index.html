@@ -514,7 +514,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Unidad</label><select id="s-unidad"><option>kg</option><option>g</option><option>u</option><option>l</option><option>ml</option><option>paq</option></select></div>
           <div class="form-group"><label class="form-label">Costo ($)</label><input type="number" id="s-costo" placeholder="0"></div>
           <div class="form-group"><label class="form-label">Mínimo</label><input type="number" id="s-minimo" placeholder="0" step="0.01"></div>
-          <div class="form-group"><label class="form-label">Categoría</label><select id="s-cat"><option>Carnes</option><option>Panificados</option><option>Lácteos</option><option>Verduras</option><option>Salsas</option><option>Otros</option></select></div>
+          <div class="form-group"><label class="form-label">Categoría</label><input type="text" id="s-cat" list="s-cat-list" placeholder="Elegí o escribí una categoría"><datalist id="s-cat-list"><option>Carnes</option><option>Panificados</option><option>Lácteos</option><option>Verduras</option><option>Salsas</option><option>Otros</option></datalist></div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" id="btn-stock-submit" onclick="guardarStock()">✓ Agregar</button>
@@ -1492,6 +1492,11 @@ function renderVentas() {
 }
 
 function renderStock() {
+    const catsUsadas = [...new Set(window.db.stock.map(s => s.categoria).filter(Boolean))];
+    const catsPreset = ['Carnes', 'Panificados', 'Lácteos', 'Verduras', 'Salsas', 'Otros'];
+    const todasCats = [...new Set([...catsPreset, ...catsUsadas])].sort((a, b) => a.localeCompare(b));
+    const listEl = document.getElementById('s-cat-list');
+    if (listEl) listEl.innerHTML = todasCats.map(c => `<option>${c}</option>`).join('');
     document.getElementById('stock-tabla').innerHTML = window.db.stock.map(s => {
         const estado = s.cantidad < s.minimo ? 'danger' : s.cantidad === s.minimo ? 'warn' : 'ok';
         const label = { danger: 'Comprar', warn: 'Bajo', ok: 'Ok' }[estado];
@@ -1740,7 +1745,7 @@ window.guardarVenta = async function() {
 };
 
 window.guardarStock = async function() {
-    const data = { fecha: document.getElementById('s-fecha').value || window.getHoy(), nombre: document.getElementById('s-nombre').value.trim(), cantidad: parseFloat(document.getElementById('s-cantidad').value) || 0, unidad: document.getElementById('s-unidad').value, minimo: parseFloat(document.getElementById('s-minimo').value) || 0, categoria: document.getElementById('s-cat').value, costo: parseFloat(document.getElementById('s-costo').value) || 0 };
+    const data = { fecha: document.getElementById('s-fecha').value || window.getHoy(), nombre: document.getElementById('s-nombre').value.trim(), cantidad: parseFloat(document.getElementById('s-cantidad').value) || 0, unidad: document.getElementById('s-unidad').value, minimo: parseFloat(document.getElementById('s-minimo').value) || 0, categoria: document.getElementById('s-cat').value.trim() || 'Otros', costo: parseFloat(document.getElementById('s-costo').value) || 0 };
     if (!data.nombre || !data.cantidad) { window.toast('⚠ Completá nombre y cantidad'); return; }
     try {
         if (window.editando.stock) {
