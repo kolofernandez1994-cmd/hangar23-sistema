@@ -34,7 +34,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-si
 .logo{padding:1.5rem 1.25rem 1.25rem;border-bottom:1px solid var(--border);background:var(--accent)}
 .logo-title{font-family:var(--font-head);font-size:28px;font-weight:400;color:#0a0a0a;letter-spacing:2px;line-height:1}
 .logo-sub{font-size:10px;color:rgba(0,0,0,0.5);margin-top:4px;font-family:var(--font-mono);letter-spacing:1px;text-transform:uppercase}
-.nav{padding:1rem 0;flex:1}
+.nav{padding:1rem 0;flex:1;overflow-y:auto}
 .nav-item{display:flex;align-items:center;gap:10px;padding:10px 1.25rem;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;transition:all 0.15s;border-left:2px solid transparent;user-select:none}
 .nav-item:hover{color:var(--text);background:var(--surface2)}
 .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(255,219,89,0.06)}
@@ -447,7 +447,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Hasta</label><input type="date" id="ventas-filtro-hasta"></div>
           <div class="form-group" style="justify-content:flex-end"><button class="btn btn-sm" type="button" onclick="limpiarFiltroVentas()">↺ Limpiar filtro</button></div>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Pedido</th><th>Pago</th><th>Total</th><th>Acciones</th></tr></thead><tbody id="ventas-tabla"></tbody></table></div>
+        <div class="table-wrap" style="max-height:480px;overflow-y:auto"><table><thead style="position:sticky;top:0;background:var(--surface);z-index:1"><tr><th>Fecha</th><th>Cliente</th><th>Pedido</th><th>Pago</th><th>Total</th><th>Acciones</th></tr></thead><tbody id="ventas-tabla"></tbody></table></div>
       </div>
     </div>
 
@@ -536,7 +536,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
         <div class="page-sub" style="margin:-8px 0 12px">Compras, ediciones y mermas de stock. Solo se puede deshacer el último movimiento activo de cada ingrediente.</div>
         <div id="stock-movimientos" style="max-height:420px;overflow-y:auto;padding-right:4px"></div>
       </div>
-      <div class="card"><div class="card-title"><span class="icon">▣</span> Inventario actual</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Ingrediente</th><th>Cat</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Costo</th><th>Acciones</th></tr></thead><tbody id="stock-tabla"></tbody></table></div></div>
+      <div class="card"><div class="card-title"><span class="icon">▣</span> Inventario actual</div><div class="table-wrap" style="max-height:480px;overflow-y:auto"><table><thead style="position:sticky;top:0;background:var(--surface);z-index:1"><tr><th>Fecha</th><th>Ingrediente</th><th>Cat</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Costo</th><th>Acciones</th></tr></thead><tbody id="stock-tabla"></tbody></table></div></div>
       <div class="card"><div class="card-title"><span class="icon">◈</span> Capacidad de fabricación</div><div class="page-sub" style="margin:-12px 0 16px">Con el stock actual podés preparar:</div><div class="receta-grid" id="stock-capacidad"></div></div>
     </div>
 
@@ -623,7 +623,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Descripción</label><input type="search" id="gastos-filtro-desc" placeholder="Buscar en la descripción..."></div>
           <div class="form-group" style="justify-content:flex-end"><button class="btn btn-sm" type="button" onclick="limpiarFiltroGastos()">↺ Limpiar filtros</button></div>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Tipo</th><th>Monto</th><th>Acciones</th></tr></thead><tbody id="gastos-tabla"></tbody></table></div>
+        <div class="table-wrap" style="max-height:480px;overflow-y:auto"><table><thead style="position:sticky;top:0;background:var(--surface);z-index:1"><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Tipo</th><th>Monto</th><th>Acciones</th></tr></thead><tbody id="gastos-tabla"></tbody></table></div>
       </div>
     </div>
 
