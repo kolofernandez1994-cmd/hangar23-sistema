@@ -534,7 +534,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="card">
         <div class="card-title"><span class="icon">📜</span> Movimientos recientes</div>
         <div class="page-sub" style="margin:-8px 0 12px">Compras, ediciones y mermas de stock. Solo se puede deshacer el último movimiento activo de cada ingrediente.</div>
-        <div id="stock-movimientos"></div>
+        <div id="stock-movimientos" style="max-height:420px;overflow-y:auto;padding-right:4px"></div>
       </div>
       <div class="card"><div class="card-title"><span class="icon">▣</span> Inventario actual</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Ingrediente</th><th>Cat</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Costo</th><th>Acciones</th></tr></thead><tbody id="stock-tabla"></tbody></table></div></div>
       <div class="card"><div class="card-title"><span class="icon">◈</span> Capacidad de fabricación</div><div class="page-sub" style="margin:-12px 0 16px">Con el stock actual podés preparar:</div><div class="receta-grid" id="stock-capacidad"></div></div>
