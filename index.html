@@ -26,6 +26,11 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;min-height:100vh;overflow-x:hidden}
+*{scrollbar-width:thin;scrollbar-color:var(--border) var(--surface2)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:var(--surface2)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
 
 .app{display:flex;min-height:100vh}
 .sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:100}
@@ -34,7 +39,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-si
 .logo{padding:1.5rem 1.25rem 1.25rem;border-bottom:1px solid var(--border);background:var(--accent)}
 .logo-title{font-family:var(--font-head);font-size:28px;font-weight:400;color:#0a0a0a;letter-spacing:2px;line-height:1}
 .logo-sub{font-size:10px;color:rgba(0,0,0,0.5);margin-top:4px;font-family:var(--font-mono);letter-spacing:1px;text-transform:uppercase}
-.nav{padding:1rem 0;flex:1}
+.nav{padding:1rem 0;flex:1;overflow-y:auto}
 .nav-item{display:flex;align-items:center;gap:10px;padding:10px 1.25rem;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;transition:all 0.15s;border-left:2px solid transparent;user-select:none}
 .nav-item:hover{color:var(--text);background:var(--surface2)}
 .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(255,219,89,0.06)}
@@ -198,6 +203,18 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 </head>
 <body>
 
+<div class="modal-overlay" id="login-overlay" style="display:flex">
+  <div class="modal">
+    <div class="modal-title">🍔 HANGAR23</div>
+    <div class="form-group"><label class="form-label">Usuario</label><input type="text" id="login-usuario" autocomplete="username" placeholder="Usuario" onkeydown="if(event.key==='Enter') document.getElementById('login-password').focus()"></div>
+    <div class="form-group"><label class="form-label">Contraseña</label><input type="password" id="login-password" autocomplete="current-password" placeholder="Contraseña" onkeydown="if(event.key==='Enter') iniciarSesion()"></div>
+    <div id="login-error" style="color:var(--danger);font-size:12px;min-height:16px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="btn-login" style="width:100%" onclick="iniciarSesion()">Ingresar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-meta">
   <div class="modal">
     <div class="modal-title">Objetivo de ventas</div>
@@ -217,7 +234,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 <div class="toast" id="toast"></div>
 <div id="comanda-print"></div>
 
-<div class="app">
+<div class="app" id="app-shell" style="display:none">
   <aside class="sidebar" id="sidebar">
     <div class="logo">
       <div class="logo-title">HANGAR23</div>
@@ -240,7 +257,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="nav-item" onclick="showSection('gastos')" data-s="gastos"><span class="nav-icon">◇</span> Gastos</div>
       <div class="nav-item" onclick="showSection('caja')" data-s="caja"><span class="nav-icon">▤</span> Caja</div>
     </nav>
-    <div class="sidebar-footer">v5.0 · Creador de Recetas Inteligente</div>
+    <div class="sidebar-footer">v5.0 · Creador de Recetas Inteligente<br><span id="login-usuario-actual" style="color:var(--muted)"></span> <button class="btn btn-sm" style="margin-top:6px;width:100%" onclick="cerrarSesion()">⎋ Cerrar sesión</button></div>
   </aside>
 
   <main class="main">
@@ -282,14 +299,22 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div id="dash-alertas"></div>
         </div>
         <div class="card">
-          <div class="dash-section-head"><div class="card-title"><span class="icon">★</span> Ingeniería del menú</div><span class="mini-insight">Período seleccionado</span></div>
-          <div style="display:flex;gap:10px;flex-direction:column">
+          <div class="dash-section-head"><div class="card-title"><span class="icon">★</span> Ingeniería del menú</div><span class="mini-insight">Popularidad × margen — período seleccionado</span></div>
+          <div class="grid-2" style="gap:10px">
             <div>
-              <div style="font-size:11px;text-transform:uppercase;color:var(--success);letter-spacing:1px;margin-bottom:4px">Más vendida (cantidad mensual)</div>
+              <div style="font-size:11px;text-transform:uppercase;color:var(--success);letter-spacing:1px;margin-bottom:4px">⭐ Estrellas (vende mucho, deja margen)</div>
               <div id="matrix-estrellas" style="background:var(--surface2);padding:8px 12px;border-radius:8px"></div>
             </div>
             <div>
-              <div style="font-size:11px;text-transform:uppercase;color:var(--danger);letter-spacing:1px;margin-bottom:4px">Menos vendida (cantidad mensual)</div>
+              <div style="font-size:11px;text-transform:uppercase;color:var(--accent);letter-spacing:1px;margin-bottom:4px">🐴 Caballos de batalla (vende mucho, poco margen)</div>
+              <div id="matrix-vacas" style="background:var(--surface2);padding:8px 12px;border-radius:8px"></div>
+            </div>
+            <div>
+              <div style="font-size:11px;text-transform:uppercase;color:var(--warning);letter-spacing:1px;margin-bottom:4px">🧩 Incógnitas (vende poco, deja margen)</div>
+              <div id="matrix-incognitas" style="background:var(--surface2);padding:8px 12px;border-radius:8px"></div>
+            </div>
+            <div>
+              <div style="font-size:11px;text-transform:uppercase;color:var(--danger);letter-spacing:1px;margin-bottom:4px">🐶 Perros (vende poco, poco margen)</div>
               <div id="matrix-perros" style="background:var(--surface2);padding:8px 12px;border-radius:8px"></div>
             </div>
           </div>
@@ -368,12 +393,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
 
       <div class="card" style="margin-top:12px">
-        <div class="dash-section-head"><div class="card-title"><span class="icon">🍔</span> Ganancia por producto</div><span class="mini-insight">Usa la ganancia deseada de arriba</span></div>
-        <div style="color:var(--muted);font-size:12px;margin-bottom:10px">Cuántas unidades hacen falta vender para llegar a esa ganancia, según el margen bruto de cada receta (precio − costo). No descuenta gastos fijos, esos ya están contemplados en el cálculo de "Ventas para ganar" de arriba.</div>
-        <div id="objetivos-por-producto"></div>
-      </div>
-
-      <div class="card" style="margin-top:12px">
         <div class="dash-section-head"><div class="card-title"><span class="icon">📅</span> Comportamiento por día</div><span class="mini-insight">Promedio y récord histórico</span></div>
         <div class="chart-wrap" style="height:260px"><canvas id="chartObjetivosDias" aria-label="Ventas promedio por día de la semana"></canvas></div>
         <div id="objetivos-dias-detalle" style="margin-top:12px"></div>
@@ -433,7 +452,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Hasta</label><input type="date" id="ventas-filtro-hasta"></div>
           <div class="form-group" style="justify-content:flex-end"><button class="btn btn-sm" type="button" onclick="limpiarFiltroVentas()">↺ Limpiar filtro</button></div>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Pedido</th><th>Pago</th><th>Total</th><th>Acciones</th></tr></thead><tbody id="ventas-tabla"></tbody></table></div>
+        <div class="table-wrap" style="max-height:480px;overflow-y:auto"><table><thead style="position:sticky;top:0;background:var(--surface);z-index:1"><tr><th>Fecha</th><th>Cliente</th><th>Pedido</th><th>Pago</th><th>Total</th><th>Acciones</th></tr></thead><tbody id="ventas-tabla"></tbody></table></div>
       </div>
     </div>
 
@@ -500,14 +519,29 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Unidad</label><select id="s-unidad"><option>kg</option><option>g</option><option>u</option><option>l</option><option>ml</option><option>paq</option></select></div>
           <div class="form-group"><label class="form-label">Costo ($)</label><input type="number" id="s-costo" placeholder="0"></div>
           <div class="form-group"><label class="form-label">Mínimo</label><input type="number" id="s-minimo" placeholder="0" step="0.01"></div>
-          <div class="form-group"><label class="form-label">Categoría</label><select id="s-cat"><option>Carnes</option><option>Panificados</option><option>Lácteos</option><option>Verduras</option><option>Salsas</option><option>Otros</option></select></div>
+          <div class="form-group"><label class="form-label">Categoría</label><input type="text" id="s-cat" list="s-cat-list" placeholder="Elegí o escribí una categoría"><datalist id="s-cat-list"><option>Carnes</option><option>Panificados</option><option>Lácteos</option><option>Verduras</option><option>Salsas</option><option>Otros</option></datalist></div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" id="btn-stock-submit" onclick="guardarStock()">✓ Agregar</button>
           <button class="btn" id="btn-stock-cancel" style="display:none" onclick="cancelarEdicion('stock')">✕ Cancelar</button>
         </div>
       </div>
-      <div class="card"><div class="card-title"><span class="icon">▣</span> Inventario actual</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Ingrediente</th><th>Cat</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Costo</th><th>Acciones</th></tr></thead><tbody id="stock-tabla"></tbody></table></div></div>
+      <div class="card">
+        <div class="card-title"><span class="icon">⚠</span> Registrar merma</div>
+        <div class="page-sub" style="margin:-8px 0 12px">Para vencimientos, roturas o errores de preparación — descuenta del stock sin registrarlo como venta ni como gasto.</div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Ingrediente</label><select id="m-ingrediente"><option value="">Seleccionar...</option></select></div>
+          <div class="form-group"><label class="form-label">Cantidad perdida</label><input type="number" id="m-cantidad" placeholder="0" step="0.01"></div>
+          <div class="form-group"><label class="form-label">Motivo</label><select id="m-motivo"><option>Vencimiento</option><option>Rotura o derrame</option><option>Error de preparación</option><option>Otro</option></select></div>
+        </div>
+        <button class="btn btn-danger" onclick="registrarMerma()">✓ Registrar merma</button>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">📜</span> Movimientos recientes</div>
+        <div class="page-sub" style="margin:-8px 0 12px">Compras, ediciones y mermas de stock. Solo se puede deshacer el último movimiento activo de cada ingrediente.</div>
+        <div id="stock-movimientos" style="max-height:420px;overflow-y:auto;padding-right:4px"></div>
+      </div>
+      <div class="card"><div class="card-title"><span class="icon">▣</span> Inventario actual</div><div class="table-wrap" style="max-height:480px;overflow-y:auto"><table><thead style="position:sticky;top:0;background:var(--surface);z-index:1"><tr><th>Fecha</th><th>Ingrediente</th><th>Cat</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th>Costo</th><th>Acciones</th></tr></thead><tbody id="stock-tabla"></tbody></table></div></div>
       <div class="card"><div class="card-title"><span class="icon">◈</span> Capacidad de fabricación</div><div class="page-sub" style="margin:-12px 0 16px">Con el stock actual podés preparar:</div><div class="receta-grid" id="stock-capacidad"></div></div>
     </div>
 
@@ -518,7 +552,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Nombre</label><input type="text" id="r-nombre"></div>
           <div class="form-group"><label class="form-label">Tipo</label><select id="r-tipo"><option>Hamburguesa</option><option>Combo</option><option>Promo</option><option>Vegetariana</option><option>Bebida</option></select></div>
           <div class="form-group"><label class="form-label">Precio de venta ($)</label><input type="number" id="r-precio"></div>
-          <div class="form-group"><label class="form-label">Costo estimado ($)</label><input type="number" id="r-costo" readonly><div style="font-size:10px;color:var(--muted);margin-top:4px">Se calcula automáticamente con los ingredientes y sus costos de Stock.</div></div>
+          <div class="form-group"><label class="form-label">Costo estimado ($)</label><input type="number" id="r-costo" readonly><div style="font-size:10px;color:var(--muted);margin-top:4px">Se calcula automáticamente con los ingredientes y sus costos de Stock.</div><div id="r-costo-avisos" style="margin-top:6px"></div></div>
           <div class="form-group"><label class="form-label">Margen de ganancia (%)</label><input type="number" id="r-margen" min="0" max="99.99" step="0.1" placeholder="Ej: 60"><div style="font-size:10px;color:var(--muted);margin-top:4px">Al modificarlo, calcula el precio de venta.</div></div>
         </div>
         <div class="form-group" style="margin-bottom:14px"><label class="form-label">Descripción</label><input type="text" id="r-desc"></div>
@@ -594,7 +628,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-group"><label class="form-label">Descripción</label><input type="search" id="gastos-filtro-desc" placeholder="Buscar en la descripción..."></div>
           <div class="form-group" style="justify-content:flex-end"><button class="btn btn-sm" type="button" onclick="limpiarFiltroGastos()">↺ Limpiar filtros</button></div>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Tipo</th><th>Monto</th><th>Acciones</th></tr></thead><tbody id="gastos-tabla"></tbody></table></div>
+        <div class="table-wrap" style="max-height:480px;overflow-y:auto"><table><thead style="position:sticky;top:0;background:var(--surface);z-index:1"><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Tipo</th><th>Monto</th><th>Acciones</th></tr></thead><tbody id="gastos-tabla"></tbody></table></div>
       </div>
     </div>
 
@@ -606,6 +640,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDYvEr5rbVjhYLX5sbqYh4pK9bDSOH1cyk",
@@ -618,10 +653,59 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const fsDb = getFirestore(app);
+const fsAuth = getAuth(app);
+// Los usuarios se crean en Firebase con un email "de mentira" (usuario@hangar23-interno.com)
+// porque el login por email/contraseña de Firebase necesita ese formato, pero en la pantalla
+// de acceso el negocio solo ve "Usuario" y "Contraseña" — el dominio interno es invisible.
+const DOMINIO_LOGIN_INTERNO = 'hangar23-interno.com';
+
+window.iniciarSesion = async function() {
+    const usuario = (document.getElementById('login-usuario').value || '').trim().toLowerCase();
+    const password = document.getElementById('login-password').value || '';
+    const errorEl = document.getElementById('login-error');
+    errorEl.textContent = '';
+    if (!usuario || !password) { errorEl.textContent = 'Completá usuario y contraseña.'; return; }
+    const btn = document.getElementById('btn-login');
+    btn.disabled = true; btn.textContent = 'Ingresando...';
+    try {
+        await setPersistence(fsAuth, browserLocalPersistence);
+        await signInWithEmailAndPassword(fsAuth, `${usuario}@${DOMINIO_LOGIN_INTERNO}`, password);
+    } catch(e) {
+        errorEl.textContent = 'Usuario o contraseña incorrectos.';
+    } finally {
+        btn.disabled = false; btn.textContent = 'Ingresar';
+    }
+};
+
+window.cerrarSesion = async function() {
+    if (!confirm('¿Cerrar sesión?')) return;
+    try { await signOut(fsAuth); } catch(e) { console.error(e); }
+};
+
+let suscripcionesActivas = false;
+let desuscribirColecciones = [];
+
+onAuthStateChanged(fsAuth, (user) => {
+    const loginOverlay = document.getElementById('login-overlay');
+    const appShell = document.getElementById('app-shell');
+    if (user) {
+        loginOverlay.style.display = 'none';
+        appShell.style.display = '';
+        const nombreUsuario = (user.email || '').split('@')[0];
+        const etiqueta = document.getElementById('login-usuario-actual');
+        if (etiqueta) etiqueta.textContent = `👤 ${nombreUsuario}`;
+        if (!suscripcionesActivas) { iniciarSuscripcionesFirestore(); suscripcionesActivas = true; }
+    } else {
+        appShell.style.display = 'none';
+        loginOverlay.style.display = 'flex';
+        document.getElementById('login-password').value = '';
+        if (suscripcionesActivas) { desuscribirColecciones.forEach(fn => fn()); desuscribirColecciones = []; suscripcionesActivas = false; }
+    }
+});
 
 window.getHoy = function() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
-window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [], cajas: [] };
+window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [], cajas: [], clientes: [], movimientos_stock: [] };
 window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null, promociones: null, cupones: null };
 window.carritoActual = [];
 window.cuponAplicado = null;
@@ -632,6 +716,114 @@ window.ingredientesRecetaTemp = [];
 window.fmt = (n) => '$' + Math.round(n).toLocaleString('es-AR');
 window.pct = (a, b) => b ? Math.round((a / b) * 100) : 0;
 const limpiarText = (txt) => txt ? txt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() : '';
+
+// Costo promedio ponderado: al sumar una compra nueva a un stock existente, el costo
+// resultante es el promedio entre lo que ya tenías y lo que compraste, en vez de
+// reemplazar todo por el precio de la última compra (que distorsiona el margen
+// cuando el precio de un insumo sube o baja).
+function costoPromedioPonderado(cantidadAnterior, costoAnterior, cantidadNueva, costoNuevo) {
+    const cantAnt = Number(cantidadAnterior) || 0;
+    const costAnt = Number(costoAnterior) || 0;
+    const cantNueva = Number(cantidadNueva) || 0;
+    const costNuevo = Number(costoNuevo) || 0;
+    const cantidadTotal = cantAnt + cantNueva;
+    if (cantidadTotal <= 0) return costNuevo;
+    if (costNuevo <= 0) return costAnt; // no se informó costo nuevo: no hay nada que promediar
+    return Math.round(((cantAnt * costAnt + cantNueva * costNuevo) / cantidadTotal) * 100) / 100;
+}
+
+// Historial de movimientos de stock: registra el estado ANTERIOR de un ingrediente antes de
+// cada compra, edición o merma, para poder deshacer un movimiento con "↩ Deshacer" y para
+// tener trazabilidad de por qué cambió una cantidad o un costo.
+async function registrarMovimientoStock(stockAntes, cantidadNueva, costoNuevo, tipo, motivo) {
+    try {
+        await addDoc(collection(fsDb, 'movimientos_stock'), {
+            stockId: stockAntes.id,
+            nombre: stockAntes.nombre,
+            unidad: stockAntes.unidad || '',
+            tipo,
+            motivo: motivo || '',
+            fecha: window.getHoy(),
+            cantidadAnterior: Number(stockAntes.cantidad) || 0,
+            costoAnterior: Number(stockAntes.costo) || 0,
+            cantidadNueva: Number(cantidadNueva) || 0,
+            costoNuevo: Number(costoNuevo) || 0,
+            revertido: false,
+            creadoEn: Date.now()
+        });
+    } catch(e) { console.error('No se pudo registrar el movimiento de stock', e); }
+}
+
+window.deshacerMovimientoStock = async function(movId) {
+    const mov = window.db.movimientos_stock.find(m => m.id === movId);
+    if (!mov) { window.toast('⚠ Movimiento no encontrado'); return; }
+    const activos = window.db.movimientos_stock.filter(m => m.stockId === mov.stockId && !m.revertido).sort((a,b) => (b.creadoEn||0) - (a.creadoEn||0));
+    if (!activos.length || activos[0].id !== mov.id) { window.toast('⚠ Solo se puede deshacer el último movimiento activo de este ingrediente'); return; }
+    if (!confirm(`¿Deshacer este movimiento de "${mov.nombre}"? Va a volver a ${mov.cantidadAnterior} ${mov.unidad} a $${mov.costoAnterior}.`)) return;
+    try {
+        await updateDoc(doc(fsDb, 'stock', mov.stockId), { cantidad: mov.cantidadAnterior, costo: mov.costoAnterior });
+        await updateDoc(doc(fsDb, 'movimientos_stock', mov.id), { revertido: true });
+        window.toast('✓ Movimiento deshecho');
+    } catch(e) { console.error(e); window.toast('⚠ No se pudo deshacer'); }
+};
+
+window.registrarMerma = async function() {
+    const stockId = document.getElementById('m-ingrediente')?.value || '';
+    const cantidad = parseFloat(document.getElementById('m-cantidad')?.value) || 0;
+    const motivo = document.getElementById('m-motivo')?.value || 'Otro';
+    if (!stockId || cantidad <= 0) { window.toast('⚠ Elegí un ingrediente y una cantidad'); return; }
+    const stock = window.db.stock.find(s => s.id === stockId);
+    if (!stock) { window.toast('⚠ Ingrediente no encontrado'); return; }
+    const nuevaCantidad = Math.round(Math.max(0, (Number(stock.cantidad) || 0) - cantidad) * 100) / 100;
+    try {
+        await registrarMovimientoStock(stock, nuevaCantidad, stock.costo, 'merma', motivo);
+        await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: nuevaCantidad });
+        window.toast('✓ Merma registrada');
+        document.getElementById('m-cantidad').value = '';
+    } catch(e) { console.error(e); window.toast('⚠ No se pudo registrar la merma'); }
+};
+
+function renderMovimientosStock() {
+    const sel = document.getElementById('m-ingrediente');
+    if (sel) { const actual = sel.value; sel.innerHTML = '<option value="">Seleccionar...</option>' + window.db.stock.map(s => `<option value="${s.id}">${s.nombre} (${s.cantidad} ${s.unidad})</option>`).join(''); if (actual) sel.value = actual; }
+    const cont = document.getElementById('stock-movimientos');
+    if (!cont) return;
+    const etiquetas = { compra: '🛒 Compra', edicion: '✎ Edición', edicion_compra: '✎ Compra editada', merma: '⚠ Merma' };
+    const activosPorStock = {};
+    window.db.movimientos_stock.forEach(m => { if (!m.revertido && !activosPorStock[m.stockId]) activosPorStock[m.stockId] = m.id; });
+    const recientes = window.db.movimientos_stock.slice(0, 20);
+    cont.innerHTML = recientes.length ? recientes.map(m => {
+        const esUltimoActivo = !m.revertido && activosPorStock[m.stockId] === m.id;
+        const cambioCant = `${m.cantidadAnterior} → ${m.cantidadNueva} ${m.unidad}`;
+        const cambioCosto = m.costoAnterior !== m.costoNuevo ? ` · costo ${window.fmt(m.costoAnterior)} → ${window.fmt(m.costoNuevo)}` : '';
+        return `<div class="matrix-item" style="opacity:${m.revertido ? 0.5 : 1}">
+            <strong>${etiquetas[m.tipo] || m.tipo} — ${m.nombre}</strong>
+            <span>${cambioCant}${cambioCosto}${m.motivo ? ' · ' + m.motivo : ''}${m.revertido ? ' · (deshecho)' : ''}</span>
+            ${esUltimoActivo ? `<button class="btn btn-sm btn-danger" style="margin-top:6px" onclick="deshacerMovimientoStock('${m.id}')">↩ Deshacer</button>` : ''}
+        </div>`;
+    }).join('') : '<div class="empty" style="padding:4px">Todavía no hay movimientos registrados</div>';
+}
+
+// Clientes con ID propio: antes cada venta guardaba el nombre del cliente como texto libre,
+// así que "Juan" y "juan " contaban como dos clientes distintos en las estadísticas de
+// recurrencia. Ahora cada venta nueva queda asociada a un cliente con ID fijo (buscado por
+// nombre normalizado, o creado si no existe), y todo lo que agrupa por cliente usa ese ID.
+async function obtenerOCrearCliente(nombreInput) {
+    const nombre = (nombreInput || '').trim();
+    if (!nombre) return null;
+    const norm = limpiarText(nombre);
+    const existente = window.db.clientes.find(c => limpiarText(c.nombre) === norm);
+    if (existente) return existente.id;
+    try {
+        const ref = await addDoc(collection(fsDb, 'clientes'), { nombre, creadoEn: Date.now() });
+        return ref.id;
+    } catch(e) { console.error('No se pudo crear el cliente', e); return null; }
+}
+function claveCliente(venta) { return venta.clienteId || ('n_' + limpiarText(venta.cliente || '')); }
+function nombreCliente(venta) {
+    if (venta.clienteId) { const c = window.db.clientes.find(x => x.id === venta.clienteId); if (c) return c.nombre; }
+    return venta.cliente || '(Sin nombre)';
+}
 
 function diffDias(d1, d2) {
     if (!d1 || !d2) return Infinity;
@@ -654,21 +846,26 @@ window.cargarDatosBase = async function() {
     try { for (const r of recetasBase) { await addDoc(collection(fsDb, 'recetas'), r); } window.toast('✓ Menú base restaurado'); } catch(e) { window.toast('⚠ Error'); }
 };
 
-['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas'].forEach(colName => {
-    onSnapshot(collection(fsDb, colName), (snapshot) => {
-        window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-        window.render();
-        if (colName === 'recetas' || colName === 'extras') {
-            const sel = document.getElementById('v-burger');
-            if (sel && !window.editando.ventas) window.refrescarSelectoresVentas();
-        }
-        if (colName === 'stock') {
-            window.renderIngredientesReceta();
-            window.renderSelectorExtra();
-        }
+function iniciarSuscripcionesFirestore() {
+    ['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas', 'clientes', 'movimientos_stock'].forEach(colName => {
+        const unsub = onSnapshot(collection(fsDb, colName), (snapshot) => {
+            window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+            if (colName === 'movimientos_stock') window.db[colName].sort((a, b) => (b.creadoEn || 0) - (a.creadoEn || 0));
+            window.render();
+            if (colName === 'recetas' || colName === 'extras') {
+                const sel = document.getElementById('v-burger');
+                if (sel && !window.editando.ventas) window.refrescarSelectoresVentas();
+            }
+            if (colName === 'stock') {
+                window.renderIngredientesReceta();
+                window.renderSelectorExtra();
+                window.actualizarCamposMateriaPrima();
+            }
+        });
+        desuscribirColecciones.push(unsub);
     });
-});
+}
 
 window.showSection = function(id) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -704,8 +901,11 @@ window.renderObjetivos = function() {
     const totalVentas = ventas.reduce((s,v)=>s+(Number(v.total)||0),0);
     let cogs = 0;
     ventas.forEach(v => (v.items||[]).forEach(item => {
+        const cantidadItem = Number(item.qty)||0;
+        if (cantidadItem <= 0) return;
+        if (item.costoUnitario !== undefined && item.costoUnitario !== null) { cogs += (Number(item.costoUnitario)||0) * cantidadItem; return; }
         const r = (window.db?.recetas||[]).find(x => limpiarText(x.nombre) === limpiarText(item.burger));
-        if (r) cogs += (window.costoReceta ? window.costoReceta(r) : (Number(r.costo)||0)) * (Number(item.qty)||0);
+        if (r) cogs += (Number(r.costo)||0) * cantidadItem;
     }));
     let gastosVariables = 0, gastosFijos = 0, gastosMixtos = 0, gastosOperativos = 0;
     gastos.forEach(g => {
@@ -749,43 +949,6 @@ window.renderObjetivos = function() {
       <div class="metric" title="Ventas necesarias para cubrir gastos fijos y alcanzar la ganancia en pesos indicada."><div class="metric-label">Ventas para ganar ${fmt(targetProfit||0)}</div><div class="metric-value green">${salesForProfit===null?'Sin datos':fmt(salesForProfit)}</div><div class="metric-sub">Ganancia objetivo</div></div>
       <div class="metric" title="Nivel de ventas en el que se cubren los costos variables y gastos fijos, sin ganancia ni pérdida."><div class="metric-label">Punto de equilibrio</div><div class="metric-value">${puntoEquilibrio===null?'Sin datos':fmt(puntoEquilibrio)}</div><div class="metric-sub">Resultado real = $0</div></div>`;
 
-    // Ganancia por producto: cuántas unidades de cada receta hacen falta vender, solas, para
-    // llegar a la ganancia objetivo (margen bruto = precio - costo). También arma una
-    // proyección más realista repartiendo esas unidades según la mezcla de ventas real
-    // del período elegido, en vez de asumir que se vende un solo producto.
-    const contProducto = document.getElementById('objetivos-por-producto');
-    if (contProducto) {
-        const objetivoGanancia = Math.max(0, targetProfit || 0);
-        const recetasConMargen = (window.db?.recetas || []).map(r => {
-            const costo = Number(r.costo) || 0, precio = Number(r.precio) || 0;
-            return { nombre: r.nombre, precio, costo, margen: precio - costo };
-        }).filter(r => r.precio > 0);
-        const filasIndividuales = recetasConMargen.slice().sort((a,b) => b.margen - a.margen).map(r => {
-            if (r.margen <= 0) return `<div class="matrix-item"><strong>${esc(r.nombre)}</strong><span style="color:var(--danger)">Sin margen positivo (precio ≤ costo)</span></div>`;
-            const unidades = objetivoGanancia > 0 ? Math.ceil(objetivoGanancia / r.margen) : 0;
-            return `<div class="matrix-item"><strong>${esc(r.nombre)}</strong><span>Margen ${fmt(r.margen)}/u · Necesitás vender <b style="color:var(--accent)">${unidades.toLocaleString('es-AR')}</b> para llegar a ${fmt(objetivoGanancia)} vendiendo solo este producto</span></div>`;
-        }).join('');
-
-        const unidadesPorReceta = {}; let unidadesTotales = 0;
-        ventas.forEach(v => (v.items || []).forEach(item => { unidadesPorReceta[item.burger] = (unidadesPorReceta[item.burger] || 0) + (Number(item.qty) || 0); unidadesTotales += Number(item.qty) || 0; }));
-        let margenPromedioPonderado = 0;
-        if (unidadesTotales > 0) Object.entries(unidadesPorReceta).forEach(([nombre, cant]) => { const r = recetasConMargen.find(x => x.nombre === nombre); if (r) margenPromedioPonderado += (r.margen * cant) / unidadesTotales; });
-        let bloqueMezcla = '<div class="empty">Todavía no hay ventas registradas en este período para estimar una mezcla realista.</div>';
-        if (margenPromedioPonderado > 0 && objetivoGanancia > 0) {
-            const totalUnidadesNecesarias = Math.ceil(objetivoGanancia / margenPromedioPonderado);
-            const desglose = Object.entries(unidadesPorReceta).sort((a,b) => b[1]-a[1]).map(([nombre, cant]) => {
-                const proporcion = cant / unidadesTotales;
-                return `<div class="matrix-item"><strong>${esc(nombre)}</strong><span>≈ ${Math.round(totalUnidadesNecesarias * proporcion).toLocaleString('es-AR')} unidades (${(proporcion*100).toFixed(0)}% de tu mezcla actual)</span></div>`;
-            }).join('');
-            bloqueMezcla = `<div class="alert alert-ok" style="margin-bottom:10px">📊 Manteniendo la mezcla de productos que vendés hoy (margen promedio ${fmt(margenPromedioPonderado)} por unidad), necesitarías vender aproximadamente <b>${totalUnidadesNecesarias.toLocaleString('es-AR')} unidades en total</b> para llegar a ${fmt(objetivoGanancia)}.</div>${desglose}`;
-        }
-        contProducto.innerHTML = `
-            <div class="form-label" style="margin-bottom:8px">Si vendieras solo un producto</div>
-            ${filasIndividuales || '<div class="empty">Cargá productos con precio para ver este cálculo.</div>'}
-            <div class="form-label" style="margin:16px 0 8px">Proyección según tu mezcla real de ventas (${nombrePeriodo})</div>
-            ${bloqueMezcla}`;
-    }
-
     // Histórico mensual: usa todos los datos disponibles y no modifica Firebase.
     const meses = {};
     (window.db?.ventas||[]).forEach(v=>{ if(!v.fecha) return; const k=v.fecha.slice(0,7); (meses[k] ||= {ventas:0,pedidos:0}); meses[k].ventas += Number(v.total)||0; meses[k].pedidos++; });
@@ -796,7 +959,7 @@ window.renderObjetivos = function() {
         const vs=(window.db?.ventas||[]).filter(v=>v.fecha?.startsWith(k));
         const gs=(window.db?.gastos||[]).filter(g=>g.fecha?.startsWith(k));
         const vt=vs.reduce((s,v)=>s+(Number(v.total)||0),0); let cv=0;
-        vs.forEach(v=>(v.items||[]).forEach(item=>{const r=(window.db?.recetas||[]).find(x=>limpiarText(x.nombre)===limpiarText(item.burger)); if(r) cv+=(window.costoReceta?window.costoReceta(r):(Number(r.costo)||0))*(Number(item.qty)||0);}));
+        vs.forEach(v=>(v.items||[]).forEach(item=>{const qtyItem=Number(item.qty)||0; if(qtyItem<=0)return; if(item.costoUnitario!==undefined&&item.costoUnitario!==null){cv+=(Number(item.costoUnitario)||0)*qtyItem;return;} const r=(window.db?.recetas||[]).find(x=>limpiarText(x.nombre)===limpiarText(item.burger)); if(r) cv+=(Number(r.costo)||0)*qtyItem;}));
         let go=0; gs.forEach(g=>{const cat=limpiarText(g.cat||g.categoria); const mp=cat==='materia prima'||cat==='materiaprima'||!!g.materiaPrimaId||!!g.ingredienteId; if(!mp) go+=Number(g.monto)||0;});
         return vt>0 ? ((vt-cv-go)/vt)*100 : 0;
     });
@@ -857,17 +1020,24 @@ window.renderRentabilidad = function() {
 
     const ventasTotal = ventas.reduce((sum, v) => sum + (Number(v.total) || 0), 0);
 
-    // Costo de mercadería vendida: toma cada producto realmente vendido
-    // y usa el costo estándar que ya calcula el módulo de Recetas.
+    // Costo de mercadería vendida: toma cada producto realmente vendido.
+    // Prioriza el costo guardado en la propia venta (costoUnitario, capturado al momento
+    // de vender) para que la rentabilidad histórica no cambie si después suben los insumos.
+    // Si la venta es anterior a este cambio y no tiene costoUnitario, cae al costo actual de la receta.
     let costoVendido = 0;
     ventas.forEach(v => {
         (v.items || []).forEach(item => {
+            const cantidad = Number(item.qty) || 0;
+            if (cantidad <= 0) return;
+            if (item.costoUnitario !== undefined && item.costoUnitario !== null) {
+                costoVendido += (Number(item.costoUnitario) || 0) * cantidad;
+                return;
+            }
             const receta = (window.db?.recetas || []).find(
                 r => limpiarText(r.nombre) === limpiarText(item.burger)
             );
-            const cantidad = Number(item.qty) || 0;
-            if (receta && cantidad > 0) {
-                costoVendido += (window.costoReceta ? window.costoReceta(receta) : (Number(receta.costo) || 0)) * cantidad;
+            if (receta) {
+                costoVendido += (Number(receta.costo) || 0) * cantidad;
             }
         });
     });
@@ -944,7 +1114,7 @@ window.renderRentabilidad = function() {
 };
 
 
-window.render = function() { renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); };
+window.render = function() { renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderMovimientosStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); };
 
 // --- LOGICA DE UI INTELIGENTE PARA RECETAS Y EXTRAS ---
 window.renderIngredientesReceta = function() {
@@ -991,23 +1161,30 @@ window.actualizarCostoRecetaFormulario = function() {
     if (!costoEl) return 0;
     let total = 0;
     let hayIngredienteValido = false;
+    const avisos = [];
 
     (window.ingredientesRecetaTemp || []).forEach(ing => {
         const nombre = (ing.nombre || '').trim();
         const cantidad = parseFloat(ing.cant);
         if (!nombre || !Number.isFinite(cantidad) || cantidad <= 0) return;
         const stock = window.db.stock.find(s => limpiarText(s.nombre) === limpiarText(nombre));
-        if (!stock) return;
+        if (!stock) { avisos.push(`"${nombre}" no está en Stock`); return; }
         const costo = costoEstandarIngredienteReceta(stock);
-        if (costo === null) return;
+        if (costo === null) { avisos.push(`"${nombre}" no tiene costo cargado en Stock`); return; }
         const cantidadStock = convertirCantidadReceta(cantidad, ing.unidad || stock.unidad, stock.unidad);
-        if (cantidadStock === null) return;
+        if (cantidadStock === null) { avisos.push(`"${nombre}": no se pudo convertir ${ing.unidad || '?'} a ${stock.unidad} (revisá la unidad)`); return; }
         total += cantidadStock * costo;
         hayIngredienteValido = true;
     });
 
     const calculado = hayIngredienteValido ? Math.round(total) : 0;
     costoEl.value = calculado > 0 ? calculado : '';
+    const avisosEl = document.getElementById('r-costo-avisos');
+    if (avisosEl) {
+        avisosEl.innerHTML = avisos.length
+            ? `<div class="alert alert-warn" style="margin-bottom:0;font-size:11px">⚠ El costo NO incluye: ${avisos.join(' · ')}. El costo real de esta receta es más alto que el que se muestra.</div>`
+            : '';
+    }
     return calculado;
 };
 
@@ -1205,30 +1382,65 @@ function renderDash() {
     document.getElementById('meta-info').textContent = `${window.fmt(ventasMes)} vendidos este mes · faltan ${window.fmt(Math.max(0, meta - ventasMes))} (${metaPct}%)`;
 
     const productos = {};
-    const clientes = {};
+    const clientesMap = {};
     ventas.forEach(venta => {
-        if (venta.cliente) clientes[venta.cliente] = (clientes[venta.cliente] || 0) + (venta.total || 0);
+        if (venta.cliente) {
+            const clave = claveCliente(venta);
+            if (!clientesMap[clave]) clientesMap[clave] = { nombre: nombreCliente(venta), total: 0 };
+            clientesMap[clave].total += (venta.total || 0);
+        }
         (venta.items || []).forEach(item => productos[item.burger] = (productos[item.burger] || 0) + (item.qty || 0));
     });
     const ranking = Object.entries(productos).sort((a, b) => b[1] - a[1]);
-    const vip = Object.entries(clientes).sort((a, b) => b[1] - a[1])[0];
+    const vip = Object.values(clientesMap).sort((a, b) => b.total - a.total)[0];
     const masVendido = ranking[0];
     const criticos = window.db.stock.filter(item => item.cantidad <= item.minimo);
-    const ganancias = facturacion - egresos;
+    // Resultado de caja: ventas menos TODOS los gastos del período, incluidas las compras de
+    // materia prima (que en realidad son inventario, no costo de lo vendido). Sirve para saber
+    // cuánto efectivo movió el negocio, pero NO es la rentabilidad real — por eso se calcula
+    // también el resultado real con el mismo criterio que el módulo Rentabilidad.
+    const resultadoCajaPeriodo = facturacion - egresos;
+    let costoVendidoPeriodo = 0;
+    ventas.forEach(venta => (venta.items || []).forEach(item => {
+        const cantidadItem = Number(item.qty) || 0;
+        if (cantidadItem <= 0) return;
+        if (item.costoUnitario !== undefined && item.costoUnitario !== null) { costoVendidoPeriodo += (Number(item.costoUnitario) || 0) * cantidadItem; return; }
+        const recetaItem = (window.db?.recetas || []).find(r => limpiarText(r.nombre) === limpiarText(item.burger));
+        if (recetaItem) costoVendidoPeriodo += (Number(recetaItem.costo) || 0) * cantidadItem;
+    }));
+    let gastosOperativosPeriodo = 0;
+    gastos.forEach(gasto => {
+        const categoriaGasto = limpiarText(gasto.cat || gasto.categoria);
+        const esMateriaPrimaGasto = categoriaGasto === 'materia prima' || categoriaGasto === 'materiaprima' || !!gasto.materiaPrimaId || !!gasto.ingredienteId;
+        if (!esMateriaPrimaGasto) gastosOperativosPeriodo += Number(gasto.monto) || 0;
+    });
+    const resultadoRealPeriodo = facturacion - costoVendidoPeriodo - gastosOperativosPeriodo;
     document.getElementById('dash-metrics').innerHTML = `
       <div class="metric"><div class="metric-label">Ventas hoy</div><div class="metric-value yellow">${window.fmt(ventasHoy)}</div><div class="metric-sub">Facturación diaria</div></div>
       <div class="metric"><div class="metric-label">Ventas del período</div><div class="metric-value green">${window.fmt(facturacion)}</div><div class="metric-sub">${pedidos} pedido${pedidos === 1 ? '' : 's'}</div></div>
       <div class="metric"><div class="metric-label">Ticket promedio</div><div class="metric-value blue">${window.fmt(ticket)}</div><div class="metric-sub">Por pedido</div></div>
-      <div class="metric"><div class="metric-label">Ganancia estimada</div><div class="metric-value ${ganancias >= 0 ? 'green' : 'red'}">${window.fmt(ganancias)}</div><div class="metric-sub">Ventas menos gastos</div></div>
-      <div class="metric"><div class="metric-label">Cliente VIP</div><div class="metric-value orange" style="font-size:20px">${vip ? esc(vip[0]) : '—'}</div><div class="metric-sub">${vip ? window.fmt(vip[1]) + ' en compras' : 'Sin registros'}</div></div>
+      <div class="metric" title="Ventas menos TODOS los gastos del período, incluidas las compras de materia prima. Es un indicador de efectivo, no de rentabilidad."><div class="metric-label">Resultado de caja</div><div class="metric-value ${resultadoCajaPeriodo >= 0 ? 'green' : 'red'}">${window.fmt(resultadoCajaPeriodo)}</div><div class="metric-sub">Ventas − todos los gastos (incl. compras)</div></div>
+      <div class="metric" title="Ventas menos el costo de lo efectivamente vendido y los gastos operativos (excluye compras de materia prima). Este es el que refleja la rentabilidad real."><div class="metric-label">Resultado real</div><div class="metric-value ${resultadoRealPeriodo >= 0 ? 'green' : 'red'}">${window.fmt(resultadoRealPeriodo)}</div><div class="metric-sub">Ventas − costo vendido − gastos operativos</div></div>
+      <div class="metric"><div class="metric-label">Cliente VIP</div><div class="metric-value orange" style="font-size:20px">${vip ? esc(vip.nombre) : '—'}</div><div class="metric-sub">${vip ? window.fmt(vip.total) + ' en compras' : 'Sin registros'}</div></div>
       <div class="metric"><div class="metric-label">Producto líder</div><div class="metric-value yellow" style="font-size:20px">${masVendido ? esc(masVendido[0]) : '—'}</div><div class="metric-sub">${masVendido ? masVendido[1] + ' unidades' : 'Sin ventas'}</div></div>
       <div class="metric"><div class="metric-label">Stock crítico</div><div class="metric-value ${criticos.length ? 'red' : 'green'}">${criticos.length}</div><div class="metric-sub">Requiere reposición</div></div>`;
 
     const menuStats = window.db.recetas.map(receta => ({ nombre: receta.nombre, sold: productos[receta.nombre] || 0, margin: (receta.precio || 0) - (receta.costo || 0) }));
-    const estrellas = menuStats.filter(item => item.sold).sort((a,b) => b.sold - a.sold).slice(0,3);
-    const perros = [...menuStats].sort((a,b) => a.sold - b.sold).slice(0,3);
-    const matriz = items => items.length ? items.map(item => `<div class="matrix-item"><strong>${esc(item.nombre)}</strong><span>${item.sold} ud. · ${window.fmt(item.margin)}/ud</span></div>`).join('') : '<div class="empty" style="padding:4px">Sin datos en este período</div>';
+    // Ingeniería de menú clásica (Kasavana & Smith): cruza popularidad (unidades vendidas)
+    // con margen por unidad, usando el promedio del período como línea de corte en cada eje.
+    // Antes esto solo ordenaba por unidades vendidas y mostraba el margen como dato suelto,
+    // sin usarlo para clasificar — un producto podía ser "el más vendido" y perder plata igual.
+    const conVentas = menuStats.filter(item => item.sold > 0);
+    const promedioSold = conVentas.length ? conVentas.reduce((s, i) => s + i.sold, 0) / conVentas.length : 0;
+    const promedioMargin = conVentas.length ? conVentas.reduce((s, i) => s + i.margin, 0) / conVentas.length : 0;
+    const estrellas = conVentas.filter(i => i.sold >= promedioSold && i.margin >= promedioMargin).sort((a,b) => b.sold - a.sold);
+    const vacas = conVentas.filter(i => i.sold >= promedioSold && i.margin < promedioMargin).sort((a,b) => b.sold - a.sold);
+    const incognitas = conVentas.filter(i => i.sold < promedioSold && i.margin >= promedioMargin).sort((a,b) => b.margin - a.margin);
+    const perros = menuStats.filter(i => i.sold === 0 || (i.sold < promedioSold && i.margin < promedioMargin)).sort((a,b) => a.sold - b.sold);
+    const matriz = items => items.length ? items.slice(0,4).map(item => `<div class="matrix-item"><strong>${esc(item.nombre)}</strong><span>${item.sold} ud. · ${window.fmt(item.margin)}/ud</span></div>`).join('') : '<div class="empty" style="padding:4px">Sin datos en este período</div>';
     document.getElementById('matrix-estrellas').innerHTML = matriz(estrellas);
+    document.getElementById('matrix-vacas').innerHTML = matriz(vacas);
+    document.getElementById('matrix-incognitas').innerHTML = matriz(incognitas);
     document.getElementById('matrix-perros').innerHTML = matriz(perros);
 
     const alertas = criticos.map(item => `<div class="alert alert-danger">⚠ <strong>${esc(item.nombre)}</strong>: ${item.cantidad} ${esc(item.unidad)} disponibles (mínimo: ${item.minimo})</div>`);
@@ -1285,6 +1497,11 @@ function renderVentas() {
 }
 
 function renderStock() {
+    const catsUsadas = [...new Set(window.db.stock.map(s => s.categoria).filter(Boolean))];
+    const catsPreset = ['Carnes', 'Panificados', 'Lácteos', 'Verduras', 'Salsas', 'Otros'];
+    const todasCats = [...new Set([...catsPreset, ...catsUsadas])].sort((a, b) => a.localeCompare(b));
+    const listEl = document.getElementById('s-cat-list');
+    if (listEl) listEl.innerHTML = todasCats.map(c => `<option>${c}</option>`).join('');
     document.getElementById('stock-tabla').innerHTML = window.db.stock.map(s => {
         const estado = s.cantidad < s.minimo ? 'danger' : s.cantidad === s.minimo ? 'warn' : 'ok';
         const label = { danger: 'Comprar', warn: 'Bajo', ok: 'Ok' }[estado];
@@ -1370,28 +1587,29 @@ function renderCupones() {
 }
 
 function filtroReporte() { const periodo=document.getElementById('rpt-period')?.value||'month', desde=document.getElementById('rpt-from')?.value, hasta=document.getElementById('rpt-to')?.value, hoy=window.getHoy(); return fecha => { if(!fecha)return false; if(periodo==='today')return fecha===hoy; if(periodo==='week')return diffDias(hoy,fecha)>=0&&diffDias(hoy,fecha)<=6; if(periodo==='month')return fecha.startsWith(hoy.slice(0,7)); if(periodo==='year')return fecha.startsWith(hoy.slice(0,4)); if(periodo==='custom')return (!desde||fecha>=desde)&&(!hasta||fecha<=hasta); return true; }; }
-function renderReportes() { const incluye=filtroReporte(), ventas=window.db.ventas.filter(v=>incluye(v.fecha)), gastos=window.db.gastos.filter(g=>incluye(g.fecha)), total=ventas.reduce((s,v)=>s+(v.total||0),0), egresos=gastos.reduce((s,g)=>s+(g.monto||0),0), productos={}, clientes={}; ventas.forEach(v=>{clientes[v.cliente]=(clientes[v.cliente]||0)+(v.total||0); (v.items||[]).forEach(i=>productos[i.burger]=(productos[i.burger]||0)+(i.qty||0));}); const rankingP=Object.entries(productos).sort((a,b)=>b[1]-a[1]), rankingC=Object.entries(clientes).sort((a,b)=>b[1]-a[1]); document.getElementById('reportes-metrics').innerHTML=`<div class="metric"><div class="metric-label">Ventas</div><div class="metric-value green">${window.fmt(total)}</div></div><div class="metric"><div class="metric-label">Pedidos</div><div class="metric-value yellow">${ventas.length}</div></div><div class="metric"><div class="metric-label">Gastos</div><div class="metric-value red">${window.fmt(egresos)}</div></div><div class="metric"><div class="metric-label">Resultado</div><div class="metric-value ${total-egresos>=0?'green':'red'}">${window.fmt(total-egresos)}</div></div>`; const listado=(lista,formatter)=>lista.slice(0,5).map(([n,v],i)=>`<div class="ranking-item"><span class="ranking-num">${i+1}</span><div class="ranking-bar-wrap"><div class="ranking-name">${n}</div></div><span class="ranking-count">${formatter(v)}</span></div>`).join('')||'<div class="empty">Sin datos en el período.</div>'; document.getElementById('reportes-productos').innerHTML=listado(rankingP,v=>v+' ud.'); document.getElementById('reportes-clientes').innerHTML=listado(rankingC,window.fmt); }
+function renderReportes() { const incluye=filtroReporte(), ventas=window.db.ventas.filter(v=>incluye(v.fecha)), gastos=window.db.gastos.filter(g=>incluye(g.fecha)), total=ventas.reduce((s,v)=>s+(v.total||0),0), egresos=gastos.reduce((s,g)=>s+(g.monto||0),0), productos={}, clientesMap={}; ventas.forEach(v=>{if(v.cliente){const clave=claveCliente(v); if(!clientesMap[clave]) clientesMap[clave]={nombre:nombreCliente(v), total:0}; clientesMap[clave].total+=(v.total||0);} (v.items||[]).forEach(i=>productos[i.burger]=(productos[i.burger]||0)+(i.qty||0));}); const rankingP=Object.entries(productos).sort((a,b)=>b[1]-a[1]), rankingC=Object.values(clientesMap).sort((a,b)=>b.total-a.total).map(c=>[c.nombre,c.total]); document.getElementById('reportes-metrics').innerHTML=`<div class="metric"><div class="metric-label">Ventas</div><div class="metric-value green">${window.fmt(total)}</div></div><div class="metric"><div class="metric-label">Pedidos</div><div class="metric-value yellow">${ventas.length}</div></div><div class="metric"><div class="metric-label">Gastos</div><div class="metric-value red">${window.fmt(egresos)}</div></div><div class="metric"><div class="metric-label">Resultado</div><div class="metric-value ${total-egresos>=0?'green':'red'}">${window.fmt(total-egresos)}</div></div>`; const listado=(lista,formatter)=>lista.slice(0,5).map(([n,v],i)=>`<div class="ranking-item"><span class="ranking-num">${i+1}</span><div class="ranking-bar-wrap"><div class="ranking-name">${n}</div></div><span class="ranking-count">${formatter(v)}</span></div>`).join('')||'<div class="empty">Sin datos en el período.</div>'; document.getElementById('reportes-productos').innerHTML=listado(rankingP,v=>v+' ud.'); document.getElementById('reportes-clientes').innerHTML=listado(rankingC,window.fmt); }
 function renderCaja() { const cajas=window.db.cajas.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')), abierta=cajas.find(c=>c.estado==='abierta'), hoy=window.getHoy(); const balance=abierta?calcularCaja(abierta):null; document.getElementById('caja-estado').innerHTML=abierta?`<div class="card-title">Caja abierta · ${abierta.fecha}</div><div class="metrics" style="margin:0"><div class="metric"><div class="metric-label">Fondo inicial</div><div class="metric-value">${window.fmt(abierta.inicial)}</div></div><div class="metric"><div class="metric-label">Ventas del día</div><div class="metric-value green">${window.fmt(balance.ventas)}</div></div><div class="metric"><div class="metric-label">Egresos del día</div><div class="metric-value red">${window.fmt(balance.gastos)}</div></div><div class="metric"><div class="metric-label">Efectivo esperado</div><div class="metric-value yellow">${window.fmt(balance.esperado)}</div></div></div>`:`<div class="card-title">No hay caja abierta</div><div class="page-sub">Abrí la caja para controlar el turno de hoy.</div>`; document.getElementById('caja-tabla').innerHTML=cajas.filter(c=>c.estado==='cerrada').map(c=>`<tr><td>${c.fecha}</td><td>${window.fmt(c.inicial)}</td><td>${window.fmt(c.ventas)}</td><td>${window.fmt(c.gastos)}</td><td>${window.fmt(c.esperado)}</td><td>${window.fmt(c.final)}</td><td class="${c.diferencia>=0?'green':'red'}">${window.fmt(c.diferencia)}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">Sin cierres registrados.</td></tr>'; }
 function calcularCaja(caja) { const ventas=window.db.ventas.filter(v=>v.fecha===caja.fecha).reduce((s,v)=>s+(v.total||0),0), gastos=window.db.gastos.filter(g=>g.fecha===caja.fecha).reduce((s,g)=>s+(g.monto||0),0); return {ventas,gastos,esperado:(caja.inicial||0)+ventas-gastos}; }
 
 function renderClientes() {
     const mapa = {};
     window.db.ventas.forEach(v => {
-        if (!mapa[v.cliente]) mapa[v.cliente] = { pedidos: 0, compras: 0, total: 0, fav: {}, pagos: {}, ultimo: '' };
+        const clave = claveCliente(v);
+        if (!mapa[clave]) mapa[clave] = { nombre: nombreCliente(v), pedidos: 0, compras: 0, total: 0, fav: {}, pagos: {}, ultimo: '' };
         const qtyTotal = (v.items || []).reduce((sum, item) => sum + item.qty, 0);
-        mapa[v.cliente].pedidos += qtyTotal; mapa[v.cliente].compras += 1; mapa[v.cliente].total += v.total; mapa[v.cliente].pagos[v.pago] = (mapa[v.cliente].pagos[v.pago] || 0) + 1;
-        if (v.fecha > mapa[v.cliente].ultimo) mapa[v.cliente].ultimo = v.fecha;
-        (v.items || []).forEach(item => { mapa[v.cliente].fav[item.burger] = (mapa[v.cliente].fav[item.burger] || 0) + item.qty; });
+        mapa[clave].pedidos += qtyTotal; mapa[clave].compras += 1; mapa[clave].total += v.total; mapa[clave].pagos[v.pago] = (mapa[clave].pagos[v.pago] || 0) + 1;
+        if (v.fecha > mapa[clave].ultimo) mapa[clave].ultimo = v.fecha;
+        (v.items || []).forEach(item => { mapa[clave].fav[item.burger] = (mapa[clave].fav[item.burger] || 0) + item.qty; });
     });
-    const lista = Object.entries(mapa).sort((a, b) => b[1].total - a[1].total);
-    const totalPedidos = lista.reduce((a, [, c]) => a + c.pedidos, 0);
-    const ticketProm = totalPedidos ? Math.round(lista.reduce((a, [, c]) => a + c.total, 0) / totalPedidos) : 0;
+    const lista = Object.values(mapa).sort((a, b) => b.total - a.total);
+    const totalPedidos = lista.reduce((a, c) => a + c.pedidos, 0);
+    const ticketProm = totalPedidos ? Math.round(lista.reduce((a, c) => a + c.total, 0) / totalPedidos) : 0;
 
-    document.getElementById('clientes-metrics').innerHTML = `<div class="metric"><div class="metric-label">Clientes únicos</div><div class="metric-value yellow">${lista.length}</div></div><div class="metric"><div class="metric-label">Gasto promedio</div><div class="metric-value green">${window.fmt(ticketProm)}</div></div><div class="metric"><div class="metric-label">Mejor cliente</div><div class="metric-value orange" style="font-size:18px">${lista[0] ? lista[0][0] : '—'}</div></div>`;
-    document.getElementById('clientes-tabla').innerHTML = lista.map(([nombre, c]) => {
+    document.getElementById('clientes-metrics').innerHTML = `<div class="metric"><div class="metric-label">Clientes únicos</div><div class="metric-value yellow">${lista.length}</div></div><div class="metric"><div class="metric-label">Gasto promedio</div><div class="metric-value green">${window.fmt(ticketProm)}</div></div><div class="metric"><div class="metric-label">Mejor cliente</div><div class="metric-value orange" style="font-size:18px">${lista[0] ? lista[0].nombre : '—'}</div></div>`;
+    document.getElementById('clientes-tabla').innerHTML = lista.map(c => {
         const fav = Object.entries(c.fav).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'; const pagoFav = Object.entries(c.pagos).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
-        const dias = diffDias(window.getHoy(), c.ultimo); const clase = dias > 60 ? 'Inactivo' : c.total >= (lista[0]?.[1].total || 0) * .65 || c.compras >= 5 ? 'VIP' : c.compras >= 2 ? 'Frecuente' : 'Nuevo'; const estilo = clase === 'VIP' ? 'badge-accent' : clase === 'Frecuente' ? 'badge-ok' : clase === 'Inactivo' ? 'badge-warn' : 'badge-blue';
-        return `<tr><td><strong>${nombre}</strong></td><td style="font-family:var(--font-mono)">${c.compras}</td><td>${window.fmt(c.total / c.compras)}</td><td>${fav}</td><td><span class="badge badge-blue">${pagoFav}</span></td><td><span class="badge ${estilo}">${clase}</span></td><td style="font-family:var(--font-mono);color:var(--accent)">${window.fmt(c.total)}</td><td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${c.ultimo}</td></tr>`;
+        const dias = diffDias(window.getHoy(), c.ultimo); const clase = dias > 60 ? 'Inactivo' : c.total >= (lista[0]?.total || 0) * .65 || c.compras >= 5 ? 'VIP' : c.compras >= 2 ? 'Frecuente' : 'Nuevo'; const estilo = clase === 'VIP' ? 'badge-accent' : clase === 'Frecuente' ? 'badge-ok' : clase === 'Inactivo' ? 'badge-warn' : 'badge-blue';
+        return `<tr><td><strong>${c.nombre}</strong></td><td style="font-family:var(--font-mono)">${c.compras}</td><td>${window.fmt(c.total / c.compras)}</td><td>${fav}</td><td><span class="badge badge-blue">${pagoFav}</span></td><td><span class="badge ${estilo}">${clase}</span></td><td style="font-family:var(--font-mono);color:var(--accent)">${window.fmt(c.total)}</td><td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${c.ultimo}</td></tr>`;
     }).join('') || `<tr><td colspan="8" class="empty">Sin clientes</td></tr>`;
 }
 
@@ -1430,7 +1648,9 @@ window.agregarAlCarrito = function() {
     const qty = parseInt(document.getElementById('v-qty').value) || 1;
     const extras = [...document.querySelectorAll('#v-extras input:checked')].map(i => i.value);
     const subtotal = parseFloat(document.getElementById('v-item-precio').value) || 0;
-    window.carritoActual.push({ burger, qty, extras, subtotal });
+    const recetaSeleccionada = window.db.recetas.find(r => r.nombre === burger);
+    const costoUnitario = recetaSeleccionada ? (Number(recetaSeleccionada.costo) || 0) : 0;
+    window.carritoActual.push({ burger, qty, extras, subtotal, costoUnitario });
     document.getElementById('v-qty').value = 1; document.querySelectorAll('#v-extras input').forEach(i => i.checked = false);
     window.actualizarPrecioItem(); window.renderCarrito();
 };
@@ -1510,7 +1730,8 @@ window.guardarVenta = async function() {
     const notas = document.getElementById('v-notas').value;
     const total = parseFloat(document.getElementById('v-precio-total').value) || 0;
     if (!cliente || window.carritoActual.length === 0) { window.toast('⚠ Agregá un cliente y productos al carrito'); return; }
-    const data = { fecha, cliente, items: [...window.carritoActual], total, pago, notas, cupon: window.cuponAplicado ? { codigo: window.cuponAplicado.codigo, descuento: window.cuponAplicado.descuento || 0 } : null };
+    const clienteId = await obtenerOCrearCliente(cliente);
+    const data = { fecha, cliente, clienteId, items: [...window.carritoActual], total, pago, notas, cupon: window.cuponAplicado ? { codigo: window.cuponAplicado.codigo, descuento: window.cuponAplicado.descuento || 0 } : null };
     try {
         if (window.editando.ventas) {
             const ventaBorrada = window.db.ventas.find(v => v.id === window.editando.ventas);
@@ -1529,13 +1750,22 @@ window.guardarVenta = async function() {
 };
 
 window.guardarStock = async function() {
-    const data = { fecha: document.getElementById('s-fecha').value || window.getHoy(), nombre: document.getElementById('s-nombre').value.trim(), cantidad: parseFloat(document.getElementById('s-cantidad').value) || 0, unidad: document.getElementById('s-unidad').value, minimo: parseFloat(document.getElementById('s-minimo').value) || 0, categoria: document.getElementById('s-cat').value, costo: parseFloat(document.getElementById('s-costo').value) || 0 };
+    const data = { fecha: document.getElementById('s-fecha').value || window.getHoy(), nombre: document.getElementById('s-nombre').value.trim(), cantidad: parseFloat(document.getElementById('s-cantidad').value) || 0, unidad: document.getElementById('s-unidad').value, minimo: parseFloat(document.getElementById('s-minimo').value) || 0, categoria: document.getElementById('s-cat').value.trim() || 'Otros', costo: parseFloat(document.getElementById('s-costo').value) || 0 };
     if (!data.nombre || !data.cantidad) { window.toast('⚠ Completá nombre y cantidad'); return; }
     try {
-        if (window.editando.stock) { await updateDoc(doc(fsDb, 'stock', window.editando.stock), data); window.toast('✓ Actualizado'); } 
+        if (window.editando.stock) {
+            const stockAntes = window.db.stock.find(s => s.id === window.editando.stock);
+            if (stockAntes) await registrarMovimientoStock(stockAntes, data.cantidad, data.costo, 'edicion', 'Edición manual del ingrediente');
+            await updateDoc(doc(fsDb, 'stock', window.editando.stock), data); window.toast('✓ Actualizado');
+        } 
         else {
             const ex = window.db.stock.find(s => s.nombre.toLowerCase() === data.nombre.toLowerCase());
-            if (ex) { await updateDoc(doc(fsDb, 'stock', ex.id), { cantidad: Math.round((ex.cantidad + data.cantidad) * 100) / 100, fecha: data.fecha, ...(data.costo ? { costo: data.costo } : {}) }); } 
+            if (ex) {
+                const nuevoCosto = costoPromedioPonderado(ex.cantidad, ex.costo, data.cantidad, data.costo);
+                const cantidadFinal = Math.round((ex.cantidad + data.cantidad) * 100) / 100;
+                await registrarMovimientoStock(ex, cantidadFinal, nuevoCosto, 'compra', '');
+                await updateDoc(doc(fsDb, 'stock', ex.id), { cantidad: cantidadFinal, fecha: data.fecha, costo: nuevoCosto });
+            } 
             else { await addDoc(collection(fsDb, 'stock'), data); }
             window.toast('✓ Guardado');
         }
@@ -1629,6 +1859,7 @@ window.actualizarCamposMateriaPrima = function() {
 };
 
 document.getElementById('g-cat')?.addEventListener('change', window.actualizarCamposMateriaPrima);
+window.actualizarCamposMateriaPrima();
 
 window.guardarGasto = async function() {
     const cat = document.getElementById('g-cat').value;
@@ -1643,14 +1874,20 @@ window.guardarGasto = async function() {
             const anterior = window.db.gastos.find(g => g.id === window.editando.gastos);
             if (anterior?.cat && limpiarText(anterior.cat) === 'materia prima' && anterior.stockId && Number(anterior.cantidadStock) > 0) {
                 const stockAnterior = window.db.stock.find(s => s.id === anterior.stockId);
-                if (stockAnterior) await updateDoc(doc(fsDb, 'stock', stockAnterior.id), { cantidad: Math.max(0, (Number(stockAnterior.cantidad) || 0) - Number(anterior.cantidadStock)) });
+                if (stockAnterior) {
+                    const cantidadRevertida = Math.max(0, (Number(stockAnterior.cantidad) || 0) - Number(anterior.cantidadStock));
+                    await registrarMovimientoStock(stockAnterior, cantidadRevertida, stockAnterior.costo, 'edicion_compra', 'Edición de gasto: se quitó la compra anterior');
+                    await updateDoc(doc(fsDb, 'stock', stockAnterior.id), { cantidad: cantidadRevertida });
+                }
             }
             if (esMP) { data.stockId = stockId; data.cantidadStock = cantidadMP; }
             await updateDoc(doc(fsDb, 'gastos', window.editando.gastos), data);
             if (esMP) {
                 const stock = window.db.stock.find(s => s.id === stockId);
                 if (!stock) throw new Error('Ingrediente de stock no encontrado');
-                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100, fecha: data.fecha });
+                const cantidadFinal = Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100;
+                await registrarMovimientoStock(stock, cantidadFinal, stock.costo, 'edicion_compra', 'Edición de gasto: se sumó la compra actualizada');
+                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: cantidadFinal, fecha: data.fecha });
             }
         } else {
             if (esMP) {
@@ -1658,7 +1895,11 @@ window.guardarGasto = async function() {
                 if (!stock) throw new Error('Ingrediente de stock no encontrado');
                 data.stockId = stock.id;
                 data.cantidadStock = cantidadMP;
-                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100, fecha: data.fecha });
+                const costoUnitarioCompra = cantidadMP > 0 ? (data.monto / cantidadMP) : 0;
+                const nuevoCosto = costoPromedioPonderado(stock.cantidad, stock.costo, cantidadMP, costoUnitarioCompra);
+                const cantidadFinal = Math.round(((Number(stock.cantidad) || 0) + cantidadMP) * 100) / 100;
+                await registrarMovimientoStock(stock, cantidadFinal, nuevoCosto, 'compra', 'Compra registrada desde Gastos');
+                await updateDoc(doc(fsDb, 'stock', stock.id), { cantidad: cantidadFinal, costo: nuevoCosto, fecha: data.fecha });
             }
             await addDoc(collection(fsDb, 'gastos'), data);
         }
@@ -1738,6 +1979,7 @@ window.cancelarEdicion = function(sec) {
         ['r-nombre', 'r-precio', 'r-costo', 'r-margen', 'r-desc'].forEach(id => document.getElementById(id).value = ''); 
         window.ingredientesRecetaTemp = [];
         window.renderIngredientesReceta();
+        const avisosEl = document.getElementById('r-costo-avisos'); if (avisosEl) avisosEl.innerHTML = '';
         document.getElementById('btn-recetas-submit').textContent = '✓ Guardar Receta'; 
     } else if (sec === 'extras') { 
         ['e-nombre', 'e-precio', 'e-ing-nom', 'e-ing-cant'].forEach(id => document.getElementById(id).value = ''); 
