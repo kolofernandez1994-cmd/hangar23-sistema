@@ -393,6 +393,12 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
 
       <div class="card" style="margin-top:12px">
+        <div class="dash-section-head"><div class="card-title"><span class="icon">🍔</span> Ganancia por producto</div><span class="mini-insight">Usa la ganancia deseada de arriba</span></div>
+        <div style="color:var(--muted);font-size:12px;margin-bottom:10px">Cuántas unidades hacen falta vender para llegar a esa ganancia, según el margen bruto de cada receta (precio − costo). No descuenta gastos fijos, esos ya están contemplados en el cálculo de "Ventas para ganar" de arriba.</div>
+        <div id="objetivos-por-producto"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
         <div class="dash-section-head"><div class="card-title"><span class="icon">📅</span> Comportamiento por día</div><span class="mini-insight">Promedio y récord histórico</span></div>
         <div class="chart-wrap" style="height:260px"><canvas id="chartObjetivosDias" aria-label="Ventas promedio por día de la semana"></canvas></div>
         <div id="objetivos-dias-detalle" style="margin-top:12px"></div>
@@ -948,6 +954,43 @@ window.renderObjetivos = function() {
       <div class="metric" title="Ventas necesarias para que el resultado real represente el porcentaje de rentabilidad que elegiste."><div class="metric-label">Ventas para ${(Number.isFinite(targetMargin)?targetMargin:0).toFixed(1)}% real</div><div class="metric-value yellow">${salesForMargin===null?'No alcanzable':fmt(salesForMargin)}</div><div class="metric-sub">${salesForMargin===null?'El objetivo supera el margen de contribución':'Te faltan '+fmt(falta)}</div></div>
       <div class="metric" title="Ventas necesarias para cubrir gastos fijos y alcanzar la ganancia en pesos indicada."><div class="metric-label">Ventas para ganar ${fmt(targetProfit||0)}</div><div class="metric-value green">${salesForProfit===null?'Sin datos':fmt(salesForProfit)}</div><div class="metric-sub">Ganancia objetivo</div></div>
       <div class="metric" title="Nivel de ventas en el que se cubren los costos variables y gastos fijos, sin ganancia ni pérdida."><div class="metric-label">Punto de equilibrio</div><div class="metric-value">${puntoEquilibrio===null?'Sin datos':fmt(puntoEquilibrio)}</div><div class="metric-sub">Resultado real = $0</div></div>`;
+
+    // Ganancia por producto: cuántas unidades de cada receta hacen falta vender, solas, para
+    // llegar a la ganancia objetivo (margen bruto = precio - costo). También arma una
+    // proyección más realista repartiendo esas unidades según la mezcla de ventas real
+    // del período elegido, en vez de asumir que se vende un solo producto.
+    const contProducto = document.getElementById('objetivos-por-producto');
+    if (contProducto) {
+        const objetivoGanancia = Math.max(0, targetProfit || 0);
+        const recetasConMargen = (window.db?.recetas || []).map(r => {
+            const costo = Number(r.costo) || 0, precio = Number(r.precio) || 0;
+            return { nombre: r.nombre, precio, costo, margen: precio - costo };
+        }).filter(r => r.precio > 0);
+        const filasIndividuales = recetasConMargen.slice().sort((a,b) => b.margen - a.margen).map(r => {
+            if (r.margen <= 0) return `<div class="matrix-item"><strong>${esc(r.nombre)}</strong><span style="color:var(--danger)">Sin margen positivo (precio ≤ costo)</span></div>`;
+            const unidades = objetivoGanancia > 0 ? Math.ceil(objetivoGanancia / r.margen) : 0;
+            return `<div class="matrix-item"><strong>${esc(r.nombre)}</strong><span>Margen ${fmt(r.margen)}/u · Necesitás vender <b style="color:var(--accent)">${unidades.toLocaleString('es-AR')}</b> para llegar a ${fmt(objetivoGanancia)} vendiendo solo este producto</span></div>`;
+        }).join('');
+
+        const unidadesPorReceta = {}; let unidadesTotales = 0;
+        ventas.forEach(v => (v.items || []).forEach(item => { unidadesPorReceta[item.burger] = (unidadesPorReceta[item.burger] || 0) + (Number(item.qty) || 0); unidadesTotales += Number(item.qty) || 0; }));
+        let margenPromedioPonderado = 0;
+        if (unidadesTotales > 0) Object.entries(unidadesPorReceta).forEach(([nombre, cant]) => { const r = recetasConMargen.find(x => x.nombre === nombre); if (r) margenPromedioPonderado += (r.margen * cant) / unidadesTotales; });
+        let bloqueMezcla = '<div class="empty">Todavía no hay ventas registradas en este período para estimar una mezcla realista.</div>';
+        if (margenPromedioPonderado > 0 && objetivoGanancia > 0) {
+            const totalUnidadesNecesarias = Math.ceil(objetivoGanancia / margenPromedioPonderado);
+            const desglose = Object.entries(unidadesPorReceta).sort((a,b) => b[1]-a[1]).map(([nombre, cant]) => {
+                const proporcion = cant / unidadesTotales;
+                return `<div class="matrix-item"><strong>${esc(nombre)}</strong><span>≈ ${Math.round(totalUnidadesNecesarias * proporcion).toLocaleString('es-AR')} unidades (${(proporcion*100).toFixed(0)}% de tu mezcla actual)</span></div>`;
+            }).join('');
+            bloqueMezcla = `<div class="alert alert-ok" style="margin-bottom:10px">📊 Manteniendo la mezcla de productos que vendés hoy (margen promedio ${fmt(margenPromedioPonderado)} por unidad), necesitarías vender aproximadamente <b>${totalUnidadesNecesarias.toLocaleString('es-AR')} unidades en total</b> para llegar a ${fmt(objetivoGanancia)}.</div>${desglose}`;
+        }
+        contProducto.innerHTML = `
+            <div class="form-label" style="margin-bottom:8px">Si vendieras solo un producto</div>
+            ${filasIndividuales || '<div class="empty">Cargá productos con precio para ver este cálculo.</div>'}
+            <div class="form-label" style="margin:16px 0 8px">Proyección según tu mezcla real de ventas (${nombrePeriodo})</div>
+            ${bloqueMezcla}`;
+    }
 
     // Histórico mensual: usa todos los datos disponibles y no modifica Firebase.
     const meses = {};
