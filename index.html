@@ -202,6 +202,15 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 .cp-kv.total b{font-weight:700}
 .cp-h{font:11px var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .cp-nota{font-size:11px;color:var(--muted);line-height:1.5;margin-top:8px}
+.cp-chk{display:flex;gap:10px;align-items:center;min-width:0;font-size:13px;cursor:pointer}
+.cp-chk input{width:16px;height:16px;flex:none;padding:0;margin:0;accent-color:var(--accent);cursor:pointer}
+.cp-chk .cp-nota{margin:0}
+.cp-linea{display:grid;grid-template-columns:minmax(0,1fr) 150px 44px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.cp-linea:last-child{border-bottom:none}
+.cp-linea.eq{grid-template-columns:minmax(0,1fr) auto 44px}
+.cp-linea .btn{padding:8px 0;width:44px;text-align:center}
+.cp-linea strong{font-family:var(--font-mono);font-weight:500;font-size:13px;white-space:nowrap}
+@media(max-width:640px){.cp-linea{grid-template-columns:minmax(0,1fr) 110px 44px}}
 
 /* ESTILOS PARA LOS DESPLEGABLES DINÁMICOS DE INGREDIENTES */
 .ing-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; background:var(--surface2); padding:6px; border-radius:6px; border:1px solid var(--border); }
@@ -528,6 +537,23 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="card" id="caja-estado"></div>
       <div class="grid-2"><div class="card"><div class="card-title">Abrir caja</div><div class="form-group"><label class="form-label">Fondo inicial ($)</label><input id="caja-inicial" type="number" min="0" placeholder="0"></div><button class="btn btn-primary" onclick="abrirCaja()">Abrir caja</button></div><div class="card"><div class="card-title">Cerrar caja</div><div class="form-group"><label class="form-label">Efectivo contado ($)</label><input id="caja-final" type="number" min="0" placeholder="0"></div><button class="btn" onclick="cerrarCaja()">Cerrar caja</button></div></div>
       <div class="card"><div class="card-title">Historial de cierres</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Apertura</th><th>Ventas</th><th>Gastos</th><th>Esperado</th><th>Contado</th><th>Diferencia</th></tr></thead><tbody id="caja-tabla"></tbody></table></div></div>
+      <div class="card" id="ahorros">
+        <div class="card-title"><span class="icon">🏦</span> Caja de ahorro</div>
+        <div class="cp-nota" style="margin:-6px 0 12px">Ahorros del negocio en pesos y en dólares. Es un registro aparte: no modifica la caja diaria, las ventas, los gastos ni los resultados.</div>
+        <div class="metrics" id="ah-saldos"></div>
+        <div class="form-grid" style="align-items:end">
+          <div class="form-group"><label class="form-label">Cuenta</label><select id="ah-moneda"><option value="ARS">Pesos (ARS)</option><option value="USD">Dólares (USD)</option></select></div>
+          <div class="form-group"><label class="form-label">Movimiento</label><select id="ah-tipo"><option value="deposito">Depósito (ingresa)</option><option value="retiro">Retiro (sale)</option></select></div>
+          <div class="form-group"><label class="form-label">Monto</label><input type="number" id="ah-monto" min="0" step="any" placeholder="0"></div>
+          <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="ah-fecha"></div>
+          <div class="form-group"><label class="form-label">Nota (opcional)</label><input type="text" id="ah-nota" placeholder="Ej: ahorro de la semana"></div>
+          <div class="form-group"><button class="btn btn-primary" type="button" onclick="registrarAhorro()">Registrar</button></div>
+        </div>
+        <div class="table-wrap" style="margin-top:12px"><table>
+          <thead><tr><th>Fecha</th><th>Cuenta</th><th>Movimiento</th><th>Monto</th><th>Nota</th><th></th></tr></thead>
+          <tbody id="ah-tabla"></tbody>
+        </table></div>
+      </div>
     </div>
 
     <div id="costos" class="section">
@@ -579,7 +605,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
             <div class="form-group"><label class="form-label">Aumento de precios a probar (%)</label><input type="number" id="cps-aumento" min="-50" max="200" step="0.5" value="0" oninput="cpSimCambio()"></div>
             <div class="form-group"><label class="form-label">Noches de atención por mes</label><input type="number" id="cps-noches" min="1" max="31" step="1" value="13" oninput="cpSimCambio()"></div>
           </div>
-          <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:6px"><input type="checkbox" id="cps-usar-fijos" checked onchange="cpSimCambio()"> Partir de los gastos fijos reales (promedio mensual)</label>
+          <label class="cp-chk" style="margin-top:10px"><input type="checkbox" id="cps-usar-fijos" checked onchange="cpSimCambio()"> Partir de los gastos fijos reales (promedio mensual)</label>
           <div id="cps-base"></div>
         </div>
 
@@ -855,7 +881,7 @@ onAuthStateChanged(fsAuth, (user) => {
 
 window.getHoy = function() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
-window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [], cajas: [], clientes: [], movimientos_stock: [], costos_config: [], equipamiento: [], escenarios_precios: [] };
+window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [], cajas: [], clientes: [], movimientos_stock: [], costos_config: [], equipamiento: [], escenarios_precios: [], ahorros: [] };
 window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null, promociones: null, cupones: null };
 window.carritoActual = [];
 window.cuponAplicado = null;
@@ -997,7 +1023,7 @@ window.cargarDatosBase = async function() {
 };
 
 function iniciarSuscripcionesFirestore() {
-    ['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas', 'clientes', 'movimientos_stock', 'costos_config', 'equipamiento', 'escenarios_precios'].forEach(colName => {
+    ['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas', 'clientes', 'movimientos_stock', 'costos_config', 'equipamiento', 'escenarios_precios', 'ahorros'].forEach(colName => {
         const unsub = onSnapshot(collection(fsDb, colName), (snapshot) => {
             window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
@@ -1744,15 +1770,15 @@ window.cpRenderSim = function () {
 function cpSimPintarListas() {
     const S = window._cpSim;
     document.getElementById('cps-lineas').innerHTML = S.lineas.map((l, i) => `
-      <div class="cp-row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0">
-        <label style="display:flex;gap:8px;align-items:center;flex:1;min-width:150px"><input type="checkbox" ${l.activo ? 'checked' : ''} onchange="cpSimLinea(${i},'activo',this.checked)"> ${cpEsc(l.nombre)}${l.nota ? ` <span class="cp-nota" style="margin:0">(${cpEsc(l.nota)})</span>` : ''}</label>
-        <input type="number" min="0" step="1000" value="${Number(l.monto) || 0}" style="width:130px" oninput="cpSimLinea(${i},'monto',this.value)">
+      <div class="cp-linea">
+        <label class="cp-chk"><input type="checkbox" ${l.activo ? 'checked' : ''} onchange="cpSimLinea(${i},'activo',this.checked)"><span>${cpEsc(l.nombre)}${l.nota ? ` <span class="cp-nota">(${cpEsc(l.nota)})</span>` : ''}</span></label>
+        <input type="number" min="0" step="1000" value="${Number(l.monto) || 0}" oninput="cpSimLinea(${i},'monto',this.value)">
         <button class="btn" type="button" onclick="cpSimQuitarLinea(${i})">✕</button>
       </div>`).join('') || '<div class="cp-nota">Sin gastos adicionales.</div>';
     const eq = window.db.equipamiento || [];
     document.getElementById('cps-equipos').innerHTML = eq.map(e => `
-      <div class="cp-row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0">
-        <label style="display:flex;gap:8px;align-items:center;flex:1;min-width:150px"><input type="checkbox" ${S.equipAct[e.id] ? 'checked' : ''} onchange="cpSimEquipo('${cpEsc(e.id)}',this.checked)"> ${cpEsc(e.nombre)} <span class="cp-nota" style="margin:0">(${cpFmt(e.precio)} en ${Number(e.cuotas) || 1} cuota${(Number(e.cuotas) || 1) === 1 ? '' : 's'})</span></label>
+      <div class="cp-linea eq">
+        <label class="cp-chk"><input type="checkbox" ${S.equipAct[e.id] ? 'checked' : ''} onchange="cpSimEquipo('${cpEsc(e.id)}',this.checked)"><span>${cpEsc(e.nombre)} <span class="cp-nota">(${cpFmt(e.precio)} en ${Number(e.cuotas) || 1} cuota${(Number(e.cuotas) || 1) === 1 ? '' : 's'})</span></span></label>
         <strong>${cpFmt(cpCuotaEquipo(e))}/mes</strong>
         <button class="btn" type="button" onclick="cpSimBorrarEquipo('${cpEsc(e.id)}')">✕</button>
       </div>`).join('') || '<div class="cp-nota">Todavía no cargaste equipamiento.</div>';
@@ -1858,7 +1884,51 @@ window.cpSimBorrarEscenario = async function (id) {
 };
 // ===== FIN SIMULADOR =====
 
-window.render = function() { renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderMovimientosStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); try { window.renderCostos(); window.cpRenderSim(); } catch (e) { console.error('Costos y Precios:', e); } };
+// ===== CAJA DE AHORRO (pesos y dólares; registro aparte, no toca caja diaria ni resultados) =====
+function ahSaldos() {
+    const r = { ARS: 0, USD: 0 };
+    (window.db.ahorros || []).forEach(m => {
+        const mon = m.moneda === 'USD' ? 'USD' : 'ARS', monto = Number(m.monto) || 0;
+        r[mon] += m.tipo === 'retiro' ? -monto : monto;
+    });
+    return r;
+}
+const ahFmt = (n, mon) => mon === 'USD' ? 'US$ ' + (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : window.fmt(n);
+window.renderAhorros = function () {
+    const tabla = document.getElementById('ah-tabla'); if (!tabla) return;
+    const f = document.getElementById('ah-fecha'); if (f && !f.value) f.value = window.getHoy();
+    const s = ahSaldos();
+    document.getElementById('ah-saldos').innerHTML = `
+      <div class="metric"><div class="metric-label">Ahorro en pesos</div><div class="metric-value ${s.ARS >= 0 ? 'green' : 'red'}">${ahFmt(s.ARS, 'ARS')}</div><div class="metric-sub">Saldo actual</div></div>
+      <div class="metric"><div class="metric-label">Ahorro en dólares</div><div class="metric-value ${s.USD >= 0 ? 'green' : 'red'}">${ahFmt(s.USD, 'USD')}</div><div class="metric-sub">Saldo actual</div></div>`;
+    const movs = (window.db.ahorros || []).slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.creadoEn || 0) - (a.creadoEn || 0));
+    tabla.innerHTML = movs.map(m => {
+        const mon = m.moneda === 'USD' ? 'USD' : 'ARS', ret = m.tipo === 'retiro';
+        return `<tr><td>${cpEsc(m.fecha)}</td><td>${mon === 'USD' ? 'Dólares' : 'Pesos'}</td><td>${ret ? 'Retiro' : 'Depósito'}</td><td class="${ret ? 'red' : 'green'}">${ret ? '−' : '+'}${ahFmt(m.monto, mon)}</td><td>${cpEsc(m.nota || '')}</td><td><button class="btn btn-danger" type="button" onclick="borrarAhorro('${cpEsc(m.id)}')">✕</button></td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="empty">Sin movimientos de ahorro.</td></tr>';
+};
+window.registrarAhorro = async function () {
+    const moneda = document.getElementById('ah-moneda').value === 'USD' ? 'USD' : 'ARS';
+    const tipo = document.getElementById('ah-tipo').value === 'retiro' ? 'retiro' : 'deposito';
+    const monto = parseFloat(document.getElementById('ah-monto').value);
+    const fecha = document.getElementById('ah-fecha').value || window.getHoy();
+    const nota = document.getElementById('ah-nota').value.trim();
+    if (!Number.isFinite(monto) || monto <= 0) { window.toast('⚠ Ingresá un monto mayor a 0'); return; }
+    if (tipo === 'retiro' && monto > ahSaldos()[moneda] + 1e-9) { window.toast('⚠ El retiro supera el saldo disponible'); return; }
+    try {
+        await addDoc(collection(fsDb, 'ahorros'), { moneda, tipo, monto, fecha, nota, creadoEn: Date.now() });
+        document.getElementById('ah-monto').value = ''; document.getElementById('ah-nota').value = '';
+        window.toast('✓ Movimiento registrado');
+    } catch (e) { console.error(e); window.toast('⚠ No se pudo registrar el movimiento'); }
+};
+window.borrarAhorro = async function (id) {
+    if (!confirm('¿Borrar este movimiento de ahorro? El saldo se recalcula.')) return;
+    try { await deleteDoc(doc(fsDb, 'ahorros', id)); } catch (e) { console.error(e); window.toast('⚠ No se pudo borrar'); }
+};
+// ===== FIN CAJA DE AHORRO =====
+
+window.render = function() {
+ renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderMovimientosStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); try { window.renderAhorros(); } catch (e) { console.error('Caja de ahorro:', e); } try { window.renderCostos(); window.cpRenderSim(); } catch (e) { console.error('Costos y Precios:', e); } };
 
 // --- LOGICA DE UI INTELIGENTE PARA RECETAS Y EXTRAS ---
 window.renderIngredientesReceta = function() {
