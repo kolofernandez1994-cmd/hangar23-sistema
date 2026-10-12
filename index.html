@@ -202,6 +202,11 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 .cp-kv.total b{font-weight:700}
 .cp-h{font:11px var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .cp-nota{font-size:11px;color:var(--muted);line-height:1.5;margin-top:8px}
+.cp-link{background:none;border:none;padding:4px 0 0;color:var(--accent);font:500 12px var(--font-body);cursor:pointer;text-align:left;width:auto}
+.cp-link:hover{text-decoration:underline}
+.cat-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:3px 6px 3px 10px;margin:4px 6px 0 0;font-size:12px;color:var(--text)}
+.cat-chip button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;line-height:1;padding:0 2px;width:auto}
+.cat-chip button:hover{color:var(--danger)}
 .cp-chk{display:flex;gap:10px;align-items:center;min-width:0;font-size:13px;cursor:pointer}
 .cp-chk input{width:16px;height:16px;flex:none;padding:0;margin:0;accent-color:var(--accent);cursor:pointer}
 .cp-chk .cp-nota{margin:0}
@@ -588,6 +593,8 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 
         <div class="metrics" id="cp-metrics"></div>
 
+        <div class="card" id="cp-delivery-card"></div>
+
         <div class="card">
           <div class="dash-section-head"><div class="card-title"><span class="icon">%</span> Rentabilidad por producto</div><span class="mini-insight">Tocá un producto para ver el detalle</span></div>
           <div class="form-grid" style="margin-bottom:12px">
@@ -609,7 +616,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="card-title"><span class="icon">⚙</span> Punto de partida (datos reales)</div>
           <div class="form-grid">
             <div class="form-group"><label class="form-label">Promediar los últimos meses cerrados</label>
-              <select id="cps-meses" onchange="cpSimCambio()"><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
+              <select id="cps-meses" onchange="cpSimCambio()"><option value="1">1 mes</option><option value="2" selected>2 meses</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
             <div class="form-group"><label class="form-label">Aumento de precios a probar (%)</label><input type="number" id="cps-aumento" min="-50" max="200" step="0.5" value="0" oninput="cpSimCambio()"></div>
             <div class="form-group"><label class="form-label">Noches de atención por mes</label><input type="number" id="cps-noches" min="1" max="31" step="1" value="13" oninput="cpSimCambio()"></div>
           </div>
@@ -675,6 +682,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
           <div class="form-grid">
             <div class="form-group"><label class="form-label">Margen objetivo sobre el precio (%)</label><input type="number" id="cpc-objetivo" min="1" max="99" step="0.5"></div>
             <div class="form-group"><label class="form-label">Margen mínimo aceptable (%)</label><input type="number" id="cpc-minimo" min="0" max="99" step="0.5"></div>
+            <div class="form-group"><label class="form-label">Básico por noche al repartidor ($)</label><input type="number" id="cpc-basico" min="0" step="500"></div>
           </div>
           <div class="cp-nota">El margen se mide sobre el precio de venta, no sobre el costo. Con el objetivo se calcula el precio recomendado y con el mínimo el precio por debajo del cual no conviene vender.</div>
         </div>
@@ -786,11 +794,19 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       <div class="card">
         <div class="form-grid">
           <div class="form-group"><label class="form-label">Fecha</label><input type="date" id="g-fecha"></div>
-          <div class="form-group"><label class="form-label">Categoría</label><select id="g-cat"><option>Materia prima</option><option>Gas</option><option>Personal</option><option>Marketing</option><option>Otros</option></select></div>
+          <div class="form-group"><label class="form-label">Categoría</label><select id="g-cat"><option>Materia prima</option><option>Gas</option><option>Personal</option><option>Marketing</option><option>Otros</option></select>
+            <button type="button" class="cp-link" onclick="gastoToggleNuevaCat()" id="g-cat-toggle">+ Nueva categoría</button></div>
           <div class="form-group"><label class="form-label">Tipo</label><select id="g-tipo"><option>Variable</option><option>Fijo</option></select></div>
           <div class="form-group"><label class="form-label">Monto ($)</label><input type="number" id="g-monto"></div>
         </div>
         <div class="form-group" style="margin-bottom:12px"><label class="form-label">Desc</label><input type="text" id="g-desc"></div>
+        <div id="g-cat-nueva" style="display:none;margin-bottom:12px">
+          <div class="form-grid" style="align-items:end">
+            <div class="form-group"><label class="form-label">Nombre de la nueva categoría</label><input type="text" id="g-cat-nombre" maxlength="40" placeholder="Ej: Mantenimiento, Impuestos, Mandados..." onkeydown="if(event.key==='Enter'){event.preventDefault();gastoAgregarCat();}"></div>
+            <div class="form-group"><button class="btn" type="button" onclick="gastoAgregarCat()">✓ Agregar categoría</button></div>
+          </div>
+          <div id="g-cat-propias" class="cp-nota"></div>
+        </div>
         <div id="g-mp-fields" style="display:none;margin-bottom:12px">
           <div class="form-grid">
             <div class="form-group"><label class="form-label">Ingrediente de stock</label><select id="g-mp-stock"><option value="">Seleccioná un ingrediente...</option></select></div>
@@ -1485,9 +1501,25 @@ function cpCostoVendido(ventas, recetas) {
     }));
     return { cogs, unidades, porProducto };
 }
+// ----- Delivery: envíos cobrados vs pagos al repartidor -----
+// Pago al repartidor = básico por noche + envíos cobrados ese día. Los mandados (envíos propios) se registran aparte.
+function cpEsMandado(g) { return (limpiarText(g.cat || g.categoria) === 'personal') && (g.mandado === true || /^mandado/i.test(String(g.desc || '').trim())); }
+function cpEsPagoDelivery(g) { return (limpiarText(g.cat || g.categoria) === 'personal') && !cpEsMandado(g) && /^pago/i.test(String(g.desc || '').trim()); }
+function cpDelivery(ventas, gastos, basico) {
+    const entregas = ventas.filter(v => v.entrega === 'Delivery');
+    const envios = entregas.reduce((s, v) => s + (Number(v.envio) || 0), 0);
+    const noches = new Set(entregas.map(v => v.fecha)).size;
+    const pagos = gastos.filter(cpEsPagoDelivery).reduce((s, g) => s + (Number(g.monto) || 0), 0);
+    const mandados = gastos.filter(cpEsMandado).reduce((s, g) => s + (Number(g.monto) || 0), 0);
+    const neto = pagos - envios;
+    const basicoEsperado = noches * (basico || 0);
+    return { entregas: entregas.length, envios, noches, pagos, mandados, neto, basicoEsperado, sinExplicar: neto - basicoEsperado };
+}
+
 // ----- Simulador de escenarios (puro) -----
 // Promedio mensual de los últimos N meses cerrados con ventas (si no hay, usa el mes en curso).
 function cpBaseReal(ventas, gastos, recetas, nMeses, hoy) {
+    // El delivery se trata aparte: lo que se cobra de envío se va en el pago al repartidor, y el costo real es el neto (básico por noche + mandados).
     const mes = hoy.slice(0, 7);
     const [y, m] = mes.split('-').map(Number);
     const d0 = new Date(y, m - 1 - nMeses, 1);
@@ -1497,7 +1529,9 @@ function cpBaseReal(ventas, gastos, recetas, nMeses, hoy) {
     if (!vs.length) { vs = ventas.filter(v => v.fecha && v.fecha.slice(0, 7) === mes); incluyeActual = true; }
     const meses = new Set(vs.map(v => v.fecha.slice(0, 7)));
     const n = Math.max(1, meses.size);
-    const gs = gastos.filter(g => g.fecha && meses.has(g.fecha.slice(0, 7)));
+    const gs0 = gastos.filter(g => g.fecha && meses.has(g.fecha.slice(0, 7)));
+    const dl = cpDelivery(vs, gs0, 0);
+    const gs = gs0.filter(g => !cpEsPagoDelivery(g));
     const vc = cpCostoVendido(vs, recetas);
     const go = cpGastosOperativos(gs);
     const ventasBrutas = vs.reduce((s, v) => s + (Number(v.total) || 0), 0);
@@ -1506,15 +1540,16 @@ function cpBaseReal(ventas, gastos, recetas, nMeses, hoy) {
     return {
         meses: meses.size, incluyeActual, unidadesMes: u / n, pedidosMes: vs.length / n,
         fijosMes: (go.fijos + go.mixtos) / n,
+        deliveryNetoMes: dl.neto / n,
         precio: u > 0 ? (ventasBrutas - envios) / u : 0,
-        envioU: u > 0 ? envios / u : 0,
+        envioU: 0,
         costoU: u > 0 ? vc.cogs / u : 0,
         variableU: u > 0 ? go.variables / u : 0
     };
 }
 // Un escenario aplicado a un volumen de hamburguesas por mes.
 function cpSimular(base, esc, unidades) {
-    const fijos = (esc.usarFijosReales ? base.fijosMes : 0) + (esc.extraFijos || 0);
+    const fijos = (esc.usarFijosReales ? base.fijosMes + (base.deliveryNetoMes || 0) : 0) + (esc.extraFijos || 0);
     const precio = base.precio * (1 + (esc.aumentoPct || 0) / 100);
     const contribU = precio + base.envioU - base.costoU - base.variableU;
     const ventas = unidades * (precio + base.envioU);
@@ -1539,7 +1574,7 @@ function cpConfig() {
     const base = CP_CANALES_BASE.map(n => ({ nombre: n, pct: num(buscar(n)?.pct, 0), base: true }));
     const extra = salvados.filter(c => c && c.nombre && !CP_CANALES_BASE.some(n => limpiarText(n) === limpiarText(c.nombre)))
         .map(c => ({ nombre: String(c.nombre), pct: num(c.pct, 0), base: false }));
-    return { margenObjetivo: num(d.margenObjetivo, 50), margenMinimo: num(d.margenMinimo, 40), comisiones: [...base, ...extra] };
+    return { margenObjetivo: num(d.margenObjetivo, 50), margenMinimo: num(d.margenMinimo, 40), pagoBasicoDelivery: num(d.pagoBasicoDelivery, 10000), comisiones: [...base, ...extra] };
 }
 
 window.cpTab = function (tab) {
@@ -1596,6 +1631,20 @@ window.renderCostos = function () {
       <div class="metric"><div class="metric-label">Gastos operativos</div><div class="metric-value yellow">${cpFmt(go.total)}</div><div class="metric-sub">Fijos y mixtos ${cpFmt(fijos)} · variables ${cpFmt(go.variables)}</div></div>
       <div class="metric"><div class="metric-label">Resultado real</div><div class="metric-value ${resultado >= 0 ? 'green' : 'red'}">${cpFmt(resultado)}</div><div class="metric-sub">${ventasBrutas > 0 ? cpPf(resultado / ventasBrutas * 100) + ' de rentabilidad' : 'Sin ventas'}</div></div>
       <div class="metric" title="Unidades que hay que vender para cubrir los gastos fijos y mixtos registrados en el período, con tu margen de contribución actual."><div class="metric-label">Punto de equilibrio</div><div class="metric-value ${be.unidades !== null && vc.unidades >= be.unidades ? 'green' : 'yellow'}">${be.unidades !== null ? be.unidades + ' u.' : 'Sin datos'}</div><div class="metric-sub">${be.unidades !== null ? '≈ ' + cpFmt(be.pesos) + ' · con ' + cpFmt(fijos) + ' de gastos fijos' : 'Faltan ventas en el período'}</div></div>`;
+
+    // Delivery: envíos cobrados contra lo pagado al repartidor
+    const dlv = cpDelivery(ventas, gastos, cfg.pagoBasicoDelivery);
+    const dlvKv = (k, v, cls) => `<div class="cp-kv${cls ? ' ' + cls : ''}"><span>${k}</span><b>${v}</b></div>`;
+    document.getElementById('cp-delivery-card').innerHTML = dlv.entregas || dlv.pagos || dlv.mandados ? `
+      <div class="card-title"><span class="icon">🛵</span> Delivery del período</div>
+      ${dlvKv('Envíos cobrados a clientes (' + dlv.entregas + ' entregas)', cpFmt(dlv.envios))}
+      ${dlvKv('Pagado al repartidor (básico + envíos)', cpFmt(dlv.pagos))}
+      ${dlvKv('Costo neto del delivery', cpFmt(dlv.neto), 'total')}
+      ${dlvKv('Básico esperado (' + dlv.noches + ' noche' + (dlv.noches === 1 ? '' : 's') + ' × ' + cpFmt(cfg.pagoBasicoDelivery) + ')', cpFmt(dlv.basicoEsperado))}
+      ${dlvKv('Diferencia contra el básico', cpFmt(dlv.sinExplicar))}
+      ${dlvKv('Mandados / envíos propios registrados', cpFmt(dlv.mandados))}
+      <div class="cp-nota">El costo real del delivery es lo que pagás de más sobre lo que cobrás de envío: idealmente igual al básico por noche. Una diferencia positiva suele ser un pago mayor al esperado; una negativa, pagos que todavía no cargaste. Los mandados (ir a buscar panes, por ejemplo) se cargan desde el celular y van aparte de las entregas a clientes.</div>` : '';
+
 
     // Tabla por producto, con el costo ACTUAL calculado desde Stock
     const vendidasPor = {}; Object.entries(vc.porProducto).forEach(([n, q]) => { vendidasPor[limpiarText(n)] = q; });
@@ -1721,6 +1770,7 @@ window.cpRenderConfig = function () {
     const cfg = cpConfig();
     document.getElementById('cpc-objetivo').value = cfg.margenObjetivo;
     document.getElementById('cpc-minimo').value = cfg.margenMinimo;
+    document.getElementById('cpc-basico').value = cfg.pagoBasicoDelivery;
     window._cpDraft = cfg.comisiones.map(c => ({ ...c }));
     cpPintarCanales();
 };
@@ -1736,10 +1786,11 @@ window.cpAgregarCanal = function () {
 window.cpQuitarCanal = function (i) { window._cpDraft.splice(i, 1); cpPintarCanales(); };
 window.cpGuardarConfig = async function () {
     const mo = parseFloat(document.getElementById('cpc-objetivo').value), mm = parseFloat(document.getElementById('cpc-minimo').value);
+    const basico = Math.max(0, parseFloat(document.getElementById('cpc-basico').value) || 0);
     if (!Number.isFinite(mo) || !Number.isFinite(mm) || mo <= 0 || mo >= 100 || mm < 0 || mm > mo) { window.toast('⚠ Revisá los márgenes: el mínimo no puede superar al objetivo y ambos deben ser menores a 100'); return; }
     const comisiones = window._cpDraft.map(c => ({ nombre: c.nombre, pct: Math.min(99, Math.max(0, Number(c.pct) || 0)) }));
     try {
-        await setDoc(doc(fsDb, 'costos_config', 'general'), { margenObjetivo: mo, margenMinimo: mm, comisiones, actualizadoEn: Date.now() }, { merge: true });
+        await setDoc(doc(fsDb, 'costos_config', 'general'), { margenObjetivo: mo, margenMinimo: mm, pagoBasicoDelivery: basico, comisiones, actualizadoEn: Date.now() }, { merge: true });
         window.toast('✓ Configuración guardada');
     } catch (e) { console.error(e); window.toast('⚠ No se pudo guardar la configuración'); }
 };
@@ -1831,7 +1882,7 @@ window.cpSimCambio = function () {
     const r = cpSimular(base, esc, volReal);
     const noches = esc.noches;
     document.getElementById('cps-base').innerHTML = base.unidadesMes > 0 ? `
-      <div class="cp-nota">Base: promedio de ${base.meses} mes${base.meses === 1 ? '' : 'es'} ${base.incluyeActual ? '(solo hay datos del mes en curso)' : 'cerrados'} · ${Math.round(base.unidadesMes)} hamburguesas y ${Math.round(base.pedidosMes)} pedidos por mes · precio promedio ${cpFmt(base.precio)} · costo promedio ${cpFmt(base.costoU)} · gastos fijos reales ${cpFmt(base.fijosMes)}/mes.</div>`
+      <div class="cp-nota">Base: promedio de ${base.meses} mes${base.meses === 1 ? '' : 'es'} ${base.incluyeActual ? '(solo hay datos del mes en curso)' : 'cerrados'} · ${Math.round(base.unidadesMes)} hamburguesas y ${Math.round(base.pedidosMes)} pedidos por mes · precio promedio ${cpFmt(base.precio)} · costo promedio ${cpFmt(base.costoU)} · gastos fijos reales ${cpFmt(base.fijosMes)}/mes · delivery neto ${cpFmt(base.deliveryNetoMes)}/mes.</div>`
       : '<div class="cp-nota">No hay ventas registradas para armar la base. Probá con más meses.</div>';
     document.getElementById('cps-metrics').innerHTML = `
       <div class="metric"><div class="metric-label">Gastos fijos del escenario</div><div class="metric-value yellow">${cpFmt(r.fijos)}</div><div class="metric-sub">por mes (reales + adicionales)</div></div>
@@ -1844,7 +1895,7 @@ window.cpSimCambio = function () {
         const x = cpSimular(base, esc, v);
         return `<tr><td>${v}</td><td>${(v / noches).toFixed(1)}</td><td>${cpFmt(x.ventas)}</td><td>${cpFmt(x.costo)}</td><td>${cpFmt(x.contrib)}</td><td>${cpFmt(x.fijos)}</td><td style="color:${x.resultado >= 0 ? 'var(--success)' : 'var(--danger)'};font-weight:600">${cpFmt(x.resultado)}</td></tr>`;
     }).join('') || '<tr><td colspan="7">Ingresá volúmenes válidos.</td></tr>';
-    document.getElementById('cps-nota').textContent = `Las ventas incluyen el envío promedio (${cpFmt(base.envioU)} por hamburguesa) y los gastos variables observados, como el pago al delivery. Noches por mes: ${noches}.`;
+    document.getElementById('cps-nota').textContent = `Las ventas son solo de productos. El delivery entra como gasto fijo por su costo neto real (pagos al repartidor menos envíos cobrados, ${cpFmt(base.deliveryNetoMes)} por mes). Noches por mes: ${noches}.`;
     cpSimPintarComparacion(base, r);
 };
 function cpSimPintarComparacion(base, rActual) {
@@ -1991,8 +2042,66 @@ window.exportarDatos = function () {
 };
 // ===== FIN EXPORTAR DATOS =====
 
+// ===== CATEGORÍAS DE GASTO PROPIAS (se guardan en costos_config/categorias_gasto) =====
+const GASTO_CATS_BASE = ['Materia prima', 'Gas', 'Personal', 'Marketing', 'Otros'];
+function gastoCatsGuardadas() {
+    const d = (window.db.costos_config || []).find(x => x.id === 'categorias_gasto');
+    return Array.isArray(d?.lista) ? d.lista.map(x => String(x || '').trim()).filter(Boolean) : [];
+}
+// Base + propias + las que ya aparecen en gastos cargados (para que ninguna quede afuera al editar).
+function gastoCategorias() {
+    const out = [];
+    const add = n => { n = String(n || '').trim(); if (n && !out.some(x => limpiarText(x) === limpiarText(n))) out.push(n); };
+    GASTO_CATS_BASE.forEach(add); gastoCatsGuardadas().forEach(add);
+    (window.db.gastos || []).forEach(g => add(g.cat));
+    return out;
+}
+window.renderGastoCategorias = function () {
+    const sel = document.getElementById('g-cat'); if (!sel) return;
+    const prev = sel.value, cats = gastoCategorias();
+    const html = cats.map(c => `<option value="${cpEsc(c)}">${cpEsc(c)}</option>`).join('');
+    if (sel.dataset.h !== html) { sel.innerHTML = html; sel.dataset.h = html; }
+    if (cats.includes(prev)) sel.value = prev;
+    const propias = gastoCatsGuardadas().filter(c => !GASTO_CATS_BASE.some(b => limpiarText(b) === limpiarText(c)));
+    const el = document.getElementById('g-cat-propias');
+    if (el) el.innerHTML = propias.length
+        ? 'Tus categorías: ' + propias.map(c => `<span class="cat-chip">${cpEsc(c)}<button type="button" title="Quitar de la lista" aria-label="Quitar ${cpEsc(c)}" onclick="gastoQuitarCat('${cpEsc(c).replace(/&#39;/g, '\\&#39;')}')">✕</button></span>`).join('') + '<br>Quitar una categoría de la lista no modifica los gastos ya cargados con ella.'
+        : 'Todavía no creaste categorías propias.';
+};
+window.gastoToggleNuevaCat = function () {
+    const box = document.getElementById('g-cat-nueva'); if (!box) return;
+    const abrir = box.style.display === 'none';
+    box.style.display = abrir ? 'block' : 'none';
+    document.getElementById('g-cat-toggle').textContent = abrir ? '− Ocultar nueva categoría' : '+ Nueva categoría';
+    if (abrir) document.getElementById('g-cat-nombre').focus();
+};
+async function gastoGuardarListaCats(lista) {
+    await setDoc(doc(fsDb, 'costos_config', 'categorias_gasto'), { lista, actualizadoEn: Date.now() }, { merge: true });
+}
+window.gastoAgregarCat = async function () {
+    const inp = document.getElementById('g-cat-nombre'); const nombre = inp.value.trim().replace(/\s+/g, ' ');
+    if (!nombre) { window.toast('⚠ Escribí el nombre de la categoría'); return; }
+    if (gastoCategorias().some(c => limpiarText(c) === limpiarText(nombre))) {
+        const ya = gastoCategorias().find(c => limpiarText(c) === limpiarText(nombre));
+        document.getElementById('g-cat').value = ya; window.toast('Esa categoría ya existe: la seleccioné'); inp.value = ''; return;
+    }
+    try {
+        await gastoGuardarListaCats([...gastoCatsGuardadas(), nombre]);
+        // Se agrega a la lista local enseguida para poder seleccionarla sin esperar a Firestore.
+        const loc = window.db.costos_config.find(x => x.id === 'categorias_gasto');
+        if (loc) loc.lista = [...gastoCatsGuardadas(), nombre]; else window.db.costos_config.push({ id: 'categorias_gasto', lista: [nombre] });
+        window.renderGastoCategorias(); document.getElementById('g-cat').value = nombre; inp.value = '';
+        window.toast('✓ Categoría agregada y seleccionada');
+    } catch (e) { console.error(e); window.toast('⚠ No se pudo guardar la categoría'); }
+};
+window.gastoQuitarCat = async function (nombre) {
+    try { await gastoGuardarListaCats(gastoCatsGuardadas().filter(c => c !== nombre)); window.toast('✓ Categoría quitada de la lista'); }
+    catch (e) { console.error(e); window.toast('⚠ No se pudo quitar'); }
+};
+// ===== FIN CATEGORÍAS DE GASTO =====
+
 window.render = function() {
- renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderMovimientosStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); try { window.renderAhorros(); } catch (e) { console.error('Caja de ahorro:', e); } try { window.renderCostos(); window.cpRenderSim(); } catch (e) { console.error('Costos y Precios:', e); } };
+ renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderMovimientosStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); try { window.renderGastoCategorias(); } catch (e) { console.error('Categorías de gasto:', e); } try { window.renderAhorros(); } catch (e) { console.error('Caja de ahorro:', e); } try { window.renderCostos(); window.cpRenderSim(); } catch (e) { console.error('Costos y Precios:', e); } };
 
 // --- LOGICA DE UI INTELIGENTE PARA RECETAS Y EXTRAS ---
 window.renderIngredientesReceta = function() {
