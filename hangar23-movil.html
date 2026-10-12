@@ -84,6 +84,9 @@
     <input class="field" id="delivery-name" placeholder="Ej: Maxi, Fede...">
     <label class="label">Monto a pagar ($)</label>
     <input class="field" type="number" inputmode="numeric" id="delivery-amount" placeholder="0">
+    <label class="label">Mandado / envío propio ($) — opcional</label>
+    <input class="field" type="number" inputmode="numeric" id="delivery-mandado" placeholder="0 (ej: ir a buscar panes)">
+    <input class="field" id="delivery-mandado-desc" placeholder="Detalle del mandado (ej: buscar panes)" style="margin-top:6px">
     <button class="primary" id="confirm-pay-delivery" type="button" style="margin-top:10px">✓ Confirmar y Emitir Tickets</button>
   </div>
 </div>
@@ -174,6 +177,8 @@ function renderSummary(){
 $('#btn-pay-delivery').onclick = () => {
   $('#delivery-amount').value = pagoDeliveryCalculado;
   $('#delivery-name').value = '';
+  $('#delivery-mandado').value = '';
+  $('#delivery-mandado-desc').value = '';
   $('#pay-delivery-sheet').classList.add('open');
 };
 
@@ -185,7 +190,10 @@ $('#confirm-pay-delivery').onclick = async () => {
   const nombre = $('#delivery-name').value.trim() || 'Delivery';
   const monto = parseFloat($('#delivery-amount').value) || 0;
   
-  if (monto <= 0) return toast('⚠ Ingresá un monto válido');
+  const mandado = parseFloat($('#delivery-mandado').value) || 0;
+  const mandadoDesc = $('#delivery-mandado-desc').value.trim();
+  if (monto <= 0 && mandado <= 0) return toast('⚠ Ingresá un monto válido');
+  if (mandado > 0 && !mandadoDesc) return toast('⚠ Poné el detalle del mandado');
   
   const btn = $('#confirm-pay-delivery');
   btn.disabled = true;
@@ -200,10 +208,11 @@ $('#confirm-pay-delivery').onclick = async () => {
   };
   
   try {
-    await addDoc(collection(dbx, 'gastos'), gastoObj);
-    toast('✓ Pago a delivery registrado');
+    if (monto > 0) await addDoc(collection(dbx, 'gastos'), gastoObj);
+    if (mandado > 0) await addDoc(collection(dbx, 'gastos'), { fecha: state.fechaVista, cat: 'Personal', tipo: 'Variable', desc: 'Mandado: ' + mandadoDesc + ' (' + nombre + ')', monto: mandado, mandado: true });
+    toast(mandado > 0 ? '✓ Pago y mandado registrados' : '✓ Pago a delivery registrado');
     $('#pay-delivery-sheet').classList.remove('open');
-    printDeliveryPaymentTicket(nombre, monto);
+    printDeliveryPaymentTicket(nombre, monto, mandado, mandadoDesc);
   } catch(e) {
     console.error(e);
     toast('⚠ Error al registrar el gasto en Firebase');
@@ -214,7 +223,7 @@ $('#confirm-pay-delivery').onclick = async () => {
 };
 
 // IMPRESIÓN DE DOBLE TICKET (COPIA LOCAL Y COPIA REPARTIDOR)
-function printDeliveryPaymentTicket(nombre, monto) {
+function printDeliveryPaymentTicket(nombre, monto, mandado = 0, mandadoDesc = '') {
   const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   
   const ticketLocal = `
@@ -226,12 +235,12 @@ function printDeliveryPaymentTicket(nombre, monto) {
       </div>
       <div style="border-top:2px dashed #000;border-bottom:2px dashed #000;padding:2.5mm 0;margin-bottom:3mm">
         <div><b>FECHA:</b> ${esc(fechaLarga(today()))} · <b>HORA:</b> ${esc(hora)}</div>
-        <div><b>CONCEPTO:</b> PAGO DELIVERY</div>
+        <div><b>CONCEPTO:</b> ${monto > 0 ? 'PAGO DELIVERY' : ''}${monto > 0 && mandado > 0 ? ' + ' : ''}${mandado > 0 ? 'MANDADO' : ''}</div>${mandado > 0 ? `<div><b>MANDADO:</b> ${esc(mandadoDesc)} (${fmt(mandado)})</div>` : ''}
         <div><b>REPARTIDOR:</b> ${esc(nombre.toUpperCase())}</div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:bold;padding:2mm 0;">
         <span>TOTAL PAGADO</span>
-        <span>${fmt(monto)}</span>
+        <span>${fmt(monto + mandado)}</span>
       </div>
       <div style="text-align:center;margin-top:8mm;font-size:12px;">
         --- FIRMA ---<br><br><br><br>
@@ -250,12 +259,12 @@ function printDeliveryPaymentTicket(nombre, monto) {
       </div>
       <div style="border-top:2px dashed #000;border-bottom:2px dashed #000;padding:2.5mm 0;margin-bottom:3mm">
         <div><b>FECHA:</b> ${esc(fechaLarga(today()))} · <b>HORA:</b> ${esc(hora)}</div>
-        <div><b>CONCEPTO:</b> PAGO DELIVERY</div>
+        <div><b>CONCEPTO:</b> ${monto > 0 ? 'PAGO DELIVERY' : ''}${monto > 0 && mandado > 0 ? ' + ' : ''}${mandado > 0 ? 'MANDADO' : ''}</div>${mandado > 0 ? `<div><b>MANDADO:</b> ${esc(mandadoDesc)} (${fmt(mandado)})</div>` : ''}
         <div><b>REPARTIDOR:</b> ${esc(nombre.toUpperCase())}</div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:bold;padding:2mm 0;">
         <span>TOTAL PAGADO</span>
-        <span>${fmt(monto)}</span>
+        <span>${fmt(monto + mandado)}</span>
       </div>
       <div style="text-align:center;margin-top:8mm;font-size:12px;">
         Gracias por volar con nosotros 🍔<br>
