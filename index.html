@@ -537,6 +537,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
       </div>
       <div class="cp-tabs">
         <button class="cp-tab active" data-cp="productos" onclick="cpTab('productos')">Productos</button>
+        <button class="cp-tab" data-cp="sim" onclick="cpTab('sim')">Simulador</button>
         <button class="cp-tab" data-cp="config" onclick="cpTab('config')">Configuración</button>
       </div>
 
@@ -567,6 +568,71 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
         </div>
 
         <div id="cp-detalle"></div>
+      </div>
+
+      <div id="cp-sim" style="display:none">
+        <div class="card">
+          <div class="card-title"><span class="icon">⚙</span> Punto de partida (datos reales)</div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Promediar los últimos meses cerrados</label>
+              <select id="cps-meses" onchange="cpSimCambio()"><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
+            <div class="form-group"><label class="form-label">Aumento de precios a probar (%)</label><input type="number" id="cps-aumento" min="-50" max="200" step="0.5" value="0" oninput="cpSimCambio()"></div>
+            <div class="form-group"><label class="form-label">Noches de atención por mes</label><input type="number" id="cps-noches" min="1" max="31" step="1" value="13" oninput="cpSimCambio()"></div>
+          </div>
+          <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:6px"><input type="checkbox" id="cps-usar-fijos" checked onchange="cpSimCambio()"> Partir de los gastos fijos reales (promedio mensual)</label>
+          <div id="cps-base"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="icon">+</span> Gastos del escenario</div>
+          <div class="cp-nota" style="margin:-6px 0 10px">Se suman a los gastos fijos reales. Si un gasto ya figura en tus gastos cargados (por ejemplo gas y electricidad), dejalo desactivado para no contarlo dos veces.</div>
+          <div id="cps-lineas"></div>
+          <div class="form-grid" style="margin-top:10px;align-items:end">
+            <div class="form-group"><label class="form-label">Nuevo gasto</label><input type="text" id="cps-l-nombre" placeholder="Ej: Sueldo cocinero"></div>
+            <div class="form-group"><label class="form-label">Monto por mes</label><input type="number" id="cps-l-monto" min="0" step="1000" placeholder="0"></div>
+            <div class="form-group"><button class="btn" type="button" onclick="cpSimAgregarLinea()">+ Agregar gasto</button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="icon">🛠</span> Equipamiento y cuotas</div>
+          <div class="cp-nota" style="margin:-6px 0 10px">Los equipos se guardan para reusarlos. Activá los que querés incluir en el escenario: cuentan como gasto fijo mensual por el valor de la cuota.</div>
+          <div id="cps-equipos"></div>
+          <div class="form-grid" style="margin-top:10px;align-items:end">
+            <div class="form-group"><label class="form-label">Equipo</label><input type="text" id="cps-e-nombre" placeholder="Ej: Plancha nueva"></div>
+            <div class="form-group"><label class="form-label">Precio total</label><input type="number" id="cps-e-precio" min="0" step="1000" placeholder="0"></div>
+            <div class="form-group"><label class="form-label">Cuotas</label><input type="number" id="cps-e-cuotas" min="1" step="1" value="1"></div>
+            <div class="form-group"><label class="form-label">Valor de cuota (opcional)</label><input type="number" id="cps-e-cuota" min="0" step="1000" placeholder="Precio ÷ cuotas"></div>
+            <div class="form-group"><button class="btn" type="button" onclick="cpSimGuardarEquipo()">+ Guardar equipo</button></div>
+          </div>
+        </div>
+
+        <div class="metrics" id="cps-metrics"></div>
+
+        <div class="card">
+          <div class="card-title"><span class="icon">📈</span> Proyección por volumen</div>
+          <div class="form-grid" style="margin-bottom:12px">
+            <div class="form-group"><label class="form-label">Hamburguesas por mes (separadas por coma)</label><input type="text" id="cps-vols" value="40, 100, 150, 200" oninput="cpSimCambio()"></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Hamburguesas/mes</th><th>Por noche</th><th>Ventas</th><th>Costo mercadería</th><th>Contribución</th><th>Gastos fijos</th><th>Resultado</th></tr></thead>
+            <tbody id="cps-tabla"></tbody>
+          </table></div>
+          <div class="cp-nota" id="cps-nota"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="icon">💾</span> Escenarios guardados</div>
+          <div class="form-grid" style="align-items:end;margin-bottom:12px">
+            <div class="form-group"><label class="form-label">Nombre del escenario</label><input type="text" id="cps-nombre" placeholder="Ej: +15% con sueldos"></div>
+            <div class="form-group"><button class="btn btn-primary" type="button" onclick="cpSimGuardarEscenario()">✓ Guardar escenario</button></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Escenario</th><th>Aumento</th><th>Gastos fijos</th><th>Contrib. por unidad</th><th>Equilibrio</th><th>Por noche</th><th>Resultado al volumen real</th><th></th></tr></thead>
+            <tbody id="cps-comp"></tbody>
+          </table></div>
+          <div class="cp-nota">Simular no modifica ventas, recetas, stock, caja ni precios reales. Solo se guardan los escenarios y los equipos que vos guardes acá.</div>
+        </div>
       </div>
 
       <div id="cp-config" style="display:none">
@@ -789,7 +855,7 @@ onAuthStateChanged(fsAuth, (user) => {
 
 window.getHoy = function() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
-window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [], cajas: [], clientes: [], movimientos_stock: [], costos_config: [] };
+window.db = { recetas: [], extras: [], stock: [], ventas: [], gastos: [], promociones: [], cupones: [], cajas: [], clientes: [], movimientos_stock: [], costos_config: [], equipamiento: [], escenarios_precios: [] };
 window.editando = { ventas: null, stock: null, recetas: null, extras: null, gastos: null, promociones: null, cupones: null };
 window.carritoActual = [];
 window.cuponAplicado = null;
@@ -931,7 +997,7 @@ window.cargarDatosBase = async function() {
 };
 
 function iniciarSuscripcionesFirestore() {
-    ['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas', 'clientes', 'movimientos_stock', 'costos_config'].forEach(colName => {
+    ['recetas', 'extras', 'stock', 'ventas', 'gastos', 'promociones', 'cupones', 'cajas', 'clientes', 'movimientos_stock', 'costos_config', 'equipamiento', 'escenarios_precios'].forEach(colName => {
         const unsub = onSnapshot(collection(fsDb, colName), (snapshot) => {
             window.db[colName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             if (colName === 'ventas' || colName === 'gastos') window.db[colName].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
@@ -1385,6 +1451,44 @@ function cpCostoVendido(ventas, recetas) {
     }));
     return { cogs, unidades, porProducto };
 }
+// ----- Simulador de escenarios (puro) -----
+// Promedio mensual de los últimos N meses cerrados con ventas (si no hay, usa el mes en curso).
+function cpBaseReal(ventas, gastos, recetas, nMeses, hoy) {
+    const mes = hoy.slice(0, 7);
+    const [y, m] = mes.split('-').map(Number);
+    const d0 = new Date(y, m - 1 - nMeses, 1);
+    const ini = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}`;
+    let vs = ventas.filter(v => v.fecha && v.fecha.slice(0, 7) >= ini && v.fecha.slice(0, 7) < mes);
+    let incluyeActual = false;
+    if (!vs.length) { vs = ventas.filter(v => v.fecha && v.fecha.slice(0, 7) === mes); incluyeActual = true; }
+    const meses = new Set(vs.map(v => v.fecha.slice(0, 7)));
+    const n = Math.max(1, meses.size);
+    const gs = gastos.filter(g => g.fecha && meses.has(g.fecha.slice(0, 7)));
+    const vc = cpCostoVendido(vs, recetas);
+    const go = cpGastosOperativos(gs);
+    const ventasBrutas = vs.reduce((s, v) => s + (Number(v.total) || 0), 0);
+    const envios = vs.reduce((s, v) => s + (Number(v.envio) || 0), 0);
+    const u = vc.unidades;
+    return {
+        meses: meses.size, incluyeActual, unidadesMes: u / n, pedidosMes: vs.length / n,
+        fijosMes: (go.fijos + go.mixtos) / n,
+        precio: u > 0 ? (ventasBrutas - envios) / u : 0,
+        envioU: u > 0 ? envios / u : 0,
+        costoU: u > 0 ? vc.cogs / u : 0,
+        variableU: u > 0 ? go.variables / u : 0
+    };
+}
+// Un escenario aplicado a un volumen de hamburguesas por mes.
+function cpSimular(base, esc, unidades) {
+    const fijos = (esc.usarFijosReales ? base.fijosMes : 0) + (esc.extraFijos || 0);
+    const precio = base.precio * (1 + (esc.aumentoPct || 0) / 100);
+    const contribU = precio + base.envioU - base.costoU - base.variableU;
+    const ventas = unidades * (precio + base.envioU);
+    const costo = unidades * base.costoU;
+    const contrib = unidades * contribU;
+    return { fijos, precio, contribU, ventas, costo, contrib, resultado: contrib - fijos,
+             be: cpPuntoEquilibrio(fijos, contribU, precio + base.envioU) };
+}
 // ===== FIN CÁLCULO =====
 
 const cpEsc = v => String(v ?? '').replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
@@ -1408,7 +1512,8 @@ window.cpTab = function (tab) {
     document.querySelectorAll('.cp-tab').forEach(b => b.classList.toggle('active', b.dataset.cp === tab));
     document.getElementById('cp-productos').style.display = tab === 'productos' ? 'block' : 'none';
     document.getElementById('cp-config').style.display = tab === 'config' ? 'block' : 'none';
-    if (tab === 'config') window.cpRenderConfig(); else window.renderCostos();
+    document.getElementById('cp-sim').style.display = tab === 'sim' ? 'block' : 'none';
+    if (tab === 'config') window.cpRenderConfig(); else if (tab === 'sim') window.cpRenderSim(); else window.renderCostos();
 };
 window.cpSeleccionar = function (id) {
     window._cpSel = id; window._cpMM = null; window.renderCostos();
@@ -1605,7 +1710,155 @@ window.cpGuardarConfig = async function () {
     } catch (e) { console.error(e); window.toast('⚠ No se pudo guardar la configuración'); }
 };
 
-window.render = function() { renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderMovimientosStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); try { window.renderCostos(); } catch (e) { console.error('Costos y Precios:', e); } };
+// ===== SIMULADOR: estado y pantalla =====
+window._cpSim = { lineas: [
+    { nombre: 'Gas y electricidad', monto: 120000, activo: false, nota: 'ya incluido en los gastos reales' },
+    { nombre: 'Alquiler', monto: 0, activo: true },
+    { nombre: 'Mano de obra', monto: 0, activo: true }
+], equipAct: {}, baseCache: null };
+
+function cpSimEscenarioActual() {
+    const S = window._cpSim;
+    const val = id => document.getElementById(id);
+    const extraLineas = S.lineas.filter(l => l.activo).reduce((a, l) => a + (Number(l.monto) || 0), 0);
+    const extraEquipos = (window.db.equipamiento || []).filter(e => S.equipAct[e.id]).reduce((a, e) => a + cpCuotaEquipo(e), 0);
+    return { aumentoPct: parseFloat(val('cps-aumento').value) || 0, usarFijosReales: val('cps-usar-fijos').checked,
+             extraFijos: extraLineas + extraEquipos, noches: Math.max(1, parseFloat(val('cps-noches').value) || 13) };
+}
+function cpCuotaEquipo(e) {
+    const c = Number(e.valorCuota);
+    if (Number.isFinite(c) && c > 0) return c;
+    const n = Math.max(1, Number(e.cuotas) || 1);
+    return (Number(e.precio) || 0) / n;
+}
+function cpSimBase() {
+    const n = parseInt(document.getElementById('cps-meses').value) || 3;
+    return cpBaseReal(window.db.ventas, window.db.gastos, window.db.recetas, n, window.getHoy());
+}
+window.cpRenderSim = function () {
+    const sec = document.getElementById('costos');
+    if (!sec || !document.getElementById('cp-sim') || document.getElementById('cp-sim').style.display === 'none') return;
+    if (!document.activeElement || !document.getElementById('cp-sim').contains(document.activeElement)) cpSimPintarListas();
+    window.cpSimCambio();
+};
+function cpSimPintarListas() {
+    const S = window._cpSim;
+    document.getElementById('cps-lineas').innerHTML = S.lineas.map((l, i) => `
+      <div class="cp-row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0">
+        <label style="display:flex;gap:8px;align-items:center;flex:1;min-width:150px"><input type="checkbox" ${l.activo ? 'checked' : ''} onchange="cpSimLinea(${i},'activo',this.checked)"> ${cpEsc(l.nombre)}${l.nota ? ` <span class="cp-nota" style="margin:0">(${cpEsc(l.nota)})</span>` : ''}</label>
+        <input type="number" min="0" step="1000" value="${Number(l.monto) || 0}" style="width:130px" oninput="cpSimLinea(${i},'monto',this.value)">
+        <button class="btn" type="button" onclick="cpSimQuitarLinea(${i})">✕</button>
+      </div>`).join('') || '<div class="cp-nota">Sin gastos adicionales.</div>';
+    const eq = window.db.equipamiento || [];
+    document.getElementById('cps-equipos').innerHTML = eq.map(e => `
+      <div class="cp-row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0">
+        <label style="display:flex;gap:8px;align-items:center;flex:1;min-width:150px"><input type="checkbox" ${S.equipAct[e.id] ? 'checked' : ''} onchange="cpSimEquipo('${cpEsc(e.id)}',this.checked)"> ${cpEsc(e.nombre)} <span class="cp-nota" style="margin:0">(${cpFmt(e.precio)} en ${Number(e.cuotas) || 1} cuota${(Number(e.cuotas) || 1) === 1 ? '' : 's'})</span></label>
+        <strong>${cpFmt(cpCuotaEquipo(e))}/mes</strong>
+        <button class="btn" type="button" onclick="cpSimBorrarEquipo('${cpEsc(e.id)}')">✕</button>
+      </div>`).join('') || '<div class="cp-nota">Todavía no cargaste equipamiento.</div>';
+}
+window.cpSimLinea = function (i, campo, v) {
+    const l = window._cpSim.lineas[i]; if (!l) return;
+    l[campo] = campo === 'monto' ? (parseFloat(v) || 0) : !!v;
+    window.cpSimCambio();
+};
+window.cpSimAgregarLinea = function () {
+    const nombre = document.getElementById('cps-l-nombre').value.trim(), monto = parseFloat(document.getElementById('cps-l-monto').value) || 0;
+    if (!nombre) { window.toast('⚠ Ingresá el nombre del gasto'); return; }
+    window._cpSim.lineas.push({ nombre, monto, activo: true });
+    document.getElementById('cps-l-nombre').value = ''; document.getElementById('cps-l-monto').value = '';
+    cpSimPintarListas(); window.cpSimCambio();
+};
+window.cpSimQuitarLinea = function (i) { window._cpSim.lineas.splice(i, 1); cpSimPintarListas(); window.cpSimCambio(); };
+window.cpSimEquipo = function (id, on) { window._cpSim.equipAct[id] = !!on; window.cpSimCambio(); };
+window.cpSimGuardarEquipo = async function () {
+    const nombre = document.getElementById('cps-e-nombre').value.trim();
+    const precio = parseFloat(document.getElementById('cps-e-precio').value) || 0;
+    const cuotas = Math.max(1, parseInt(document.getElementById('cps-e-cuotas').value) || 1);
+    const valorCuota = parseFloat(document.getElementById('cps-e-cuota').value) || 0;
+    if (!nombre || (precio <= 0 && valorCuota <= 0)) { window.toast('⚠ Ingresá nombre y precio (o valor de cuota)'); return; }
+    try {
+        await addDoc(collection(fsDb, 'equipamiento'), { nombre, precio, cuotas, valorCuota, creadoEn: Date.now() });
+        ['cps-e-nombre', 'cps-e-precio', 'cps-e-cuota'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('cps-e-cuotas').value = 1;
+        window.toast('✓ Equipo guardado');
+    } catch (e) { console.error(e); window.toast('⚠ No se pudo guardar el equipo'); }
+};
+window.cpSimBorrarEquipo = async function (id) {
+    if (!confirm('¿Borrar este equipo de la lista?')) return;
+    try { delete window._cpSim.equipAct[id]; await deleteDoc(doc(fsDb, 'equipamiento', id)); }
+    catch (e) { console.error(e); window.toast('⚠ No se pudo borrar'); }
+};
+
+window.cpSimCambio = function () {
+    if (!document.getElementById('cps-meses')) return;
+    const base = cpSimBase(), esc = cpSimEscenarioActual();
+    const volReal = base.unidadesMes;
+    const r = cpSimular(base, esc, volReal);
+    const noches = esc.noches;
+    document.getElementById('cps-base').innerHTML = base.unidadesMes > 0 ? `
+      <div class="cp-nota">Base: promedio de ${base.meses} mes${base.meses === 1 ? '' : 'es'} ${base.incluyeActual ? '(solo hay datos del mes en curso)' : 'cerrados'} · ${Math.round(base.unidadesMes)} hamburguesas y ${Math.round(base.pedidosMes)} pedidos por mes · precio promedio ${cpFmt(base.precio)} · costo promedio ${cpFmt(base.costoU)} · gastos fijos reales ${cpFmt(base.fijosMes)}/mes.</div>`
+      : '<div class="cp-nota">No hay ventas registradas para armar la base. Probá con más meses.</div>';
+    document.getElementById('cps-metrics').innerHTML = `
+      <div class="metric"><div class="metric-label">Gastos fijos del escenario</div><div class="metric-value yellow">${cpFmt(r.fijos)}</div><div class="metric-sub">por mes (reales + adicionales)</div></div>
+      <div class="metric"><div class="metric-label">Precio promedio</div><div class="metric-value">${cpFmt(r.precio)}</div><div class="metric-sub">${esc.aumentoPct ? (esc.aumentoPct > 0 ? '+' : '') + esc.aumentoPct + '% sobre ' + cpFmt(base.precio) : 'sin aumento'}</div></div>
+      <div class="metric"><div class="metric-label">Contribución por unidad</div><div class="metric-value ${r.contribU > 0 ? 'green' : 'red'}">${cpFmt(r.contribU)}</div><div class="metric-sub">precio − costo − variables</div></div>
+      <div class="metric"><div class="metric-label">Punto de equilibrio</div><div class="metric-value">${r.be.unidades !== null ? r.be.unidades + ' u./mes' : 'Sin datos'}</div><div class="metric-sub">${r.be.unidades !== null ? '≈ ' + Math.ceil(r.be.unidades / noches) + ' por noche · ' + cpFmt(r.be.pesos) : 'No hay contribución positiva'}</div></div>
+      <div class="metric"><div class="metric-label">Resultado al volumen real</div><div class="metric-value ${r.resultado >= 0 ? 'green' : 'red'}">${cpFmt(r.resultado)}</div><div class="metric-sub">con ${Math.round(volReal)} hamburguesas/mes</div></div>`;
+    const vols = String(document.getElementById('cps-vols').value).split(/[,;\s]+/).map(Number).filter(n => Number.isFinite(n) && n > 0).slice(0, 12);
+    document.getElementById('cps-tabla').innerHTML = vols.map(v => {
+        const x = cpSimular(base, esc, v);
+        return `<tr><td>${v}</td><td>${(v / noches).toFixed(1)}</td><td>${cpFmt(x.ventas)}</td><td>${cpFmt(x.costo)}</td><td>${cpFmt(x.contrib)}</td><td>${cpFmt(x.fijos)}</td><td style="color:${x.resultado >= 0 ? 'var(--success)' : 'var(--danger)'};font-weight:600">${cpFmt(x.resultado)}</td></tr>`;
+    }).join('') || '<tr><td colspan="7">Ingresá volúmenes válidos.</td></tr>';
+    document.getElementById('cps-nota').textContent = `Las ventas incluyen el envío promedio (${cpFmt(base.envioU)} por hamburguesa) y los gastos variables observados, como el pago al delivery. Noches por mes: ${noches}.`;
+    cpSimPintarComparacion(base, r);
+};
+function cpSimPintarComparacion(base, rActual) {
+    const esc0 = cpSimEscenarioActual();
+    const filas = [{ nombre: 'En pantalla (sin guardar)', aumentoPct: esc0.aumentoPct, noches: esc0.noches, r: rActual, actual: true }];
+    (window.db.escenarios_precios || []).forEach(sc => {
+        const extraL = (sc.lineas || []).filter(l => l.activo).reduce((a, l) => a + (Number(l.monto) || 0), 0);
+        const extraE = (window.db.equipamiento || []).filter(e => (sc.equipIds || []).includes(e.id)).reduce((a, e) => a + cpCuotaEquipo(e), 0);
+        const e = { aumentoPct: Number(sc.aumentoPct) || 0, usarFijosReales: sc.usarFijosReales !== false, extraFijos: extraL + extraE };
+        filas.push({ id: sc.id, nombre: sc.nombre || 'Escenario', aumentoPct: e.aumentoPct, noches: Number(sc.noches) || 13, r: cpSimular(base, e, base.unidadesMes) });
+    });
+    document.getElementById('cps-comp').innerHTML = filas.map(f => `<tr>
+        <td>${cpEsc(f.nombre)}</td><td>${f.aumentoPct ? (f.aumentoPct > 0 ? '+' : '') + f.aumentoPct + '%' : '—'}</td><td>${cpFmt(f.r.fijos)}</td><td>${cpFmt(f.r.contribU)}</td>
+        <td>${f.r.be.unidades !== null ? f.r.be.unidades + ' u.' : '—'}</td><td>${f.r.be.unidades !== null ? Math.ceil(f.r.be.unidades / f.noches) : '—'}</td>
+        <td style="font-weight:600">${cpFmt(f.r.resultado)}</td>
+        <td>${f.actual ? '' : `<button class="btn" type="button" onclick="cpSimCargar('${cpEsc(f.id)}')">Cargar</button> <button class="btn" type="button" onclick="cpSimBorrarEscenario('${cpEsc(f.id)}')">✕</button>`}</td></tr>`).join('');
+}
+window.cpSimGuardarEscenario = async function () {
+    const nombre = document.getElementById('cps-nombre').value.trim();
+    if (!nombre) { window.toast('⚠ Poné un nombre al escenario'); return; }
+    const S = window._cpSim, esc = cpSimEscenarioActual();
+    try {
+        await addDoc(collection(fsDb, 'escenarios_precios'), {
+            nombre, aumentoPct: esc.aumentoPct, usarFijosReales: esc.usarFijosReales, noches: esc.noches,
+            meses: parseInt(document.getElementById('cps-meses').value) || 3, volumenes: document.getElementById('cps-vols').value,
+            lineas: S.lineas.map(l => ({ nombre: l.nombre, monto: Number(l.monto) || 0, activo: !!l.activo, nota: l.nota || '' })),
+            equipIds: Object.keys(S.equipAct).filter(k => S.equipAct[k]), creadoEn: Date.now()
+        });
+        document.getElementById('cps-nombre').value = ''; window.toast('✓ Escenario guardado');
+    } catch (e) { console.error(e); window.toast('⚠ No se pudo guardar el escenario'); }
+};
+window.cpSimCargar = function (id) {
+    const sc = (window.db.escenarios_precios || []).find(x => x.id === id); if (!sc) return;
+    const S = window._cpSim, val = (i, v) => document.getElementById(i).value = v;
+    val('cps-aumento', Number(sc.aumentoPct) || 0); val('cps-noches', Number(sc.noches) || 13); val('cps-meses', String(sc.meses || 3));
+    if (sc.volumenes) val('cps-vols', sc.volumenes);
+    document.getElementById('cps-usar-fijos').checked = sc.usarFijosReales !== false;
+    S.lineas = (sc.lineas || []).map(l => ({ ...l })); S.equipAct = {};
+    (sc.equipIds || []).forEach(k => S.equipAct[k] = true);
+    cpSimPintarListas(); window.cpSimCambio(); window.toast('✓ Escenario cargado');
+};
+window.cpSimBorrarEscenario = async function (id) {
+    if (!confirm('¿Borrar este escenario guardado?')) return;
+    try { await deleteDoc(doc(fsDb, 'escenarios_precios', id)); } catch (e) { console.error(e); window.toast('⚠ No se pudo borrar'); }
+};
+// ===== FIN SIMULADOR =====
+
+window.render = function() { renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderMovimientosStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); try { window.renderCostos(); window.cpRenderSim(); } catch (e) { console.error('Costos y Precios:', e); } };
 
 // --- LOGICA DE UI INTELIGENTE PARA RECETAS Y EXTRAS ---
 window.renderIngredientesReceta = function() {
