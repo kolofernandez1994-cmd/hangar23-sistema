@@ -205,12 +205,13 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
 .cp-chk{display:flex;gap:10px;align-items:center;min-width:0;font-size:13px;cursor:pointer}
 .cp-chk input{width:16px;height:16px;flex:none;padding:0;margin:0;accent-color:var(--accent);cursor:pointer}
 .cp-chk .cp-nota{margin:0}
-.cp-linea{display:grid;grid-template-columns:minmax(0,1fr) 150px 44px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.cp-linea{display:grid;grid-template-columns:minmax(0,1fr) 150px 40px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
 .cp-linea:last-child{border-bottom:none}
-.cp-linea.eq{grid-template-columns:minmax(0,1fr) auto 44px}
-.cp-linea .btn{padding:8px 0;width:44px;text-align:center}
+.cp-linea.eq{grid-template-columns:minmax(0,1fr) auto 40px}
+.cp-linea .cp-x{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:15px;line-height:1;cursor:pointer;transition:all .15s}
+.cp-linea .cp-x:hover{color:var(--danger);border-color:var(--danger);background:rgba(255,68,68,.08)}
 .cp-linea strong{font-family:var(--font-mono);font-weight:500;font-size:13px;white-space:nowrap}
-@media(max-width:640px){.cp-linea{grid-template-columns:minmax(0,1fr) 110px 44px}}
+@media(max-width:640px){.cp-linea{grid-template-columns:minmax(0,1fr) 110px 40px}}
 
 /* ESTILOS PARA LOS DESPLEGABLES DINÁMICOS DE INGREDIENTES */
 .ing-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; background:var(--surface2); padding:6px; border-radius:6px; border:1px solid var(--border); }
@@ -519,6 +520,13 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
     <div id="reportes" class="section">
       <div class="page-header"><div class="page-title">Reportes</div><div class="page-sub">Lectura consolidada de ventas, gastos y clientes.</div></div>
       <div class="card"><div class="dashboard-tools"><select id="rpt-period" class="dashboard-filter"><option value="today">Hoy</option><option value="week">Semana</option><option value="month" selected>Mes</option><option value="year">Año</option><option value="all">Todo</option><option value="custom">Rango personalizado</option></select><input id="rpt-from" class="dashboard-filter" type="date" hidden><input id="rpt-to" class="dashboard-filter" type="date" hidden></div></div>
+      <div class="card">
+        <div class="card-title"><span class="icon">⬇</span> Exportar datos del negocio</div>
+        <div class="cp-nota" style="margin:-6px 0 12px">Descarga un solo archivo ordenado con ventas, gastos, recetas, stock, promociones, caja, ahorros y configuración de costos, para analizarlo fuera del panel. No modifica ningún dato.</div>
+        <label class="cp-chk"><input type="checkbox" id="exp-personales"> Incluir datos personales de clientes (nombre, teléfono, dirección)</label>
+        <div class="cp-nota">Si lo dejás sin tildar, esos datos se omiten y el archivo es seguro para compartir.</div>
+        <button class="btn btn-primary" type="button" style="margin-top:12px" onclick="exportarDatos()">⬇ Exportar todos los datos</button>
+      </div>
       <div class="metrics" id="reportes-metrics"></div>
       <div class="grid-2"><div class="card"><div class="card-title">Productos más vendidos</div><div id="reportes-productos"></div></div><div class="card"><div class="card-title">Mejores clientes</div><div id="reportes-clientes"></div></div></div>
     </div>
@@ -1773,14 +1781,14 @@ function cpSimPintarListas() {
       <div class="cp-linea">
         <label class="cp-chk"><input type="checkbox" ${l.activo ? 'checked' : ''} onchange="cpSimLinea(${i},'activo',this.checked)"><span>${cpEsc(l.nombre)}${l.nota ? ` <span class="cp-nota">(${cpEsc(l.nota)})</span>` : ''}</span></label>
         <input type="number" min="0" step="1000" value="${Number(l.monto) || 0}" oninput="cpSimLinea(${i},'monto',this.value)">
-        <button class="btn" type="button" onclick="cpSimQuitarLinea(${i})">✕</button>
+        <button class="cp-x" type="button" title="Quitar" aria-label="Quitar gasto" onclick="cpSimQuitarLinea(${i})">✕</button>
       </div>`).join('') || '<div class="cp-nota">Sin gastos adicionales.</div>';
     const eq = window.db.equipamiento || [];
     document.getElementById('cps-equipos').innerHTML = eq.map(e => `
       <div class="cp-linea eq">
         <label class="cp-chk"><input type="checkbox" ${S.equipAct[e.id] ? 'checked' : ''} onchange="cpSimEquipo('${cpEsc(e.id)}',this.checked)"><span>${cpEsc(e.nombre)} <span class="cp-nota">(${cpFmt(e.precio)} en ${Number(e.cuotas) || 1} cuota${(Number(e.cuotas) || 1) === 1 ? '' : 's'})</span></span></label>
         <strong>${cpFmt(cpCuotaEquipo(e))}/mes</strong>
-        <button class="btn" type="button" onclick="cpSimBorrarEquipo('${cpEsc(e.id)}')">✕</button>
+        <button class="cp-x" type="button" title="Borrar equipo" aria-label="Borrar equipo" onclick="cpSimBorrarEquipo('${cpEsc(e.id)}')">✕</button>
       </div>`).join('') || '<div class="cp-nota">Todavía no cargaste equipamiento.</div>';
 }
 window.cpSimLinea = function (i, campo, v) {
@@ -1926,6 +1934,62 @@ window.borrarAhorro = async function (id) {
     try { await deleteDoc(doc(fsDb, 'ahorros', id)); } catch (e) { console.error(e); window.toast('⚠ No se pudo borrar'); }
 };
 // ===== FIN CAJA DE AHORRO =====
+
+// ===== EXPORTAR DATOS (solo lectura: genera un archivo JSON en el navegador) =====
+window.exportarDatos = function () {
+    try {
+        const conPersonales = !!document.getElementById('exp-personales')?.checked;
+        const PERS = /cliente|tel|dir|mail|domicilio|calle|dni|whatsapp|nombre|apellido|contacto/i;
+        const limpiar = (o, extra) => {
+            if (conPersonales) return o;
+            const r = {};
+            Object.keys(o).forEach(k => { if (extra && PERS.test(k) && !/id$/i.test(k)) return; r[k] = o[k]; });
+            return r;
+        };
+        const orden = (arr, campo) => arr.slice().sort((a, b) => String(b[campo] || '').localeCompare(String(a[campo] || '')));
+        const db = window.db;
+        const datos = {
+            ventas: orden(db.ventas, 'fecha').map(v => limpiar(v, true)),
+            gastos: orden(db.gastos, 'fecha'),
+            recetas: db.recetas.slice().sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''))),
+            extras: db.extras,
+            stock: db.stock.slice().sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''))),
+            movimientos_stock: orden(db.movimientos_stock, 'fecha'),
+            promociones: db.promociones,
+            cupones: db.cupones,
+            cajas: orden(db.cajas, 'fecha'),
+            clientes: db.clientes.map(c => limpiar(c, true)),
+            ahorros: orden(db.ahorros || [], 'fecha'),
+            equipamiento: db.equipamiento || [],
+            escenarios_precios: db.escenarios_precios || [],
+            costos_config: db.costos_config || []
+        };
+        const resumen = {};
+        Object.keys(datos).forEach(k => resumen[k] = datos[k].length);
+        const salida = {
+            negocio: 'HANGAR23',
+            exportado: new Date().toISOString(),
+            moneda: 'ARS salvo la caja de ahorro en USD',
+            incluyeDatosPersonales: conPersonales,
+            cantidadDeRegistros: resumen,
+            notas: [
+                'Colecciones ordenadas de más reciente a más antigua (recetas y stock, por nombre).',
+                'ventas[].total incluye el envío; ventas[].items[].costoUnitario es el costo guardado al momento de la venta.',
+                'recetas[].costo es el costo guardado en la receta; el costo actual sale de stock[].costo.',
+                'Los gastos de Materia prima son inventario, no gasto operativo.'
+            ],
+            datos
+        };
+        const blob = new Blob([JSON.stringify(salida, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `hangar23-datos-${window.getHoy()}.json`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        window.toast('✓ Archivo descargado');
+    } catch (e) { console.error(e); window.toast('⚠ No se pudo exportar'); }
+};
+// ===== FIN EXPORTAR DATOS =====
 
 window.render = function() {
  renderDash(); renderRentabilidad(); renderObjetivos(); renderVentas(); renderStock(); renderMovimientosStock(); renderRecetas(); renderPromociones(); renderCupones(); renderClientes(); renderReportes(); renderGastos(); renderCaja(); try { window.renderAhorros(); } catch (e) { console.error('Caja de ahorro:', e); } try { window.renderCostos(); window.cpRenderSim(); } catch (e) { console.error('Costos y Precios:', e); } };
